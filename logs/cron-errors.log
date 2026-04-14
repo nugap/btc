@@ -1,3 +1,7 @@
 # Cron Error Log
 [2026-04-14T14:12:00Z] [GIT_PUSH_DENIED] Permission denied to nugap/btc.git - PAT do-shwhy lacks push access to nugap org
 [2026-04-14T14:34:00Z] [GIT_PUSH_DENIED] git push origin dev failed: Permission to nugap/btc.git denied to do-shwhy (403). PAT lacks push access.
+[2026-04-14T14:45:00Z] [GIT_PUSH_DENIED] git push origin dev failed again: 403 Permission denied. PAT do-shwhy lacks push to nugap/btc. Needs 帅 to fix.
+[2026-04-14T14:54:00Z] [GIT_PUSH_DENIED] git push origin dev: 403 Permission denied to do-shwhy. PAT still lacks push to nugap/btc.
+[2026-04-14T15:04:00Z] [GIT_PUSH_DENIED] git push origin dev: 403 Permission denied to do-shwhy. PAT still lacks push to nugap/btc. 5th attempt.
+[2026-04-14T15:14:00Z] [PUSH_FAILED] git push origin dev 被拒 (403), PAT 对 nugap/btc 无写权限, 已知问题

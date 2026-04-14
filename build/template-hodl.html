@@ -903,6 +903,8 @@ function doSign() {
 /* ──────────────────────────────────────────
    SIGNED QR DISPLAY (BC-UR)
    ────────────────────────────────────────── */
+let signedEncoder = null; // keep encoder reference for speed changes
+
 function showSignedQR(psbtBytes) {
   showSection('sec-signed');
   // CBOR-encode PSBT bytes for BC-UR (matches yolo.html's encoding)
@@ -933,12 +935,12 @@ function showSignedQR(psbtBytes) {
   }
 
   // Animated QR
-  const encoder = new UREncoder(ur, 200);
+  signedEncoder = new UREncoder(ur, 200);
   signedAnimSpeed = 250;
   clearInterval(signedAnimInterval);
 
   function showNextFrame() {
-    const part = encoder.nextPart();
+    const part = signedEncoder.nextPart();
     makeQR(part.toUpperCase(), document.getElementById('signed-qr'), 'L');
     document.getElementById('signed-frame').textContent = 'Animated QR — ' + signedAnimSpeed + 'ms/frame';
   }
@@ -955,19 +957,20 @@ document.getElementById('btn-speed-up').onclick = () => {
   restartAnim();
 };
 function restartAnim() {
-  // Speed buttons only make sense for animated QR; if no interval, no-op
-  // Animation encoder state is maintained by UREncoder, just restart interval
-  if (signedAnimInterval) {
+  if (signedAnimInterval && signedEncoder) {
     clearInterval(signedAnimInterval);
-    // We can't easily restart with same encoder since it's in closure
-    // For simplicity, just update the interval text
-    document.getElementById('signed-frame').textContent = 'Speed: ' + signedAnimSpeed + 'ms/frame';
+    signedAnimInterval = setInterval(() => {
+      const part = signedEncoder.nextPart();
+      makeQR(part.toUpperCase(), document.getElementById('signed-qr'), 'L');
+      document.getElementById('signed-frame').textContent = 'Animated QR — ' + signedAnimSpeed + 'ms/frame';
+    }, signedAnimSpeed);
   }
 }
 
 document.getElementById('btn-done-sign').onclick = () => {
   clearInterval(signedAnimInterval);
   signedAnimInterval = null;
+  signedEncoder = null;
   state.pendingPSBT = null;
   state.pendingTx = null;
   goToDash();
