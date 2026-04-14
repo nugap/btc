@@ -669,7 +669,7 @@ function onQRScanned(text) {
           goToDash();
           return;
         }
-        const psbtBytes = new Uint8Array(ur.decodeCBOR());
+        const psbtBytes = new Uint8Array(ur.decodeCBOR ? ur.decodeCBOR() : ur.cbor);
         processPSBT(psbtBytes);
       } else {
         notify('QR scan failed — corrupted data', 'error');
@@ -723,12 +723,8 @@ function processPSBT(psbtBytes) {
       // Try to figure out address from script
       if (!addr) {
         try {
-          // For p2wpkh / p2tr etc
           const decoded = btcSigner.OutScript.decode(out.script);
-          if (decoded.type === 'wpkh') addr = btcSigner.p2wpkh(decoded.hash).address;
-          else if (decoded.type === 'tr') addr = btcSigner.p2tr(decoded.pubkey).address;
-          else if (decoded.type === 'pkh') addr = btcSigner.p2pkh(decoded.hash).address;
-          else addr = '(unknown script type: ' + decoded.type + ')';
+          addr = btcSigner.Address().encode(decoded);
         } catch(e2) { addr = '(unable to decode)'; }
       }
       outputs.push({ addr, amount: out.amount, script: out.script });
@@ -909,7 +905,22 @@ function doSign() {
    ────────────────────────────────────────── */
 function showSignedQR(psbtBytes) {
   showSection('sec-signed');
-  const ur = UR.fromBuffer(Buffer.from(psbtBytes));
+  // CBOR-encode PSBT bytes for BC-UR (matches yolo.html's encoding)
+  function cborEncodeBytes(buf) {
+    const len = buf.length;
+    if (len < 24) {
+      const out = new Uint8Array(1 + len); out[0] = 0x40 + len; out.set(buf, 1); return out;
+    } else if (len < 256) {
+      const out = new Uint8Array(2 + len); out[0] = 0x58; out[1] = len; out.set(buf, 2); return out;
+    } else if (len < 65536) {
+      const out = new Uint8Array(3 + len); out[0] = 0x59; out[1] = (len >> 8) & 0xff; out[2] = len & 0xff; out.set(buf, 3); return out;
+    } else {
+      const out = new Uint8Array(5 + len); out[0] = 0x5a; out[1]=(len>>24)&0xff; out[2]=(len>>16)&0xff; out[3]=(len>>8)&0xff; out[4]=len&0xff; out.set(buf, 5); return out;
+    }
+  }
+  const cborPayload = cborEncodeBytes(psbtBytes);
+  const bufPayload = (typeof Buffer !== 'undefined' && Buffer.from) ? Buffer.from(cborPayload) : cborPayload;
+  const ur = new UR(bufPayload, 'crypto-psbt');
   // Check if it fits in a single QR
   const MAX_SINGLE = 500; // bytes threshold for single QR
   if (psbtBytes.length <= MAX_SINGLE) {
