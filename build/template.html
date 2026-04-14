@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src https://*; img-src data: blob:; media-src 'none'; frame-src 'none'">
 <title>nugap — BTC 🔓</title>
 <style>
 /* === Reset & Base === */
@@ -185,7 +186,7 @@ input[type=range] { width: 100%; accent-color: #58a6ff; }
       <div id="fee-estimate" style="text-align:center;font-size:0.85rem;color:#8b949e;margin-bottom:4px"></div>
       <div id="fee-warn" style="text-align:center;font-size:0.8rem;color:#d29922;display:none"></div>
     </div>
-    <button style="width:100%" onclick="createTransaction()">Create Transaction</button>
+    <button style="width:100%" onclick="createTransaction()" id="btn-create-tx">Create Transaction</button>
     <button class="secondary" style="width:100%;margin-top:8px" onclick="showDashboard()">← Back</button>
   </div>
 
@@ -283,7 +284,17 @@ let APP = {
 
 // --- Helpers ---
 function satsToBtc(s) { return (Number(s) / 1e8).toFixed(8); }
-function btcToSats(b) { return Math.round(parseFloat(b) * 1e8); }
+function btcToSats(b) {
+  // Parse without parseFloat to avoid floating-point precision loss (spec 6.5)
+  const str = String(b).trim();
+  const neg = str.startsWith('-');
+  const abs = neg ? str.slice(1) : str;
+  const parts = abs.split('.');
+  const intPart = parts[0] || '0';
+  const decPart = (parts[1] || '').padEnd(8, '0').slice(0, 8);
+  const sats = parseInt(intPart, 10) * 100000000 + parseInt(decPart, 10);
+  return neg ? -sats : sats;
+}
 function truncAddr(a) { return a.length > 20 ? a.slice(0,10) + '…' + a.slice(-8) : a; }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -335,7 +346,12 @@ async function api(path, opts={}) {
   const url = APP.apiBaseUrl + path;
   try {
     const res = await fetch(url, opts);
-    if (res.status === 429) { await sleep(5000); return api(path, opts); }
+    if (res.status === 429) {
+      const retries = (opts._retries || 0) + 1;
+      if (retries > 3) throw new Error('Rate limited by API (429) — try again later');
+      await sleep(5000);
+      return api(path, { ...opts, _retries: retries });
+    }
     if (!res.ok) {
       const txt = await res.text();
       throw new Error(txt || `HTTP ${res.status}`);
@@ -465,7 +481,7 @@ function b58encode(bytes) {
   return str;
 }
 
-function deriveAddresses(extKey, keyType) {
+function deriveAddresses(extKey, keyType, startIdx, count, change) {
   // Parse xpub using HDKey
   let xpubStr = extKey;
   if (keyType === 'bip84' && extKey.startsWith('zpub')) {
@@ -474,34 +490,37 @@ function deriveAddresses(extKey, keyType) {
   }
   const root = HDKey.fromExtendedKey(xpubStr);
   const addresses = [];
+  const changeVal = change ? 1 : 0;
+  const branch = root.deriveChild(changeVal);
 
-  // Derive receive (0) and change (1) addresses
-  for (const change of [0, 1]) {
-    const branch = root.deriveChild(change);
-    for (let i = 0; i < 20; i++) {
-      const child = branch.deriveChild(i);
-      const pubkey = child.publicKey;
-      let address;
-      if (keyType === 'bip84') {
-        // P2WPKH: bech32 v0 address
-        address = btcSigner.p2wpkh(pubkey).address;
-      } else {
-        // BIP86 Taproot: bech32m v1 address
-        // x-only pubkey (32 bytes from 33-byte compressed)
-        address = btcSigner.p2tr(pubkey.slice(1)).address;
-      }
-      const pathBase = keyType === 'bip84' ? "m/84'/0'/0'" : "m/86'/0'/0'";
-      addresses.push({
-        path: `${pathBase}/${change}/${i}`,
-        address,
-        isChange: change === 1,
-        balance: 0,
-        utxos: [],
-        pubkey: pubkey,
-      });
+  for (let i = startIdx; i < startIdx + count; i++) {
+    const child = branch.deriveChild(i);
+    const pubkey = child.publicKey;
+    let address;
+    if (keyType === 'bip84') {
+      address = btcSigner.p2wpkh(pubkey).address;
+    } else {
+      address = btcSigner.p2tr(pubkey.slice(1)).address;
     }
+    const pathBase = keyType === 'bip84' ? "m/84'/0'/0'" : "m/86'/0'/0'";
+    addresses.push({
+      path: `${pathBase}/${changeVal}/${i}`,
+      address,
+      isChange: change,
+      balance: 0,
+      utxos: [],
+      pubkey: pubkey,
+    });
   }
   return addresses;
+}
+
+function deriveInitialAddresses(extKey, keyType) {
+  // Derive first 20 receive + 20 change
+  return [
+    ...deriveAddresses(extKey, keyType, 0, 20, false),
+    ...deriveAddresses(extKey, keyType, 0, 20, true),
+  ];
 }
 
 // ============================================================
@@ -523,7 +542,7 @@ async function doImport() {
       if (key.startsWith('tpub') || key.startsWith('vpub')) { notify('Testnet keys not supported'); return; }
 
       APP.walletType = 'xpub'; APP.extendedKey = key; APP.keyType = kt;
-      APP.addresses = deriveAddresses(key, kt);
+      APP.addresses = deriveInitialAddresses(key, kt);
     } else {
       const addr = document.getElementById('inp-addr').value.trim();
       if (!addr) { notify('Please enter an address'); return; }
@@ -549,38 +568,75 @@ async function doImport() {
 // ============================================================
 async function fetchAllBalances() {
   let total = 0;
-  // Determine which addresses to scan (gap limit logic for xpub)
-  let gapCount = 0;
   const GAP_LIMIT = 20;
 
-  for (let i = 0; i < APP.addresses.length; i++) {
-    const a = APP.addresses[i];
-    try {
-      const info = await api('/address/' + a.address);
-      const cs = info.chain_stats || {};
-      const ms = info.mempool_stats || {};
-      a.balance = (cs.funded_txo_sum - cs.spent_txo_sum) + (ms.funded_txo_sum - ms.spent_txo_sum);
-      const txCount = (cs.tx_count || 0) + (ms.tx_count || 0);
+  // Scan addresses with dynamic gap limit extension for xpub wallets
+  async function scanAddresses(addrList) {
+    for (let i = 0; i < addrList.length; i++) {
+      const a = addrList[i];
+      try {
+        const info = await api('/address/' + a.address);
+        const cs = info.chain_stats || {};
+        const ms = info.mempool_stats || {};
+        a.balance = (cs.funded_txo_sum - cs.spent_txo_sum) + (ms.funded_txo_sum - ms.spent_txo_sum);
+        const txCount = (cs.tx_count || 0) + (ms.tx_count || 0);
 
-      if (a.balance > 0 || txCount > 0) {
-        // Fetch UTXOs
-        const utxos = await api('/address/' + a.address + '/utxo');
-        a.utxos = (utxos || []).map(u => ({
-          txid: u.txid, vout: u.vout, value: u.value,
-          confirmed: u.status && u.status.confirmed,
-          blockHeight: u.status && u.status.block_height,
-        }));
-        gapCount = 0;
-      } else {
-        a.utxos = [];
-        if (APP.walletType === 'xpub') gapCount++;
+        if (a.balance > 0 || txCount > 0) {
+          const utxos = await api('/address/' + a.address + '/utxo');
+          a.utxos = (utxos || []).map(u => ({
+            txid: u.txid, vout: u.vout, value: u.value,
+            confirmed: u.status && u.status.confirmed,
+            blockHeight: u.status && u.status.block_height,
+          }));
+        } else {
+          a.utxos = [];
+        }
+        total += a.balance;
+      } catch(e) {
+        console.warn('Error fetching', a.address, e);
       }
-      total += a.balance;
-    } catch(e) {
-      console.warn('Error fetching', a.address, e);
+      await sleep(200);
     }
-    await sleep(200); // rate limit courtesy
   }
+
+  if (APP.walletType === 'xpub') {
+    // Scan receive and change separately with gap limit extension
+    for (const isChange of [false, true]) {
+      let startIdx = 0;
+      let consecutive = 0;
+      let batchSize = 20;
+
+      while (consecutive < GAP_LIMIT) {
+        const existing = APP.addresses.filter(a => a.isChange === isChange);
+        const alreadyDerived = existing.length;
+        // Derive more if needed
+        if (startIdx + batchSize > alreadyDerived) {
+          const need = startIdx + batchSize - alreadyDerived;
+          const extra = deriveAddresses(APP.extendedKey, APP.keyType, alreadyDerived, need, isChange);
+          APP.addresses.push(...extra);
+        }
+        // Scan the current batch
+        const batch = APP.addresses.filter(a => a.isChange === isChange).slice(startIdx, startIdx + batchSize);
+        await scanAddresses(batch);
+
+        // Count consecutive empty from end
+        const allOfType = APP.addresses.filter(a => a.isChange === isChange);
+        consecutive = 0;
+        for (let j = allOfType.length - 1; j >= 0; j--) {
+          const a = allOfType[j];
+          if (a.balance === 0 && a.utxos.length === 0) consecutive++;
+          else break;
+        }
+        if (consecutive >= GAP_LIMIT) break;
+        // If we found activity near the end, extend
+        startIdx += batchSize;
+        batchSize = 10; // smaller increments for extension
+      }
+    }
+  } else {
+    await scanAddresses(APP.addresses);
+  }
+
   APP.totalBalance = total;
 }
 
@@ -613,7 +669,7 @@ function renderDashboard() {
   document.getElementById('wallet-type-label').textContent = typeLabel;
 
   const list = document.getElementById('address-list');
-  list.innerHTML = '';
+  list.replaceChildren();
   const active = APP.addresses.filter(a => a.balance > 0 || a.utxos.length > 0);
   const empty = APP.addresses.filter(a => a.balance === 0 && a.utxos.length === 0);
 
@@ -755,6 +811,7 @@ function getChangeAddress() {
 let pendingTxInfo = null;
 
 async function createTransaction() {
+  const btn = document.getElementById('btn-create-tx');
   const recipientAddr = document.getElementById('inp-recipient').value.trim();
   const amountStr = document.getElementById('inp-amount').value.trim();
   const feeRate = parseInt(document.getElementById('inp-feerate').value);
@@ -782,6 +839,7 @@ async function createTransaction() {
   if (!sel) { notify('Insufficient funds'); return; }
 
   // Build PSBT
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Building...';
   try {
     // Need to fetch raw tx hex for each input (non-witness UTXO)
     const txData = {};
@@ -843,6 +901,8 @@ async function createTransaction() {
   } catch(e) {
     notify('Failed to create transaction: ' + e.message);
     console.error(e);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Create Transaction';
   }
 }
 
@@ -858,7 +918,7 @@ function bytesToHex(bytes) {
 function renderPreview() {
   const info = pendingTxInfo;
   const card = document.getElementById('tx-preview-card');
-  card.innerHTML = '';
+  card.replaceChildren();
   const h = document.createElement('h3');
   h.style.marginBottom = '12px'; h.textContent = 'Transaction Preview';
   card.appendChild(h);
@@ -888,7 +948,7 @@ function renderPreview() {
 function showPsbtQR() {
   showSection('qr');
   const container = document.getElementById('qr-display');
-  container.innerHTML = '';
+  container.replaceChildren();
 
   const psbtHex = bytesToHex(APP.currentPsbt);
   const cborBuf = APP.currentPsbt; // raw PSBT bytes
@@ -918,7 +978,9 @@ function showPsbtQR() {
     const urStr = new UREncoder(ur, MAX_SINGLE).nextPart();
     qr.addData(urStr.toUpperCase());
     qr.make();
-    container.innerHTML = qr.createSvgTag(6, 0);
+    const svgHtml = qr.createSvgTag(6, 0);
+    const tmp = document.createElement('div'); tmp.innerHTML = svgHtml;
+    container.replaceChildren(tmp.firstChild);
     document.getElementById('qr-frame-info').textContent = 'Static QR (single frame)';
     return;
   }
@@ -928,11 +990,13 @@ function showPsbtQR() {
   const frameInfo = document.getElementById('qr-frame-info');
   function renderFrame() {
     const part = encoder.nextPart();
-    container.innerHTML = '';
+    container.replaceChildren();
     const qr = qrcode(0, 'L');
     qr.addData(part.toUpperCase());
     qr.make();
-    container.innerHTML = qr.createSvgTag(6, 0);
+    const svgHtml = qr.createSvgTag(6, 0);
+    const tmp = document.createElement('div'); tmp.innerHTML = svgHtml;
+    container.replaceChildren(tmp.firstChild);
     frameInfo.textContent = 'Animated QR — hold steady for scanner';
   }
   renderFrame();
@@ -1024,7 +1088,7 @@ function processSignedPsbt() {
 
     // Render broadcast preview
     const card = document.getElementById('broadcast-preview');
-    card.innerHTML = '';
+    card.replaceChildren();
     const h = document.createElement('h3');
     h.style.marginBottom='12px'; h.textContent='Signed Transaction';
     card.appendChild(h);
@@ -1058,7 +1122,7 @@ async function broadcastTx() {
 
     // Success!
     const card = document.getElementById('result-card');
-    card.innerHTML = '';
+    card.replaceChildren();
     const h = document.createElement('h3');
     h.style.cssText='margin-bottom:12px;color:#3fb950'; h.textContent='\u2705 Transaction Broadcast!';
     card.appendChild(h);
