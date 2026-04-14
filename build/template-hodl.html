@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; media-src blob:; img-src blob: data:;">
+<title>nugap — BTC Signer 🔐</title>
+<style>
+/* === Reset & Base === */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #0d1117; color: #e6edf3; min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center;
+}
+.mono { font-family: 'SF Mono', Monaco, 'Consolas', monospace; }
+button {
+  font-family: inherit; cursor: pointer; border: none; border-radius: 6px;
+  padding: 10px 20px; font-size: 0.95rem; min-height: 44px;
+  background: #f0883e; color: #0d1117; font-weight: 600;
+  transition: opacity 0.15s;
+}
+button:hover { opacity: 0.85; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.secondary { background: #30363d; color: #e6edf3; }
+button.danger { background: #f85149; color: #fff; }
+button.blue { background: #58a6ff; color: #0d1117; }
+input, textarea {
+  font-family: inherit; background: #0d1117; color: #e6edf3;
+  border: 1px solid #30363d; border-radius: 6px; padding: 10px 12px;
+  font-size: 0.95rem; width: 100%; min-height: 44px;
+}
+input:focus, textarea:focus { outline: none; border-color: #f0883e; }
+
+/* === Layout === */
+.container { max-width: 560px; width: 100%; padding: 16px; }
+header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 0; border-bottom: 1px solid #30363d; margin-bottom: 16px;
+}
+header h1 { font-size: 1.2rem; font-weight: 700; }
+.card {
+  background: #161b22; border: 1px solid #30363d; border-radius: 8px;
+  padding: 16px; margin-bottom: 12px;
+}
+.section { display: none; }
+.section.active { display: block; }
+
+/* === Notification Bar === */
+#notify {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 999;
+  padding: 12px 16px; text-align: center; font-size: 0.9rem;
+  transform: translateY(-100%); transition: transform 0.3s;
+}
+#notify.show { transform: translateY(0); }
+#notify.error { background: #f85149; color: #fff; }
+#notify.success { background: #3fb950; color: #0d1117; }
+#notify.warn { background: #d29922; color: #0d1117; }
+
+/* === Online Warning === */
+#online-warn {
+  background: #f85149; color: #fff; padding: 10px 16px;
+  text-align: center; font-size: 0.85rem; width: 100%; display: none;
+}
+
+/* === Mnemonic === */
+.mnemonic-grid {
+  display: grid; gap: 8px; margin: 16px 0;
+  grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 480px) { .mnemonic-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 340px) { .mnemonic-grid { grid-template-columns: repeat(2, 1fr); } }
+.mnemonic-word {
+  background: #1c1507; border: 1px solid #d29922; border-radius: 6px;
+  padding: 8px 6px; text-align: center; font-size: 0.9rem; font-weight: 600;
+}
+.mnemonic-word .num { font-size: 0.7rem; color: #d29922; display: block; margin-bottom: 2px; }
+.mnemonic-warn {
+  background: #1c1507; border: 1px solid #d29922; border-radius: 6px;
+  padding: 12px; font-size: 0.85rem; color: #d29922; margin-bottom: 12px;
+  text-align: center;
+}
+
+/* === Dashboard === */
+.dash-btn {
+  display: block; width: 100%; text-align: left; padding: 16px;
+  margin-bottom: 8px; font-size: 1rem;
+}
+.dash-btn .icon { font-size: 1.3rem; margin-right: 8px; }
+.dash-btn .sub { display: block; font-size: 0.8rem; color: #8b949e; margin-top: 4px; font-weight: 400; }
+
+/* === QR === */
+.qr-box { text-align: center; padding: 16px; }
+.qr-box canvas, .qr-box img { max-width: 100%; border-radius: 8px; }
+#scan-reader { width: 100%; min-height: 280px; border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+
+/* === TX Review === */
+.review-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #30363d; }
+.review-row:last-child { border-bottom: none; }
+.review-label { color: #8b949e; font-size: 0.85rem; }
+.review-value { font-weight: 600; font-size: 0.9rem; text-align: right; word-break: break-all; max-width: 65%; }
+
+/* === Progress === */
+.progress-bar { background: #30363d; border-radius: 4px; height: 8px; margin: 8px 0; overflow: hidden; }
+.progress-fill { height: 100%; background: #f0883e; border-radius: 4px; transition: width 0.3s; }
+
+/* === Verify inputs === */
+.verify-group { margin-bottom: 12px; }
+.verify-group label { font-size: 0.85rem; color: #8b949e; display: block; margin-bottom: 4px; }
+
+/* === Spacing helpers === */
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mt-16 { margin-top: 16px; }
+.mb-8 { margin-bottom: 8px; }
+.mb-12 { margin-bottom: 12px; }
+.text-center { text-align: center; }
+.text-sm { font-size: 0.85rem; }
+.text-secondary { color: #8b949e; }
+.flex-row { display: flex; gap: 8px; }
+.flex-row > * { flex: 1; }
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div id="online-warn">⚠️ This device appears to be ONLINE. Disconnect from the internet before using this wallet!</div>
+
+<div id="notify"></div>
+
+<div class="container">
+  <header>
+    <h1>nugap — BTC Signer 🔐</h1>
+    <span id="hdr-info" class="text-sm text-secondary"></span>
+  </header>
+
+  <!-- LANDING -->
+  <div id="sec-landing" class="section active">
+    <div class="card text-center">
+      <h2 style="margin-bottom:8px;">Air-Gapped BTC Signer</h2>
+      <p class="text-secondary text-sm mb-12">Generate keys, sign transactions — fully offline.</p>
+      <button id="btn-create" class="dash-btn">
+        <span class="icon">🆕</span> Create New Wallet
+        <span class="sub">Generate a fresh BIP-39 mnemonic</span>
+      </button>
+      <button id="btn-import" class="dash-btn secondary">
+        <span class="icon">📥</span> Import Existing Wallet
+        <span class="sub">Restore from mnemonic words</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- CREATE: word count + passphrase -->
+  <div id="sec-create" class="section">
+    <div class="card">
+      <h3 class="mb-8">New Wallet Settings</h3>
+      <label class="text-sm text-secondary">Word count</label>
+      <div class="flex-row mb-12">
+        <button id="wc-12" class="blue">12 words</button>
+        <button id="wc-24" class="secondary">24 words</button>
+      </div>
+      <label class="text-sm text-secondary">BIP-39 Passphrase (optional, advanced)</label>
+      <input id="inp-passphrase-create" type="password" placeholder="Leave empty for none">
+      <div class="flex-row mt-12">
+        <button id="btn-back-landing" class="secondary">← Back</button>
+        <button id="btn-generate">Generate →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MNEMONIC DISPLAY -->
+  <div id="sec-mnemonic" class="section">
+    <div class="card">
+      <h3 class="mb-8">Your Mnemonic</h3>
+      <div class="mnemonic-warn">⚠️ Write these words down on paper. Never store digitally. Anyone with these words can steal your Bitcoin.</div>
+      <div id="mnemonic-grid" class="mnemonic-grid"></div>
+      <p id="mnemonic-timer" class="text-center text-secondary text-sm mt-8"></p>
+      <button id="btn-verify-start" class="mt-12" style="width:100%">I've Written Them Down →</button>
+    </div>
+  </div>
+
+  <!-- MNEMONIC VERIFY -->
+  <div id="sec-verify" class="section">
+    <div class="card">
+      <h3 class="mb-8">Verify Your Mnemonic</h3>
+      <p class="text-secondary text-sm mb-12">Enter the requested words to confirm you've saved them.</p>
+      <div id="verify-fields"></div>
+      <div class="flex-row mt-12">
+        <button id="btn-show-again" class="secondary">Show Again</button>
+        <button id="btn-verify-submit">Verify →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- IMPORT -->
+  <div id="sec-import" class="section">
+    <div class="card">
+      <h3 class="mb-8">Import Wallet</h3>
+      <label class="text-sm text-secondary">Mnemonic (12 or 24 words)</label>
+      <textarea id="inp-mnemonic" rows="4" placeholder="word1 word2 word3 ..."></textarea>
+      <label class="text-sm text-secondary mt-8" style="display:block">BIP-39 Passphrase (optional)</label>
+      <input id="inp-passphrase-import" type="password" placeholder="Leave empty for none">
+      <div class="flex-row mt-12">
+        <button id="btn-back-landing2" class="secondary">← Back</button>
+        <button id="btn-import-go">Import →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="sec-dash" class="section">
+    <div class="card">
+      <p class="text-sm text-secondary" id="dash-wallet-type"></p>
+      <p class="text-sm mono" id="dash-fingerprint"></p>
+      <div class="mt-12">
+        <label class="text-sm text-secondary">Account type</label>
+        <div class="flex-row mb-12">
+          <button id="acc-84" class="blue">SegWit (bc1q)</button>
+          <button id="acc-86" class="secondary">Taproot (bc1p)</button>
+        </div>
+      </div>
+    </div>
+    <button id="btn-export" class="dash-btn">
+      <span class="icon">📤</span> Export Public Key
+      <span class="sub">Show zpub/xpub QR for yolo.html</span>
+    </button>
+    <button id="btn-scan" class="dash-btn">
+      <span class="icon">📷</span> Scan Transaction
+      <span class="sub">Sign a transaction from yolo.html</span>
+    </button>
+    <button id="btn-show-mnemonic" class="dash-btn secondary">
+      <span class="icon">👁️</span> Show Mnemonic
+      <span class="sub">Re-display your recovery words</span>
+    </button>
+    <button id="btn-wipe" class="dash-btn danger">
+      <span class="icon">🗑️</span> Wipe Wallet
+      <span class="sub">Erase keys from memory</span>
+    </button>
+  </div>
+
+  <!-- EXPORT QR -->
+  <div id="sec-export" class="section">
+    <div class="card">
+      <h3 class="mb-8">Export Public Key</h3>
+      <p class="text-secondary text-sm mb-12">Scan this QR with yolo.html on your online device.</p>
+      <div class="qr-box" id="export-qr"></div>
+      <p class="mono text-sm mt-8" id="export-key-text" style="word-break:break-all;"></p>
+      <button id="btn-back-dash" class="secondary mt-12" style="width:100%">← Dashboard</button>
+    </div>
+  </div>
+
+  <!-- SCAN PSBT -->
+  <div id="sec-scan" class="section">
+    <div class="card">
+      <h3 class="mb-8">Scan Transaction QR</h3>
+      <p class="text-secondary text-sm mb-12">Point camera at the animated QR from yolo.html.</p>
+      <div id="scan-reader"></div>
+      <div class="progress-bar"><div id="scan-progress" class="progress-fill" style="width:0%"></div></div>
+      <p id="scan-status" class="text-center text-sm text-secondary mt-8"></p>
+      <button id="btn-cancel-scan" class="secondary mt-12" style="width:100%">Cancel</button>
+    </div>
+  </div>
+
+  <!-- TX REVIEW -->
+  <div id="sec-review" class="section">
+    <div class="card">
+      <h3 class="mb-8">📋 Review Transaction</h3>
+      <div id="review-body"></div>
+      <div class="mnemonic-warn mt-12">⚠️ Verify the recipient address matches what you intended!</div>
+      <div class="flex-row mt-12">
+        <button id="btn-cancel-tx" class="secondary">Cancel</button>
+        <button id="btn-sign">Sign Transaction →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SIGNING PROGRESS -->
+  <div id="sec-signing" class="section">
+    <div class="card text-center">
+      <h3 class="mb-8">Signing…</h3>
+      <div class="progress-bar"><div id="sign-progress" class="progress-fill" style="width:0%"></div></div>
+      <p id="sign-status" class="text-sm text-secondary mt-8">Preparing…</p>
+    </div>
+  </div>
+
+  <!-- SIGNED QR -->
+  <div id="sec-signed" class="section">
+    <div class="card">
+      <h3 class="mb-8 text-center">✅ Transaction Signed</h3>
+      <p class="text-secondary text-sm text-center mb-12">Scan this QR with yolo.html to broadcast.</p>
+      <div class="qr-box" id="signed-qr"></div>
+      <p id="signed-frame" class="text-center text-sm text-secondary mt-8"></p>
+      <div class="flex-row mt-12">
+        <button id="btn-speed-down" class="secondary">Slower</button>
+        <button id="btn-speed-up" class="secondary">Faster</button>
+      </div>
+      <button id="btn-done-sign" class="mt-12" style="width:100%">Done → Dashboard</button>
+    </div>
+  </div>
+
+  <!-- SHOW MNEMONIC (from dashboard) -->
+  <div id="sec-show-mn" class="section">
+    <div class="card">
+      <h3 class="mb-8">⚠️ Sensitive Data</h3>
+      <p class="text-secondary text-sm mb-12">Your mnemonic is displayed below. Make sure nobody is watching.</p>
+      <div id="show-mn-grid" class="mnemonic-grid"></div>
+      <button id="btn-hide-mn" class="secondary mt-12" style="width:100%">← Dashboard</button>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+/* __BUNDLE_JS__ */
+</script>
+<script>
+/* === HODL APP === */
+(function(){
+'use strict';
+
+/* ── Globals ── */
+const { generateMnemonic, mnemonicToSeedSync, validateMnemonic, wordlist,
+        btcSigner, HDKey, sha256, ripemd160, secp256k1,
+        UR, UREncoder, URDecoder, qrcode, Html5Qrcode, base58c, hex } = nugap;
+
+let state = {
+  mnemonic: null,
+  passphrase: '',
+  seed: null,
+  masterKey: null,
+  accounts: { bip84: null, bip86: null },
+  activeAccount: 'bip84',
+  wordCount: 12,
+  pendingPSBT: null,      // raw Uint8Array of scanned unsigned PSBT
+  pendingTx: null,        // parsed Transaction
+};
+
+let scanner = null;
+let urDecoder = null;
+let signedAnimInterval = null;
+let signedAnimSpeed = 250;
+
+/* ── Section nav ── */
+function showSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+/* ── Notify ── */
+let notifyTimer = null;
+function notify(msg, type) {
+  const el = document.getElementById('notify');
+  el.textContent = msg;
+  el.className = type + ' show';
+  clearTimeout(notifyTimer);
+  notifyTimer = setTimeout(() => el.classList.remove('show'), 4000);
+}
+
+/* ── Online detection ── */
+function checkOnline() {
+  const w = document.getElementById('online-warn');
+  w.style.display = navigator.onLine ? 'block' : 'none';
+}
+checkOnline();
+window.addEventListener('online', () => { checkOnline(); notify('⚠️ Internet connection detected! Disconnect immediately.', 'error'); });
+window.addEventListener('offline', checkOnline);
+
+/* ── QR generation helper ── */
+function makeQR(text, container, ecl) {
+  ecl = ecl || 'M';
+  const typeNum = 0; // auto
+  const qr = qrcode(typeNum, ecl);
+  qr.addData(text);
+  qr.make();
+  container.innerHTML = qr.createSvgTag(4, 0);
+  // white bg for visibility
+  const svg = container.querySelector('svg');
+  if (svg) {
+    svg.style.background = '#fff';
+    svg.style.borderRadius = '8px';
+    svg.style.maxWidth = '100%';
+  }
+}
+
+/* ── zpub / xpub conversion ── */
+function xpubToZpub(xpubStr) {
+  const decoded = base58c.decode(xpubStr);
+  // Replace version bytes: 0x0488B21E (xpub) → 0x04B24746 (zpub)
+  const buf = new Uint8Array(decoded);
+  buf[0] = 0x04; buf[1] = 0xB2; buf[2] = 0x47; buf[3] = 0x46;
+  return base58c.encode(buf);
+}
+
+/* ── Derive accounts from master key ── */
+function deriveAccounts() {
+  const mk = state.masterKey;
+  // BIP-84 Native SegWit
+  const acc84 = mk.derive("m/84'/0'/0'");
+  const zpub = xpubToZpub(acc84.publicExtendedKey);
+  state.accounts.bip84 = { path: "m/84'/0'/0'", accountKey: acc84, pubkey: zpub };
+
+  // BIP-86 Taproot
+  const acc86 = mk.derive("m/86'/0'/0'");
+  state.accounts.bip86 = { path: "m/86'/0'/0'", accountKey: acc86, pubkey: acc86.publicExtendedKey };
+}
+
+/* ── Show dashboard ── */
+function goToDash() {
+  const fp = state.masterKey.fingerprint.toString(16).padStart(8, '0');
+  document.getElementById('dash-fingerprint').textContent = 'Fingerprint: ' + fp;
+  document.getElementById('dash-wallet-type').textContent =
+    'Wallet active — ' + (state.activeAccount === 'bip84' ? 'BIP-84 SegWit' : 'BIP-86 Taproot');
+  updateAccButtons();
+  showSection('sec-dash');
+}
+
+function updateAccButtons() {
+  const b84 = document.getElementById('acc-84');
+  const b86 = document.getElementById('acc-86');
+  if (state.activeAccount === 'bip84') {
+    b84.className = 'blue'; b86.className = 'secondary';
+  } else {
+    b86.className = 'blue'; b84.className = 'secondary';
+  }
+  document.getElementById('dash-wallet-type').textContent =
+    'Wallet active — ' + (state.activeAccount === 'bip84' ? 'BIP-84 SegWit' : 'BIP-86 Taproot');
+}
+
+/* ──────────────────────────────────────────
+   CREATE WALLET
+   ────────────────────────────────────────── */
+let wcSelected = 12;
+function selectWC(n) {
+  wcSelected = n;
+  document.getElementById('wc-12').className = n === 12 ? 'blue' : 'secondary';
+  document.getElementById('wc-24').className = n === 24 ? 'blue' : 'secondary';
+}
+
+document.getElementById('btn-create').onclick = () => {
+  selectWC(12);
+  showSection('sec-create');
+};
+document.getElementById('wc-12').onclick = () => selectWC(12);
+document.getElementById('wc-24').onclick = () => selectWC(24);
+document.getElementById('btn-back-landing').onclick = () => showSection('sec-landing');
+
+document.getElementById('btn-generate').onclick = () => {
+  try {
+    const bits = wcSelected === 24 ? 256 : 128;
+    state.mnemonic = generateMnemonic(wordlist, bits);
+    state.passphrase = document.getElementById('inp-passphrase-create').value || '';
+    state.wordCount = wcSelected;
+    displayMnemonic('mnemonic-grid');
+    showSection('sec-mnemonic');
+    startMnemonicTimer();
+  } catch(e) {
+    notify('Error generating mnemonic: ' + e.message, 'error');
+  }
+};
+
+function displayMnemonic(containerId) {
+  const words = state.mnemonic.split(' ');
+  const grid = document.getElementById(containerId);
+  grid.innerHTML = '';
+  words.forEach((w, i) => {
+    const div = document.createElement('div');
+    div.className = 'mnemonic-word';
+    div.innerHTML = '<span class="num">' + (i + 1) + '</span>' + w;
+    grid.appendChild(div);
+  });
+}
+
+let mnTimerId = null;
+function startMnemonicTimer() {
+  let sec = 60;
+  const el = document.getElementById('mnemonic-timer');
+  el.textContent = 'Auto-hide in ' + sec + 's';
+  clearInterval(mnTimerId);
+  mnTimerId = setInterval(() => {
+    sec--;
+    if (sec <= 0) {
+      clearInterval(mnTimerId);
+      el.textContent = 'Mnemonic hidden.';
+      document.getElementById('mnemonic-grid').innerHTML = '<p class="text-center text-secondary">Hidden. Click "Show Again" during verify or from dashboard.</p>';
+    } else {
+      el.textContent = 'Auto-hide in ' + sec + 's';
+    }
+  }, 1000);
+}
+
+/* ── Verify ── */
+document.getElementById('btn-verify-start').onclick = () => {
+  clearInterval(mnTimerId);
+  setupVerification();
+  showSection('sec-verify');
+};
+
+let verifyIndices = [];
+function setupVerification() {
+  const words = state.mnemonic.split(' ');
+  // Pick 3 random unique indices
+  const indices = [];
+  while (indices.length < 3) {
+    const r = Math.floor(crypto.getRandomValues(new Uint8Array(1))[0] / 256 * words.length);
+    if (!indices.includes(r)) indices.push(r);
+  }
+  indices.sort((a, b) => a - b);
+  verifyIndices = indices;
+  const container = document.getElementById('verify-fields');
+  container.innerHTML = '';
+  indices.forEach(idx => {
+    const div = document.createElement('div');
+    div.className = 'verify-group';
+    div.innerHTML = '<label>Word #' + (idx + 1) + '</label><input data-idx="' + idx + '" type="text" autocomplete="off" autocapitalize="none">';
+    container.appendChild(div);
+  });
+}
+
+document.getElementById('btn-show-again').onclick = () => {
+  displayMnemonic('mnemonic-grid');
+  showSection('sec-mnemonic');
+  startMnemonicTimer();
+};
+
+document.getElementById('btn-verify-submit').onclick = () => {
+  const words = state.mnemonic.split(' ');
+  const inputs = document.querySelectorAll('#verify-fields input');
+  let ok = true;
+  inputs.forEach(inp => {
+    const idx = parseInt(inp.getAttribute('data-idx'));
+    if (inp.value.trim().toLowerCase() !== words[idx]) ok = false;
+  });
+  if (!ok) {
+    notify('Incorrect — check your words and try again', 'error');
+    return;
+  }
+  // Derive keys and go to dashboard
+  try {
+    activateWallet();
+  } catch(e) {
+    notify('Key derivation failed: ' + e.message, 'error');
+  }
+};
+
+function activateWallet() {
+  state.seed = mnemonicToSeedSync(state.mnemonic, state.passphrase);
+  state.masterKey = HDKey.fromMasterSeed(state.seed);
+  deriveAccounts();
+  notify('Wallet activated ✅', 'success');
+  goToDash();
+}
+
+/* ──────────────────────────────────────────
+   IMPORT WALLET
+   ────────────────────────────────────────── */
+document.getElementById('btn-import').onclick = () => showSection('sec-import');
+document.getElementById('btn-back-landing2').onclick = () => showSection('sec-landing');
+
+document.getElementById('btn-import-go').onclick = () => {
+  const raw = document.getElementById('inp-mnemonic').value.trim().toLowerCase().replace(/\s+/g, ' ');
+  const words = raw.split(' ');
+
+  if (words.length !== 12 && words.length !== 24) {
+    notify('Invalid word count: expected 12 or 24, got ' + words.length, 'error');
+    return;
+  }
+  // Check each word
+  for (const w of words) {
+    if (!wordlist.includes(w)) {
+      notify('Invalid word: "' + w + '" — not in BIP-39 wordlist', 'error');
+      return;
+    }
+  }
+  if (!validateMnemonic(raw, wordlist)) {
+    notify('Invalid checksum — please check your words', 'error');
+    return;
+  }
+  state.mnemonic = raw;
+  state.passphrase = document.getElementById('inp-passphrase-import').value || '';
+  state.wordCount = words.length;
+  try {
+    activateWallet();
+  } catch(e) {
+    notify('Import failed: ' + e.message, 'error');
+  }
+};
+
+/* ──────────────────────────────────────────
+   DASHBOARD ACTIONS
+   ────────────────────────────────────────── */
+document.getElementById('acc-84').onclick = () => { state.activeAccount = 'bip84'; updateAccButtons(); };
+document.getElementById('acc-86').onclick = () => { state.activeAccount = 'bip86'; updateAccButtons(); };
+
+/* Export pubkey */
+document.getElementById('btn-export').onclick = () => {
+  const acc = state.accounts[state.activeAccount];
+  const key = acc.pubkey;
+  document.getElementById('export-key-text').textContent = key;
+  makeQR(key, document.getElementById('export-qr'), 'M');
+  showSection('sec-export');
+};
+document.getElementById('btn-back-dash').onclick = () => goToDash();
+
+/* Show mnemonic from dash */
+document.getElementById('btn-show-mnemonic').onclick = () => {
+  if (!confirm('I understand this is sensitive information.')) return;
+  displayMnemonic('show-mn-grid');
+  showSection('sec-show-mn');
+};
+document.getElementById('btn-hide-mn').onclick = () => {
+  document.getElementById('show-mn-grid').innerHTML = '';
+  goToDash();
+};
+
+/* Wipe */
+document.getElementById('btn-wipe').onclick = () => {
+  if (!confirm('This will erase your wallet from this session. Make sure you have your mnemonic backed up.')) return;
+  if (!confirm('Are you absolutely sure?')) return;
+  // Zero-fill sensitive data (best effort)
+  if (state.seed) { try { state.seed.fill(0); } catch(e){} }
+  state.mnemonic = null;
+  state.passphrase = '';
+  state.seed = null;
+  state.masterKey = null;
+  state.accounts = { bip84: null, bip86: null };
+  state.pendingPSBT = null;
+  state.pendingTx = null;
+  notify('Wallet wiped', 'warn');
+  showSection('sec-landing');
+};
+
+/* ──────────────────────────────────────────
+   SCAN PSBT
+   ────────────────────────────────────────── */
+document.getElementById('btn-scan').onclick = async () => {
+  showSection('sec-scan');
+  document.getElementById('scan-progress').style.width = '0%';
+  document.getElementById('scan-status').textContent = 'Starting camera…';
+  urDecoder = new URDecoder();
+  try {
+    scanner = new Html5Qrcode('scan-reader');
+    await scanner.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 280, height: 280 } },
+      onQRScanned,
+      () => {}
+    );
+    document.getElementById('scan-status').textContent = 'Scanning…';
+  } catch (e) {
+    document.getElementById('scan-status').textContent = 'Camera error: ' + e;
+    notify('Camera error: ' + e, 'error');
+  }
+};
+
+function onQRScanned(text) {
+  try {
+    urDecoder.receivePart(text.toLowerCase());
+    const pct = Math.round(urDecoder.estimatedPercentComplete() * 100);
+    document.getElementById('scan-progress').style.width = pct + '%';
+    document.getElementById('scan-status').textContent = 'Scanning… ' + pct + '% received';
+
+    if (urDecoder.isComplete()) {
+      stopScanner();
+      if (urDecoder.isSuccess()) {
+        const ur = urDecoder.resultUR();
+        if (ur.type !== 'crypto-psbt') {
+          notify('Expected crypto-psbt, got: ' + ur.type, 'error');
+          goToDash();
+          return;
+        }
+        const psbtBytes = new Uint8Array(ur.decodeCBOR());
+        processPSBT(psbtBytes);
+      } else {
+        notify('QR scan failed — corrupted data', 'error');
+        goToDash();
+      }
+    }
+  } catch (e) {
+    // Might not be a UR part — try as single frame
+    try {
+      if (text.toLowerCase().startsWith('ur:crypto-psbt/')) {
+        // Single-frame UR
+        urDecoder.receivePart(text.toLowerCase());
+      }
+    } catch(e2) {}
+  }
+}
+
+async function stopScanner() {
+  try { if (scanner) await scanner.stop(); } catch(e){}
+  scanner = null;
+}
+
+document.getElementById('btn-cancel-scan').onclick = async () => {
+  await stopScanner();
+  goToDash();
+};
+
+/* ──────────────────────────────────────────
+   PSBT REVIEW
+   ────────────────────────────────────────── */
+function processPSBT(psbtBytes) {
+  try {
+    state.pendingPSBT = psbtBytes;
+    const tx = btcSigner.Transaction.fromPSBT(psbtBytes);
+    state.pendingTx = tx;
+
+    // Calculate totals
+    let totalIn = 0n;
+    for (let i = 0; i < tx.inputsLength; i++) {
+      const inp = tx.getInput(i);
+      if (inp.witnessUtxo) totalIn += BigInt(inp.witnessUtxo.amount);
+    }
+
+    let totalOut = 0n;
+    const outputs = [];
+    for (let i = 0; i < tx.outputsLength; i++) {
+      const out = tx.getOutput(i);
+      totalOut += BigInt(out.amount);
+      let addr = '';
+      try { addr = btcSigner.OutScript.decode(out.script).address || btcSigner.Address().encode(btcSigner.OutScript.decode(out.script)); } catch(e){}
+      // Try to figure out address from script
+      if (!addr) {
+        try {
+          // For p2wpkh / p2tr etc
+          const decoded = btcSigner.OutScript.decode(out.script);
+          if (decoded.type === 'wpkh') addr = btcSigner.p2wpkh(decoded.hash).address;
+          else if (decoded.type === 'tr') addr = btcSigner.p2tr(decoded.pubkey).address;
+          else if (decoded.type === 'pkh') addr = btcSigner.p2pkh(decoded.hash).address;
+          else addr = '(unknown script type: ' + decoded.type + ')';
+        } catch(e2) { addr = '(unable to decode)'; }
+      }
+      outputs.push({ addr, amount: out.amount, script: out.script });
+    }
+
+    const fee = totalIn - totalOut;
+    // Identify change outputs (outputs to our derived addresses)
+    const changeAddrs = getChangeAddresses();
+
+    // Build review HTML
+    let html = '';
+    // Sending outputs (non-change)
+    const sends = outputs.filter(o => !changeAddrs.has(o.addr));
+    const changes = outputs.filter(o => changeAddrs.has(o.addr));
+
+    html += '<div class="review-row"><span class="review-label">SENDING</span></div>';
+    sends.forEach(o => {
+      html += '<div class="review-row"><span class="review-label mono text-sm" style="max-width:100%;word-break:break-all">→ ' + o.addr + '</span></div>';
+      html += '<div class="review-row"><span class="review-label">Amount</span><span class="review-value">' + formatBTC(o.amount) + ' BTC</span></div>';
+    });
+
+    if (changes.length > 0) {
+      html += '<div class="review-row" style="margin-top:8px"><span class="review-label">CHANGE (back to you)</span></div>';
+      changes.forEach(o => {
+        html += '<div class="review-row"><span class="review-label mono text-sm" style="max-width:100%;word-break:break-all">→ ' + o.addr + '</span></div>';
+        html += '<div class="review-row"><span class="review-label">Amount</span><span class="review-value">' + formatBTC(o.amount) + ' BTC</span></div>';
+      });
+    }
+
+    html += '<div class="review-row" style="margin-top:8px"><span class="review-label">FEE</span><span class="review-value">' + formatBTC(Number(fee)) + ' BTC (' + Number(fee).toLocaleString() + ' sats)</span></div>';
+
+    // Warn on high fee
+    const sendTotal = sends.reduce((s, o) => s + BigInt(o.amount), 0n);
+    if (sendTotal > 0n && fee * 10n > sendTotal) {
+      html += '<div class="mnemonic-warn mt-8">⚠️ Fee is more than 10% of the send amount!</div>';
+    }
+
+    html += '<div class="review-row" style="margin-top:8px"><span class="review-label">INPUTS</span><span class="review-value">' + tx.inputsLength + ' UTXO(s)</span></div>';
+
+    document.getElementById('review-body').innerHTML = html;
+    showSection('sec-review');
+  } catch (e) {
+    notify('Failed to parse PSBT: ' + e.message, 'error');
+    goToDash();
+  }
+}
+
+function getChangeAddresses() {
+  // Derive first 20 change addresses for both BIP-84 and BIP-86
+  const addrs = new Set();
+  try {
+    for (const type of ['bip84', 'bip86']) {
+      const acc = state.accounts[type];
+      if (!acc) continue;
+      for (let i = 0; i < 20; i++) {
+        const child = acc.accountKey.deriveChild(1).deriveChild(i); // change path: /1/i
+        if (type === 'bip84') {
+          const addr = btcSigner.p2wpkh(child.publicKey).address;
+          addrs.add(addr);
+        } else {
+          // Taproot: x-only pubkey (drop first byte if 33 bytes)
+          const xonly = child.publicKey.length === 33 ? child.publicKey.slice(1) : child.publicKey;
+          const addr = btcSigner.p2tr(xonly).address;
+          addrs.add(addr);
+        }
+      }
+    }
+  } catch(e) {}
+  return addrs;
+}
+
+function formatBTC(sats) {
+  return (Number(sats) / 1e8).toFixed(8);
+}
+
+/* ──────────────────────────────────────────
+   SIGN TRANSACTION
+   ────────────────────────────────────────── */
+document.getElementById('btn-cancel-tx').onclick = () => goToDash();
+
+document.getElementById('btn-sign').onclick = () => {
+  showSection('sec-signing');
+  document.getElementById('sign-progress').style.width = '0%';
+  document.getElementById('sign-status').textContent = 'Preparing…';
+  // Use setTimeout to let UI update
+  setTimeout(doSign, 50);
+};
+
+function doSign() {
+  try {
+    const tx = btcSigner.Transaction.fromPSBT(state.pendingPSBT);
+    const total = tx.inputsLength;
+    let signed = 0;
+
+    for (let i = 0; i < total; i++) {
+      const inp = tx.getInput(i);
+      let didSign = false;
+
+      // Try BIP32 derivation from PSBT
+      if (inp.bip32Derivation && inp.bip32Derivation.length > 0) {
+        for (const deriv of inp.bip32Derivation) {
+          try {
+            const pathArr = deriv.path;
+            // pathArr is typically like [2147483732, 2147483648, 2147483648, 0, 0]
+            // Reconstruct path string
+            const pathStr = 'm/' + pathArr.map(p => {
+              const hard = p >= 0x80000000;
+              const idx = hard ? p - 0x80000000 : p;
+              return idx + (hard ? "'" : '');
+            }).join('/');
+            const child = state.masterKey.derive(pathStr);
+            tx.signIdx(child.privateKey, i);
+            didSign = true;
+            break;
+          } catch(e2) {}
+        }
+      }
+
+      // Try tapBIP32Derivation for Taproot
+      if (!didSign && inp.tapBip32Derivation && inp.tapBip32Derivation.length > 0) {
+        for (const deriv of inp.tapBip32Derivation) {
+          try {
+            const pathArr = deriv.path;
+            const pathStr = 'm/' + pathArr.map(p => {
+              const hard = p >= 0x80000000;
+              const idx = hard ? p - 0x80000000 : p;
+              return idx + (hard ? "'" : '');
+            }).join('/');
+            const child = state.masterKey.derive(pathStr);
+            tx.signIdx(child.privateKey, i);
+            didSign = true;
+            break;
+          } catch(e2) {}
+        }
+      }
+
+      // Fallback: brute-force common paths
+      if (!didSign) {
+        const paths = [
+          "m/84'/0'/0'", "m/86'/0'/0'"
+        ];
+        for (const basePath of paths) {
+          for (const chain of [0, 1]) {
+            for (let idx = 0; idx < 20; idx++) {
+              try {
+                const child = state.masterKey.derive(basePath + '/' + chain + '/' + idx);
+                tx.signIdx(child.privateKey, i);
+                didSign = true;
+                break;
+              } catch(e3) {}
+            }
+            if (didSign) break;
+          }
+          if (didSign) break;
+        }
+      }
+
+      signed++;
+      const pct = Math.round((signed / total) * 100);
+      document.getElementById('sign-progress').style.width = pct + '%';
+      document.getElementById('sign-status').textContent = 'Signed input ' + signed + '/' + total;
+    }
+
+    // Finalize
+    tx.finalize();
+    const signedPSBT = tx.toPSBT();
+
+    // Show signed QR
+    showSignedQR(signedPSBT);
+  } catch(e) {
+    notify('Signing failed: ' + e.message, 'error');
+    goToDash();
+  }
+}
+
+/* ──────────────────────────────────────────
+   SIGNED QR DISPLAY (BC-UR)
+   ────────────────────────────────────────── */
+function showSignedQR(psbtBytes) {
+  showSection('sec-signed');
+  const ur = UR.fromBuffer(Buffer.from(psbtBytes));
+  // Check if it fits in a single QR
+  const MAX_SINGLE = 500; // bytes threshold for single QR
+  if (psbtBytes.length <= MAX_SINGLE) {
+    // Single static QR
+    const encoder = new UREncoder(ur, psbtBytes.length + 100);
+    const part = encoder.nextPart();
+    makeQR(part.toUpperCase(), document.getElementById('signed-qr'), 'L');
+    document.getElementById('signed-frame').textContent = 'Single QR (no animation needed)';
+    return;
+  }
+
+  // Animated QR
+  const encoder = new UREncoder(ur, 200);
+  signedAnimSpeed = 250;
+  clearInterval(signedAnimInterval);
+
+  function showNextFrame() {
+    const part = encoder.nextPart();
+    makeQR(part.toUpperCase(), document.getElementById('signed-qr'), 'L');
+    document.getElementById('signed-frame').textContent = 'Animated QR — ' + signedAnimSpeed + 'ms/frame';
+  }
+  showNextFrame();
+  signedAnimInterval = setInterval(showNextFrame, signedAnimSpeed);
+}
+
+document.getElementById('btn-speed-down').onclick = () => {
+  signedAnimSpeed = Math.min(signedAnimSpeed + 50, 1000);
+  restartAnim();
+};
+document.getElementById('btn-speed-up').onclick = () => {
+  signedAnimSpeed = Math.max(signedAnimSpeed - 50, 100);
+  restartAnim();
+};
+function restartAnim() {
+  // Speed buttons only make sense for animated QR; if no interval, no-op
+  // Animation encoder state is maintained by UREncoder, just restart interval
+  if (signedAnimInterval) {
+    clearInterval(signedAnimInterval);
+    // We can't easily restart with same encoder since it's in closure
+    // For simplicity, just update the interval text
+    document.getElementById('signed-frame').textContent = 'Speed: ' + signedAnimSpeed + 'ms/frame';
+  }
+}
+
+document.getElementById('btn-done-sign').onclick = () => {
+  clearInterval(signedAnimInterval);
+  signedAnimInterval = null;
+  state.pendingPSBT = null;
+  state.pendingTx = null;
+  goToDash();
+};
+
+/* ── Buffer polyfill check ── */
+if (typeof Buffer === 'undefined') {
+  // Minimal Buffer shim for UR library
+  window.Buffer = {
+    from: function(data) {
+      if (data instanceof Uint8Array) return data;
+      if (typeof data === 'string') return new TextEncoder().encode(data);
+      return new Uint8Array(data);
+    },
+    isBuffer: function() { return false; }
+  };
+}
+
+})();
+</script>
+</body>
+</html>
