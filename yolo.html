@@ -55136,13 +55136,12 @@ function deriveAddresses(extKey, keyType) {
       const pubkey = child.publicKey;
       let address;
       if (keyType === 'bip84') {
-        // P2WPKH: hash160(pubkey) → bech32 v0
-        const h = ripemd160(sha256(pubkey));
-        address = btcSigner.Address(btcSigner.p2wpkh(pubkey)).toString();
+        // P2WPKH: bech32 v0 address
+        address = btcSigner.p2wpkh(pubkey).address;
       } else {
-        // BIP86 Taproot: tweaked key → bech32m v1
+        // BIP86 Taproot: bech32m v1 address
         // x-only pubkey (32 bytes from 33-byte compressed)
-        address = btcSigner.Address(btcSigner.p2tr(pubkey.slice(1))).toString();
+        address = btcSigner.p2tr(pubkey.slice(1)).address;
       }
       const pathBase = keyType === 'bip84' ? "m/84'/0'/0'" : "m/86'/0'/0'";
       addresses.push({
@@ -55447,8 +55446,7 @@ async function createTransaction() {
       }
     }
 
-    // Determine payment type for outputs
-    const recipientScript = btcSigner.Address().decode(recipientAddr);
+    // Determine payment type for outputs (addOutputAddress handles this)
     const changeAddr = sel.change > 0 ? getChangeAddress() : null;
 
     // Create transaction
@@ -55459,7 +55457,7 @@ async function createTransaction() {
         txid: u.txid,
         index: u.vout,
         witnessUtxo: {
-          script: btcSigner.Address().decode(u.address).script,
+          script: btcSigner.OutScript.encode(btcSigner.Address().decode(u.address)),
           amount: BigInt(u.value),
         },
       };
@@ -55547,7 +55545,23 @@ function showPsbtQR() {
 
   const psbtHex = bytesToHex(APP.currentPsbt);
   const cborBuf = APP.currentPsbt; // raw PSBT bytes
-  const ur = UR.fromBuffer(Buffer.from ? Buffer.from(cborBuf) : cborBuf, 'crypto-psbt');
+  // CBOR-encode the PSBT bytes (major type 2 = byte string)
+  function cborEncodeBytes(buf) {
+    const len = buf.length;
+    if (len < 24) {
+      const out = new Uint8Array(1 + len); out[0] = 0x40 + len; out.set(buf, 1); return out;
+    } else if (len < 256) {
+      const out = new Uint8Array(2 + len); out[0] = 0x58; out[1] = len; out.set(buf, 2); return out;
+    } else if (len < 65536) {
+      const out = new Uint8Array(3 + len); out[0] = 0x59; out[1] = (len >> 8) & 0xff; out[2] = len & 0xff; out.set(buf, 3); return out;
+    } else {
+      const out = new Uint8Array(5 + len); out[0] = 0x5a; out[1]=(len>>24)&0xff; out[2]=(len>>16)&0xff; out[3]=(len>>8)&0xff; out[4]=len&0xff; out.set(buf, 5); return out;
+    }
+  }
+  // Create UR with correct crypto-psbt type
+  const cborPayload = cborEncodeBytes(cborBuf);
+  const bufPayload = (typeof Buffer !== 'undefined' && Buffer.from) ? Buffer.from(cborPayload) : cborPayload;
+  const ur = new UR(bufPayload, 'crypto-psbt');
 
   // Check if it fits in single QR
   const MAX_SINGLE = 500; // bytes for single QR
