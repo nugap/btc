@@ -62,6 +62,7 @@
 <span>Copy this to hodl.html for signing:</span><br>
 <textarea id="psbt-ur" rows="6" readonly></textarea><br>
 <button id="btn-copy-psbt">Copy</button>
+<button id="btn-goto-import">Import Signed TX</button>
 <button id="btn-back-preview">Back</button>
 </div>
 
@@ -55370,6 +55371,7 @@ $on('btn-back-dash2', function() { go('sec-dash') });
 $on('btn-back-dash3', function() { go('sec-dash') });
 $on('btn-back-send', function() { go('sec-send') });
 $on('btn-back-preview', function() { go('sec-preview') });
+$on('btn-goto-import', function() { go('sec-import-signed') });
 
 $on('btn-max', function() {
   var rate = parseInt($v('inp-fee')) || 4;
