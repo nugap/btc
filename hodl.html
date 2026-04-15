@@ -58534,8 +58534,7 @@ function doSign() {
       document.getElementById('sign-status').textContent = 'Signed input ' + signed + '/' + total;
     }
 
-    // Finalize
-    tx.finalize();
+    // Export signed (but NOT finalized) PSBT — yolo will finalize
     const signedPSBT = tx.toPSBT();
 
     // Show signed QR
