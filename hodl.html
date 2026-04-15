@@ -14,19 +14,21 @@
 <option value="mainnet">Mainnet</option>
 <option value="testnet4">Testnet4</option>
 </select><br><br>
-<button id="btn-create">Create New Wallet</button><br>
-<button id="btn-import">Import Existing Wallet</button>
+<button data-go="sec-create">Create New Wallet</button><br>
+<button data-go="sec-import">Import Existing Wallet</button>
 </div>
 
 <div id="sec-create" class="sec">
 <b>New Wallet</b><br><hr>
 <span>Word Count</span><br>
-<button id="wc-12">12 words</button>
-<button id="wc-24">24 words</button><br>
+<select id="sel-wc">
+<option value="12">12 words</option>
+<option value="24">24 words</option>
+</select><br>
 <span>BIP-39 Passphrase (optional)</span><br>
 <input id="inp-pass-create" type="password" placeholder="Leave empty for none"><br>
 <button id="btn-generate">Generate</button>
-<button id="btn-back-landing">Back</button>
+<button data-go="sec-landing">Back</button>
 </div>
 
 <div id="sec-mnemonic" class="sec">
@@ -51,17 +53,19 @@
 <span>BIP-39 Passphrase (optional)</span><br>
 <input id="inp-pass-import" type="password" placeholder="Leave empty for none"><br>
 <button id="btn-import-go">Import</button>
-<button id="btn-back-landing2">Back</button>
+<button data-go="sec-landing">Back</button>
 </div>
 
 <div id="sec-dash" class="sec">
 <b>Dashboard</b> <span id="dash-info"></span><br><hr>
 <span>Fingerprint: </span><span id="dash-fp" class="mono"></span><br>
 <span>Account: </span>
-<button id="acc-84">SegWit (bc1q)</button>
-<button id="acc-86">Taproot (bc1p)</button><br><hr>
+<select id="sel-account">
+<option value="bip84">SegWit (bc1q)</option>
+<option value="bip86">Taproot (bc1p)</option>
+</select><br><hr>
 <button id="btn-export">Export Public Key</button><br>
-<button id="btn-scan">Sign Transaction</button><br>
+<button data-go="sec-scan">Sign Transaction</button><br>
 <button id="btn-show-mn">Show Mnemonic</button><br>
 <button id="btn-wipe" style="color:red">Wipe Wallet</button>
 </div>
@@ -70,7 +74,7 @@
 <b>Public Key</b><br><hr>
 <span>Copy this to yolo.html:</span><br>
 <textarea id="export-key" rows="3" readonly></textarea><br>
-<button id="btn-copy-key">Copy</button>
+<button data-copy="export-key">Copy</button>
 <button id="btn-back-dash">Back</button>
 </div>
 
@@ -98,8 +102,8 @@
 <div id="sec-signed" class="sec">
 <b>Transaction Signed</b><br><hr>
 <span>Copy this to yolo.html:</span><br>
-<textarea id="signed-ur" rows="6" readonly></textarea><br>
-<button id="btn-copy-signed">Copy</button>
+<textarea id="signed-out" rows="6" readonly></textarea><br>
+<button data-copy="signed-out">Copy</button>
 <button id="btn-done">Done</button>
 </div>
 
@@ -15000,17 +15004,22 @@ var { generateMnemonic, mnemonicToSeedSync, validateMnemonic, wordlist,
 var $ = function(id) { return document.getElementById(id) }
 var $v = function(id, v) { return v === void 0 ? $(id).value : ($(id).value = v) }
 var $t = function(id, t) { return t === void 0 ? $(id).innerText : ($(id).innerText = t) }
-var $on = function(id, f) { $(id).onclick = f }
 var $show = function(id) { $(id).style.display = 'block' }
 var $hide = function(id) { $(id).style.display = 'none' }
 
 var SECS = ['sec-landing','sec-create','sec-mnemonic','sec-verify','sec-import','sec-dash','sec-export','sec-scan','sec-review','sec-signing','sec-signed','sec-show-mn'];
 function go(id) { SECS.forEach($hide); $show(id) }
 
+document.addEventListener('click', function(e) {
+  var t = e.target;
+  if (t.dataset.go) go(t.dataset.go);
+  if (t.dataset.copy) navigator.clipboard.writeText($v(t.dataset.copy)).then(function() { notify('Copied', 'ok') });
+});
+
 var S = {
   mnemonic: null, passphrase: '', seed: null, masterKey: null,
   accounts: { bip84: null, bip86: null }, activeAccount: 'bip84',
-  network: 'mainnet', wordCount: 12, pendingPSBT: null
+  network: 'mainnet', pendingPSBT: null
 };
 
 var notifyTimer;
@@ -15023,9 +15032,7 @@ function notify(msg, type) {
   notifyTimer = setTimeout(function() { el.style.display = 'none' }, 4000);
 }
 
-function checkOnline() {
-  $('online-warn').style.display = navigator.onLine ? 'block' : 'none';
-}
+function checkOnline() { $('online-warn').style.display = navigator.onLine ? 'block' : 'none' }
 checkOnline();
 window.addEventListener('online', function() { checkOnline(); notify('Internet detected! Disconnect!') });
 window.addEventListener('offline', checkOnline);
@@ -15048,9 +15055,7 @@ function convertXpub(xpub, v0, v1, v2, v3) {
   return base58c.encode(b);
 }
 
-function getNet() {
-  return S.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
-}
+function getNet() { return S.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK }
 
 function deriveAccounts() {
   var mk = S.masterKey, isTest = S.network === 'testnet4';
@@ -15070,12 +15075,12 @@ function goToDash() {
   $t('dash-fp', S.masterKey.fingerprint.toString(16).padStart(8, '0'));
   var net = S.network === 'testnet4' ? ' [Testnet4]' : '';
   $t('dash-info', (S.activeAccount === 'bip84' ? 'BIP-84 SegWit' : 'BIP-86 Taproot') + net);
+  $v('sel-account', S.activeAccount);
   go('sec-dash');
 }
 
 function displayWords(id, words) {
-  var el = $(id);
-  el.innerHTML = words.split(' ').map(function(w, i) {
+  $(id).innerHTML = words.split(' ').map(function(w, i) {
     return '<span>' + (i + 1) + '. ' + w + '</span>';
   }).join('');
 }
@@ -15090,18 +15095,11 @@ function activateWallet() {
 
 function formatBTC(sats) { return (Number(sats) / 1e8).toFixed(8) }
 
-var wcSelected = 12;
-$on('btn-create', function() { wcSelected = 12; go('sec-create') });
-$on('btn-import', function() { go('sec-import') });
-$on('btn-back-landing', function() { go('sec-landing') });
-$on('btn-back-landing2', function() { go('sec-landing') });
-$on('wc-12', function() { wcSelected = 12 });
-$on('wc-24', function() { wcSelected = 24 });
-
-$on('btn-generate', function() {
+$('btn-generate').onclick = function() {
   S.network = $v('sel-network');
   S.passphrase = $v('inp-pass-create') || '';
-  S.mnemonic = generateMnemonic(wordlist, wcSelected === 24 ? 256 : 128);
+  var wc = parseInt($v('sel-wc'));
+  S.mnemonic = generateMnemonic(wordlist, wc === 24 ? 256 : 128);
   displayWords('mnemonic-grid', S.mnemonic);
   go('sec-mnemonic');
   var sec = 60;
@@ -15110,9 +15108,9 @@ $on('btn-generate', function() {
     if (--sec <= 0) { clearInterval(timer); $('mnemonic-grid').innerHTML = '<span>Hidden</span>'; $t('mnemonic-timer', ''); return }
     $t('mnemonic-timer', 'Auto-hide in ' + sec + 's');
   }, 1000);
-});
+};
 
-$on('btn-wrote-down', function() {
+$('btn-wrote-down').onclick = function() {
   var words = S.mnemonic.split(' '), indices = [];
   while (indices.length < 3) {
     var r = Math.floor(crypto.getRandomValues(new Uint8Array(1))[0] / 256 * words.length);
@@ -15123,20 +15121,20 @@ $on('btn-wrote-down', function() {
     return '<span>Word #' + (idx + 1) + '</span><br><input data-idx="' + idx + '" type="text" autocomplete="off">';
   }).join('');
   go('sec-verify');
-});
+};
 
-$on('btn-show-again', function() { displayWords('mnemonic-grid', S.mnemonic); go('sec-mnemonic') });
+$('btn-show-again').onclick = function() { displayWords('mnemonic-grid', S.mnemonic); go('sec-mnemonic') };
 
-$on('btn-verify', function() {
+$('btn-verify').onclick = function() {
   var words = S.mnemonic.split(' '), ok = true;
   document.querySelectorAll('#verify-fields input').forEach(function(inp) {
     if (inp.value.trim().toLowerCase() !== words[parseInt(inp.getAttribute('data-idx'))]) ok = false;
   });
   if (!ok) { notify('Incorrect words'); return }
   activateWallet();
-});
+};
 
-$on('btn-import-go', function() {
+$('btn-import-go').onclick = function() {
   S.network = $v('sel-network');
   var raw = $v('inp-mnemonic').trim().toLowerCase().replace(/\s+/g, ' ');
   var words = raw.split(' ');
@@ -15147,27 +15145,21 @@ $on('btn-import-go', function() {
   S.mnemonic = raw;
   S.passphrase = $v('inp-pass-import') || '';
   activateWallet();
-});
+};
 
-$on('acc-84', function() { S.activeAccount = 'bip84'; goToDash() });
-$on('acc-86', function() { S.activeAccount = 'bip86'; goToDash() });
+$('sel-account').onchange = function() { S.activeAccount = $v('sel-account'); goToDash() };
 
-$on('btn-export', function() { $v('export-key', S.accounts[S.activeAccount].pubkey); go('sec-export') });
+$('btn-export').onclick = function() { $v('export-key', S.accounts[S.activeAccount].pubkey); go('sec-export') };
 
-$on('btn-copy-key', function() {
-  navigator.clipboard.writeText($v('export-key')).then(function() { notify('Copied', 'ok') });
-});
+$('btn-back-dash').onclick = function() { goToDash() };
+$('btn-back-dash2').onclick = function() { goToDash() };
 
-$on('btn-back-dash', function() { goToDash() });
-$on('btn-back-dash2', function() { goToDash() });
-$on('btn-scan', function() { go('sec-scan') });
-
-$on('btn-import-psbt', function() {
+$('btn-import-psbt').onclick = function() {
   var text = $v('inp-psbt').trim();
   if (!text) { notify('Paste PSBT base64'); return }
   try { processPSBT(fromB64(text)) }
   catch(e) { notify('Invalid base64: ' + e.message) }
-});
+};
 
 function getChangeAddresses() {
   var addrs = {}, net = getNet();
@@ -15175,8 +15167,7 @@ function getChangeAddresses() {
     var acc = S.accounts[type];
     if (!acc) return;
     for (var i = 0; i < 20; i++) {
-      var child = acc.accountKey.deriveChild(1).deriveChild(i);
-      var pub = child.publicKey;
+      var child = acc.accountKey.deriveChild(1).deriveChild(i), pub = child.publicKey;
       addrs[type === 'bip84'
         ? btcSigner.p2wpkh(pub, net).address
         : btcSigner.p2tr(pub.length === 33 ? pub.slice(1) : pub, undefined, net).address
@@ -15210,9 +15201,9 @@ function processPSBT(psbtBytes) {
   go('sec-review');
 }
 
-$on('btn-cancel-tx', function() { goToDash() });
+$('btn-cancel-tx').onclick = function() { goToDash() };
 
-$on('btn-sign', function() {
+$('btn-sign').onclick = function() {
   go('sec-signing');
   $t('sign-status', 'Signing...');
   setTimeout(function() {
@@ -15227,7 +15218,7 @@ $on('btn-sign', function() {
               try { tx.signIdx(S.masterKey.derive(paths[p] + '/' + ch + '/' + idx).privateKey, i); signed = true } catch(e) {}
         $t('sign-status', 'Signed ' + (i + 1) + '/' + tx.inputsLength);
       }
-      $v('signed-ur', toB64(tx.toPSBT()));
+      $v('signed-out', toB64(tx.toPSBT()));
       go('sec-signed');
       notify('Signed!', 'ok');
     } catch(e) {
@@ -15235,23 +15226,19 @@ $on('btn-sign', function() {
       goToDash();
     }
   }, 50);
-});
+};
 
-$on('btn-copy-signed', function() {
-  navigator.clipboard.writeText($v('signed-ur')).then(function() { notify('Copied', 'ok') });
-});
+$('btn-done').onclick = function() { S.pendingPSBT = null; goToDash() };
 
-$on('btn-done', function() { S.pendingPSBT = null; goToDash() });
-
-$on('btn-show-mn', function() {
+$('btn-show-mn').onclick = function() {
   if (!confirm('Show sensitive data?')) return;
   displayWords('show-mn-grid', S.mnemonic);
   go('sec-show-mn');
-});
+};
 
-$on('btn-hide-mn', function() { $('show-mn-grid').innerHTML = ''; goToDash() });
+$('btn-hide-mn').onclick = function() { $('show-mn-grid').innerHTML = ''; goToDash() };
 
-$on('btn-wipe', function() {
+$('btn-wipe').onclick = function() {
   if (!confirm('Erase wallet? Make sure you backed up your mnemonic.')) return;
   if (!confirm('Are you sure?')) return;
   try { if (S.seed) S.seed.fill(0) } catch(e) {}
@@ -15259,7 +15246,7 @@ $on('btn-wipe', function() {
   S.accounts = { bip84: null, bip86: null }; S.pendingPSBT = null;
   notify('Wiped', 'warn');
   go('sec-landing');
-});
+};
 
 })();
 </script>

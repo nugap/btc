@@ -31,8 +31,8 @@
 <span id="dash-updated"></span><br><hr>
 <div id="dash-utxos"></div>
 <button id="btn-refresh">Refresh</button>
-<button id="btn-send">Send</button>
-<button id="btn-import-signed">Import Signed TX</button>
+<button data-go="sec-send">Send</button>
+<button data-go="sec-import-signed">Import Signed TX</button>
 <button id="btn-reset">Reset</button>
 </div>
 
@@ -45,25 +45,24 @@
 <button id="btn-max">MAX</button><br>
 <span>Fee Rate (sat/vB)</span><br>
 <input id="inp-fee" type="number" value="4" min="1"><br>
-<span id="fee-info"></span><br>
 <button id="btn-create-tx">Create Transaction</button>
-<button id="btn-back-dash">Back</button>
+<button data-go="sec-dash">Back</button>
 </div>
 
 <div id="sec-preview" class="sec">
 <b>Transaction Preview</b><br><hr>
 <pre id="tx-preview"></pre>
 <button id="btn-show-psbt">Show PSBT for Signing</button>
-<button id="btn-back-send">Back</button>
+<button data-go="sec-send">Back</button>
 </div>
 
 <div id="sec-psbt" class="sec">
 <b>Unsigned PSBT</b><br><hr>
 <span>Copy this to hodl.html for signing:</span><br>
-<textarea id="psbt-ur" rows="6" readonly></textarea><br>
-<button id="btn-copy-psbt">Copy</button>
-<button id="btn-goto-import">Import Signed TX</button>
-<button id="btn-back-preview">Back</button>
+<textarea id="psbt-out" rows="6" readonly></textarea><br>
+<button data-copy="psbt-out">Copy</button>
+<button data-go="sec-import-signed">Import Signed TX</button>
+<button data-go="sec-preview">Back</button>
 </div>
 
 <div id="sec-import-signed" class="sec">
@@ -71,7 +70,7 @@
 <span>Paste signed PSBT from hodl.html (base64):</span><br>
 <textarea id="inp-signed" rows="6" placeholder="cHNidP8..."></textarea><br>
 <button id="btn-do-import-signed">Import & Finalize</button>
-<button id="btn-back-dash2">Back</button>
+<button data-go="sec-dash">Back</button>
 </div>
 
 <div id="sec-broadcast" class="sec">
@@ -79,14 +78,14 @@
 <pre id="broadcast-info"></pre>
 <b style="color:red">This will send real BTC. Cannot be undone.</b><br>
 <button id="btn-broadcast">Broadcast</button>
-<button id="btn-back-dash3">Back</button>
+<button data-go="sec-dash">Back</button>
 </div>
 
 <div id="sec-result" class="sec">
 <b style="color:green">Transaction Broadcast!</b><br><hr>
 <pre id="result-info"></pre>
-<button id="btn-new-tx">New Transaction</button>
-<button id="btn-home">Home</button>
+<button data-go="sec-send">New Transaction</button>
+<button data-go="sec-dash">Home</button>
 </div>
 
 <script>
@@ -12088,12 +12087,17 @@ var { btcSigner, HDKey, sha256, ripemd160, secp256k1 } = nugap;
 var $ = function(id) { return document.getElementById(id) }
 var $v = function(id, v) { return v === void 0 ? $(id).value : ($(id).value = v) }
 var $t = function(id, t) { return t === void 0 ? $(id).innerText : ($(id).innerText = t) }
-var $on = function(id, f) { $(id).onclick = f }
 var $show = function(id) { $(id).style.display = 'block' }
 var $hide = function(id) { $(id).style.display = 'none' }
 
 var SECS = ['sec-import','sec-dash','sec-send','sec-preview','sec-psbt','sec-import-signed','sec-broadcast','sec-result'];
 function go(id) { SECS.forEach($hide); $show(id) }
+
+document.addEventListener('click', function(e) {
+  var t = e.target;
+  if (t.dataset.go) go(t.dataset.go);
+  if (t.dataset.copy) navigator.clipboard.writeText($v(t.dataset.copy)).then(function() { notify('Copied', 'ok') });
+});
 
 var APP = {
   walletType: null, extendedKey: null, keyType: null,
@@ -12229,8 +12233,8 @@ function b58encode(bytes) {
 }
 
 function detectKeyType(key) {
-  if (key.startsWith('zpub') || key.startsWith('vpub')) return 'bip84';
-  if (key.startsWith('xpub') || key.startsWith('tpub')) return 'bip86';
+  if (key[0] === 'z' || key[0] === 'v') return 'bip84';
+  if (key[0] === 'x' || key[0] === 't') return 'bip86';
   return null;
 }
 
@@ -12239,7 +12243,7 @@ function convertToXpub(keyStr) {
   if (!data || data.length !== 78) return null;
   var out = new Uint8Array(data);
   var isTest = keyStr[0] === 'v' || keyStr[0] === 't';
-  out[0] = isTest ? 0x04 : 0x04; out[1] = isTest ? 0x35 : 0x88;
+  out[0] = 0x04; out[1] = isTest ? 0x35 : 0x88;
   out[2] = isTest ? 0x87 : 0xB2; out[3] = isTest ? 0xCF : 0x1E;
   var h = sha256(sha256(out));
   var full = new Uint8Array(82);
@@ -12351,12 +12355,12 @@ function getChangeAddr() {
   return (unused || ch[0]).address;
 }
 
-$on('sel-network', function() {
+$('sel-network').onchange = function() {
   APP.network = $v('sel-network');
   APP.apiBaseUrl = APP.network === 'testnet4' ? 'https://mempool.space/testnet4/api' : 'https://mempool.space/api';
-});
+};
 
-$on('btn-import', async function() {
+$('btn-import').onclick = async function() {
   var key = $v('inp-key').trim(), type = $v('sel-import-type');
   APP.network = $v('sel-network');
   APP.apiBaseUrl = APP.network === 'testnet4' ? 'https://mempool.space/testnet4/api' : 'https://mempool.space/api';
@@ -12382,29 +12386,20 @@ $on('btn-import', async function() {
     go('sec-dash');
     notify('Imported', 'ok');
   } catch(e) { notify('Import failed: ' + e.message) }
-});
+};
 
-$on('btn-refresh', async function() {
+$('btn-refresh').onclick = async function() {
   try { await fetchBalances(); renderDash(); notify('Updated', 'ok') }
   catch(e) { notify('Refresh failed: ' + e.message) }
-});
+};
 
-$on('btn-send', function() { go('sec-send') });
-$on('btn-import-signed', function() { go('sec-import-signed') });
-$on('btn-reset', function() {
+$('btn-reset').onclick = function() {
   APP.walletType = null; APP.extendedKey = null; APP.keyType = null;
   APP.addresses = []; APP.totalBalance = 0;
   go('sec-import');
-});
+};
 
-$on('btn-back-dash', function() { go('sec-dash') });
-$on('btn-back-dash2', function() { go('sec-dash') });
-$on('btn-back-dash3', function() { go('sec-dash') });
-$on('btn-back-send', function() { go('sec-send') });
-$on('btn-back-preview', function() { go('sec-preview') });
-$on('btn-goto-import', function() { go('sec-import-signed') });
-
-$on('btn-max', function() {
+$('btn-max').onclick = function() {
   var rate = parseInt($v('inp-fee')) || 4;
   var all = APP.addresses.flatMap(function(a) { return a.utxos });
   var ivb = APP.keyType === 'bip86' ? 57.5 : 68;
@@ -12412,9 +12407,9 @@ $on('btn-max', function() {
   var max = APP.totalBalance - fee;
   if (max <= 0) { notify('Insufficient funds for fee'); return }
   $v('inp-amount', satsBtc(max));
-});
+};
 
-$on('btn-create-tx', async function() {
+$('btn-create-tx').onclick = async function() {
   var recipient = $v('inp-recipient').trim();
   var v = validateAddr(recipient);
   if (!v.valid) { notify(v.error); return }
@@ -12459,15 +12454,11 @@ $on('btn-create-tx', async function() {
     $t('tx-preview', info);
     go('sec-preview');
   } catch(e) { notify('TX error: ' + e.message) }
-});
+};
 
-$on('btn-show-psbt', function() { $v('psbt-ur', toB64(APP.currentPsbt)); go('sec-psbt') });
+$('btn-show-psbt').onclick = function() { $v('psbt-out', toB64(APP.currentPsbt)); go('sec-psbt') };
 
-$on('btn-copy-psbt', function() {
-  navigator.clipboard.writeText($v('psbt-ur')).then(function() { notify('Copied', 'ok') });
-});
-
-$on('btn-do-import-signed', function() {
+$('btn-do-import-signed').onclick = function() {
   var text = $v('inp-signed').trim();
   if (!text) { notify('Paste signed PSBT'); return }
   var psbt = fromB64(text);
@@ -12480,16 +12471,13 @@ $on('btn-do-import-signed', function() {
     go('sec-broadcast');
     notify('Signed TX decoded', 'ok');
   } catch(e) { notify('Failed: ' + e.message) }
-});
+};
 
-$on('btn-broadcast', async function() {
+$('btn-broadcast').onclick = async function() {
   try {
     var txid = await api('/tx', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: APP.signedTxHex });
     $t('result-info', 'TXID: ' + txid + '\n\n' + APP.apiBaseUrl.replace('/api', '') + '/tx/' + txid);
     go('sec-result');
   } catch(e) { notify('Broadcast failed: ' + e.message) }
-});
-
-$on('btn-new-tx', function() { go('sec-send') });
-$on('btn-home', function() { go('sec-dash') });
+};
 </script>
