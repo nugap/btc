@@ -12092,8 +12092,8 @@ var $on = function(id, f) { $(id).onclick = f }
 var $show = function(id) { $(id).style.display = 'block' }
 var $hide = function(id) { $(id).style.display = 'none' }
 
-var sections = ['sec-import','sec-dash','sec-send','sec-preview','sec-psbt','sec-import-signed','sec-broadcast','sec-result'];
-function go(id) { sections.forEach(function(s) { $hide(s) }); $show(id) }
+var SECS = ['sec-import','sec-dash','sec-send','sec-preview','sec-psbt','sec-import-signed','sec-broadcast','sec-result'];
+function go(id) { SECS.forEach($hide); $show(id) }
 
 var APP = {
   walletType: null, extendedKey: null, keyType: null,
@@ -12113,92 +12113,109 @@ function notify(msg, type) {
 function satsBtc(s) { return (Number(s) / 1e8).toFixed(8) }
 
 function btcSats(b) {
-  var str = String(b).trim();
-  var neg = str.startsWith('-');
-  var abs = neg ? str.slice(1) : str;
-  var parts = abs.split('.');
-  var i = parts[0] || '0';
-  var d = (parts[1] || '').padEnd(8, '0').slice(0, 8);
-  var sats = parseInt(i, 10) * 100000000 + parseInt(d, 10);
-  return neg ? -sats : sats;
+  var s = String(b).trim(), neg = s[0] === '-';
+  if (neg) s = s.slice(1);
+  var p = s.split('.'), i = p[0] || '0', d = (p[1] || '').padEnd(8, '0').slice(0, 8);
+  var v = parseInt(i, 10) * 1e8 + parseInt(d, 10);
+  return neg ? -v : v;
 }
 
 function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms) }) }
 
-function hexToBytes(hex) {
-  var b = new Uint8Array(hex.length / 2);
-  for (var i = 0; i < hex.length; i += 2) b[i/2] = parseInt(hex.slice(i, i+2), 16);
+function hexToBytes(h) {
+  var b = new Uint8Array(h.length / 2);
+  for (var i = 0; i < h.length; i += 2) b[i / 2] = parseInt(h.slice(i, i + 2), 16);
   return b;
 }
 
-function bytesToHex(bytes) {
-  return Array.from(bytes).map(function(b) { return b.toString(16).padStart(2, '0') }).join('');
+function bytesToHex(b) {
+  return Array.from(b, function(x) { return x.toString(16).padStart(2, '0') }).join('');
 }
 
+function toB64(bytes) {
+  var s = '';
+  for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+}
 
-var BECH32_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+function fromB64(str) {
+  try {
+    var s = atob(str.trim()), b = new Uint8Array(s.length);
+    for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
+    return b;
+  } catch(e) {}
+  try { return hexToBytes(str.trim()) } catch(e) {}
+  return null;
+}
+
+var B32 = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+var B32_GEN = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+
 function bech32Decode(str) {
   str = str.toLowerCase();
   var pos = str.lastIndexOf('1');
   if (pos < 1 || pos + 7 > str.length) return null;
-  var hrp = str.slice(0, pos);
-  var data = [];
+  var hrp = str.slice(0, pos), data = [];
   for (var i = pos + 1; i < str.length; i++) {
-    var c = BECH32_CHARSET.indexOf(str[i]);
-    if (c === -1) return null;
+    var c = B32.indexOf(str[i]);
+    if (c < 0) return null;
     data.push(c);
   }
-  var GEN = [0x3b6a57b2,0x26508e6d,0x1ea119fa,0x3d4233dd,0x2a1462b3];
-  function polymod(values) {
+  function polymod(v) {
     var chk = 1;
-    for (var i = 0; i < values.length; i++) { var b = chk >> 25; chk = ((chk & 0x1ffffff) << 5) ^ values[i]; for (var j=0;j<5;j++) if ((b>>j)&1) chk ^= GEN[j]; }
+    for (var i = 0; i < v.length; i++) {
+      var b = chk >> 25;
+      chk = ((chk & 0x1ffffff) << 5) ^ v[i];
+      for (var j = 0; j < 5; j++) if ((b >> j) & 1) chk ^= B32_GEN[j];
+    }
     return chk;
   }
-  function hrpExpand(h) { var r=[]; for(var i=0;i<h.length;i++) r.push(h.charCodeAt(i)>>5); r.push(0); for(var i=0;i<h.length;i++) r.push(h.charCodeAt(i)&31); return r; }
-  var chk = polymod(hrpExpand(hrp).concat(data));
-  var enc = null;
-  if (chk === 1) enc = 'bech32';
-  else if (chk === 0x2bc830a3) enc = 'bech32m';
-  else return null;
-  var dp = data.slice(0, -6);
-  var wv = dp[0];
-  var payload = [];
-  var acc = 0, bits = 0;
+  var exp = [];
+  for (var i = 0; i < hrp.length; i++) exp.push(hrp.charCodeAt(i) >> 5);
+  exp.push(0);
+  for (var i = 0; i < hrp.length; i++) exp.push(hrp.charCodeAt(i) & 31);
+  var chk = polymod(exp.concat(data));
+  var enc = chk === 1 ? 'bech32' : chk === 0x2bc830a3 ? 'bech32m' : null;
+  if (!enc) return null;
+  var dp = data.slice(0, -6), wv = dp[0], payload = [], acc = 0, bits = 0;
   for (var i = 1; i < dp.length; i++) {
     acc = (acc << 5) | dp[i]; bits += 5;
     if (bits >= 8) { bits -= 8; payload.push((acc >> bits) & 0xff); }
   }
-  if (bits >= 5 || (acc << (8-bits)) & ((1<<8)-1)) return null;
+  if (bits >= 5 || (acc << (8 - bits)) & 0xff) return null;
   return { hrp: hrp, witnessVer: wv, program: new Uint8Array(payload), encoding: enc };
 }
 
 function validateAddr(addr) {
   if (/^[13]/.test(addr)) return { valid: false, error: 'Legacy not supported' };
-  var isTest = APP.network === 'testnet4';
-  var hrp = isTest ? 'tb' : 'bc';
+  var isTest = APP.network === 'testnet4', hrp = isTest ? 'tb' : 'bc';
   if (isTest && /^bc1/i.test(addr)) return { valid: false, error: 'Mainnet address on testnet' };
   if (!isTest && /^tb1/i.test(addr)) return { valid: false, error: 'Testnet address on mainnet' };
-  var dec = bech32Decode(addr);
-  if (!dec || dec.hrp !== hrp) return { valid: false, error: 'Invalid address' };
-  if (dec.witnessVer === 0 && dec.encoding !== 'bech32') return { valid: false, error: 'v0 needs bech32' };
-  if (dec.witnessVer > 0 && dec.encoding !== 'bech32m') return { valid: false, error: 'v1+ needs bech32m' };
-  if (dec.witnessVer === 1 && dec.program.length !== 32) return { valid: false, error: 'Bad taproot length' };
-  return { valid: true, type: dec.witnessVer === 0 ? 'p2wpkh' : 'p2tr' };
+  var d = bech32Decode(addr);
+  if (!d || d.hrp !== hrp) return { valid: false, error: 'Invalid address' };
+  if (d.witnessVer === 0 && d.encoding !== 'bech32') return { valid: false, error: 'v0 needs bech32' };
+  if (d.witnessVer > 0 && d.encoding !== 'bech32m') return { valid: false, error: 'v1+ needs bech32m' };
+  if (d.witnessVer === 1 && d.program.length !== 32) return { valid: false, error: 'Bad taproot length' };
+  return { valid: true, type: d.witnessVer === 0 ? 'p2wpkh' : 'p2tr' };
 }
 
 var B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
 function b58decode(str) {
   var n = 0n;
-  for (var i = 0; i < str.length; i++) { var c = B58.indexOf(str[i]); if (c < 0) return null; n = n * 58n + BigInt(c); }
+  for (var i = 0; i < str.length; i++) {
+    var c = B58.indexOf(str[i]);
+    if (c < 0) return null;
+    n = n * 58n + BigInt(c);
+  }
+  var h = n.toString(16);
+  if (h.length % 2) h = '0' + h;
   var bytes = [];
-  var h = n.toString(16); if (h.length % 2) h = '0' + h;
-  for (var i = 0; i < h.length; i += 2) bytes.push(parseInt(h.slice(i,i+2), 16));
-  for (var i = 0; i < str.length; i++) { if (str[i] === '1') bytes.unshift(0); else break; }
-  var arr = new Uint8Array(bytes);
-  var payload = arr.slice(0, -4);
-  var checksum = arr.slice(-4);
+  for (var i = 0; i < h.length; i += 2) bytes.push(parseInt(h.slice(i, i + 2), 16));
+  for (var i = 0; i < str.length && str[i] === '1'; i++) bytes.unshift(0);
+  var arr = new Uint8Array(bytes), payload = arr.slice(0, -4), cksum = arr.slice(-4);
   var hash = sha256(sha256(payload));
-  for (var i = 0; i < 4; i++) { if (hash[i] !== checksum[i]) return null; }
+  for (var i = 0; i < 4; i++) if (hash[i] !== cksum[i]) return null;
   return payload;
 }
 
@@ -12207,7 +12224,7 @@ function b58encode(bytes) {
   for (var i = 0; i < bytes.length; i++) n = n * 256n + BigInt(bytes[i]);
   var str = '';
   while (n > 0n) { str = B58[Number(n % 58n)] + str; n /= 58n; }
-  for (var i = 0; i < bytes.length; i++) { if (bytes[i] === 0) str = '1' + str; else break; }
+  for (var i = 0; i < bytes.length && bytes[i] === 0; i++) str = '1' + str;
   return str;
 }
 
@@ -12220,53 +12237,47 @@ function detectKeyType(key) {
 function convertToXpub(keyStr) {
   var data = b58decode(keyStr);
   if (!data || data.length !== 78) return null;
-  var isTest = keyStr.startsWith('vpub') || keyStr.startsWith('tpub');
   var out = new Uint8Array(data);
-  if (isTest) { out[0]=0x04; out[1]=0x35; out[2]=0x87; out[3]=0xCF; }
-  else { out[0]=0x04; out[1]=0x88; out[2]=0xB2; out[3]=0x1E; }
+  var isTest = keyStr[0] === 'v' || keyStr[0] === 't';
+  out[0] = isTest ? 0x04 : 0x04; out[1] = isTest ? 0x35 : 0x88;
+  out[2] = isTest ? 0x87 : 0xB2; out[3] = isTest ? 0xCF : 0x1E;
   var h = sha256(sha256(out));
   var full = new Uint8Array(82);
-  full.set(out); full.set(h.slice(0,4), 78);
+  full.set(out); full.set(h.slice(0, 4), 78);
   return b58encode(full);
 }
 
 function deriveAddresses(extKey, keyType, start, count, change) {
   var xpub = extKey;
-  if (keyType === 'bip84' && (extKey.startsWith('zpub') || extKey.startsWith('vpub')))
+  if (keyType === 'bip84' && (extKey[0] === 'z' || extKey[0] === 'v'))
     xpub = convertToXpub(extKey);
   if (!xpub) throw new Error('Invalid key');
   var isTest = APP.network === 'testnet4';
   var vers = isTest ? { public: 0x043587CF, private: 0x04358394 } : undefined;
   var root = HDKey.fromExtendedKey(xpub, vers);
   var net = isTest ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
-  var ch = change ? 1 : 0;
-  var branch = root.deriveChild(ch);
-  var addrs = [];
+  var ch = change ? 1 : 0, branch = root.deriveChild(ch), addrs = [];
+  var base = keyType === 'bip84' ? "m/84'/0'/0'" : "m/86'/0'/0'";
   for (var i = start; i < start + count; i++) {
-    var child = branch.deriveChild(i);
-    var pub = child.publicKey;
+    var pub = branch.deriveChild(i).publicKey;
     var addr = keyType === 'bip84'
       ? btcSigner.p2wpkh(pub, net).address
       : btcSigner.p2tr(pub.slice(1), undefined, net).address;
-    var base = keyType === 'bip84' ? "m/84'/0'/0'" : "m/86'/0'/0'";
-    addrs.push({ path: base + '/' + ch + '/' + i, address: addr, isChange: change, balance: 0, utxos: [], pubkey: pub });
+    addrs.push({ path: base + '/' + ch + '/' + i, address: addr, isChange: !!change, balance: 0, utxos: [], pubkey: pub });
   }
   return addrs;
 }
 
 async function api(path, opts) {
   opts = opts || {};
-  var url = APP.apiBaseUrl + path;
-  var res = await fetch(url, opts);
+  var res = await fetch(APP.apiBaseUrl + path, opts);
   if (res.status === 429) {
-    var retries = (opts._retries || 0) + 1;
-    if (retries > 3) throw new Error('Rate limited (429)');
+    if ((opts._retries || 0) >= 3) throw new Error('Rate limited');
     await sleep(5000);
-    return api(path, Object.assign({}, opts, { _retries: retries }));
+    return api(path, Object.assign({}, opts, { _retries: (opts._retries || 0) + 1 }));
   }
   if (!res.ok) throw new Error(await res.text() || 'HTTP ' + res.status);
-  var ct = res.headers.get('content-type') || '';
-  return ct.includes('json') ? res.json() : res.text();
+  return (res.headers.get('content-type') || '').includes('json') ? res.json() : res.text();
 }
 
 async function fetchBalances() {
@@ -12275,15 +12286,13 @@ async function fetchBalances() {
     var a = APP.addresses[i];
     try {
       var info = await api('/address/' + a.address);
-      var cs = info.chain_stats || {};
-      var ms = info.mempool_stats || {};
+      var cs = info.chain_stats || {}, ms = info.mempool_stats || {};
       a.balance = (cs.funded_txo_sum - cs.spent_txo_sum) + (ms.funded_txo_sum - ms.spent_txo_sum);
       if (a.balance > 0 || (cs.tx_count || 0) + (ms.tx_count || 0) > 0) {
-        var utxos = await api('/address/' + a.address + '/utxo');
-        a.utxos = (utxos || []).map(function(u) {
+        a.utxos = ((await api('/address/' + a.address + '/utxo')) || []).map(function(u) {
           return { txid: u.txid, vout: u.vout, value: u.value, confirmed: u.status && u.status.confirmed };
         });
-      } else { a.utxos = []; }
+      } else a.utxos = [];
       total += a.balance;
     } catch(e) {}
     if (i < APP.addresses.length - 1) await sleep(300);
@@ -12300,12 +12309,11 @@ function renderDash() {
   $t('dash-updated', 'Updated: ' + new Date().toLocaleTimeString());
   var html = '';
   APP.addresses.forEach(function(a) {
-    if (a.balance > 0 || a.utxos.length > 0) {
-      html += '<b>' + satsBtc(a.balance) + ' BTC</b> ' + a.address.slice(0,12) + '...<br>';
-      a.utxos.forEach(function(u) {
-        html += '  ' + u.txid.slice(0,8) + ':' + u.vout + ' = ' + u.value + ' sats ' + (u.confirmed ? '✓' : '⏳') + '<br>';
-      });
-    }
+    if (a.balance <= 0 && !a.utxos.length) return;
+    html += '<b>' + satsBtc(a.balance) + ' BTC</b> ' + a.address.slice(0, 12) + '...<br>';
+    a.utxos.forEach(function(u) {
+      html += '  ' + u.txid.slice(0, 8) + ':' + u.vout + ' = ' + u.value + ' sats ' + (u.confirmed ? '✓' : '⏳') + '<br>';
+    });
   });
   $('dash-utxos').innerHTML = html || '<span>No UTXOs</span>';
 }
@@ -12319,11 +12327,9 @@ function selectUtxos(targetSats, feeRate) {
   });
   all.sort(function(a, b) { return b.value - a.value });
   var ivb = APP.keyType === 'bip86' ? 57.5 : 68;
-  var sel = [];
-  var total = 0;
+  var sel = [], total = 0;
   for (var i = 0; i < all.length; i++) {
-    sel.push(all[i]);
-    total += all[i].value;
+    sel.push(all[i]); total += all[i].value;
     var vs = Math.ceil(sel.length * ivb + 2 * 31 + 10.5);
     var fee = vs * feeRate;
     if (total >= targetSats + fee) {
@@ -12340,26 +12346,9 @@ function selectUtxos(targetSats, feeRate) {
 
 function getChangeAddr() {
   var ch = APP.addresses.filter(function(a) { return a.isChange });
-  if (ch.length === 0) return APP.addresses[0] ? APP.addresses[0].address : null;
-  var unused = ch.find(function(a) { return a.balance === 0 && a.utxos.length === 0 });
-  return unused ? unused.address : ch[0].address;
-}
-
-function psbtToB64(psbtBytes) {
-  var bin = '';
-  for (var i = 0; i < psbtBytes.length; i++) bin += String.fromCharCode(psbtBytes[i]);
-  return btoa(bin);
-}
-
-function b64ToPsbt(text) {
-  try {
-    var bin = atob(text.trim());
-    var bytes = new Uint8Array(bin.length);
-    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    return bytes;
-  } catch(e) {}
-  try { return hexToBytes(text.trim()) } catch(e) {}
-  return null;
+  if (!ch.length) return APP.addresses[0] ? APP.addresses[0].address : null;
+  var unused = ch.find(function(a) { return !a.balance && !a.utxos.length });
+  return (unused || ch[0]).address;
 }
 
 $on('sel-network', function() {
@@ -12368,8 +12357,7 @@ $on('sel-network', function() {
 });
 
 $on('btn-import', async function() {
-  var key = $v('inp-key').trim();
-  var type = $v('sel-import-type');
+  var key = $v('inp-key').trim(), type = $v('sel-import-type');
   APP.network = $v('sel-network');
   APP.apiBaseUrl = APP.network === 'testnet4' ? 'https://mempool.space/testnet4/api' : 'https://mempool.space/api';
   if (!key) { notify('Enter a key or address'); return }
@@ -12378,7 +12366,7 @@ $on('btn-import', async function() {
       var kt = detectKeyType(key);
       if (!kt) { notify('Unsupported key format'); return }
       if (!b58decode(key)) { notify('Invalid key checksum'); return }
-      var isTestKey = key.startsWith('tpub') || key.startsWith('vpub');
+      var isTestKey = key[0] === 't' || key[0] === 'v';
       if (APP.network === 'testnet4' && !isTestKey) { notify('Mainnet key on testnet'); return }
       if (APP.network === 'mainnet' && isTestKey) { notify('Testnet key on mainnet'); return }
       APP.walletType = 'xpub'; APP.extendedKey = key; APP.keyType = kt;
@@ -12420,8 +12408,7 @@ $on('btn-max', function() {
   var rate = parseInt($v('inp-fee')) || 4;
   var all = APP.addresses.flatMap(function(a) { return a.utxos });
   var ivb = APP.keyType === 'bip86' ? 57.5 : 68;
-  var vs = Math.ceil(all.length * ivb + 31 + 10.5);
-  var fee = vs * rate;
+  var fee = Math.ceil(all.length * ivb + 31 + 10.5) * rate;
   var max = APP.totalBalance - fee;
   if (max <= 0) { notify('Insufficient funds for fee'); return }
   $v('inp-amount', satsBtc(max));
@@ -12436,51 +12423,45 @@ $on('btn-create-tx', async function() {
   var feeRate = parseInt($v('inp-fee')) || 4;
   var sel = selectUtxos(amountSats, feeRate);
   if (!sel) { notify('Insufficient funds'); return }
-  var changeAddr = getChangeAddr();
-  var txNetwork = APP.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
-
+  var txNet = APP.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
   try {
     var txData = {};
     for (var i = 0; i < sel.selected.length; i++) {
       var u = sel.selected[i];
-      if (!txData[u.txid]) {
-        try { txData[u.txid] = await api('/tx/' + u.txid + '/hex') } catch(e) {}
-      }
+      if (!txData[u.txid]) try { txData[u.txid] = await api('/tx/' + u.txid + '/hex') } catch(e) {}
       await sleep(300);
     }
-
     var tx = new btcSigner.Transaction();
     for (var i = 0; i < sel.selected.length; i++) {
       var u = sel.selected[i];
-      var inputOpts = {
+      var inp = {
         txid: u.txid, index: u.vout,
         witnessUtxo: {
-          script: btcSigner.OutScript.encode(btcSigner.Address(txNetwork).decode(u.address)),
+          script: btcSigner.OutScript.encode(btcSigner.Address(txNet).decode(u.address)),
           amount: BigInt(u.value)
         }
       };
-      if (txData[u.txid]) inputOpts.nonWitnessUtxo = hexToBytes(txData[u.txid]);
+      if (txData[u.txid]) inp.nonWitnessUtxo = hexToBytes(txData[u.txid]);
       if (u.keyType === 'bip86' && u.pubkey) {
         var pub = typeof u.pubkey === 'string' ? hexToBytes(u.pubkey) : u.pubkey;
-        inputOpts.tapInternalKey = pub.length === 33 ? pub.slice(1) : pub;
+        inp.tapInternalKey = pub.length === 33 ? pub.slice(1) : pub;
       }
-      tx.addInput(inputOpts);
+      tx.addInput(inp);
     }
-    tx.addOutputAddress(recipient, BigInt(amountSats), txNetwork);
-    if (sel.change > 0 && changeAddr) tx.addOutputAddress(changeAddr, BigInt(sel.change), txNetwork);
-
+    tx.addOutputAddress(recipient, BigInt(amountSats), txNet);
+    if (sel.change > 0) {
+      var ca = getChangeAddr();
+      if (ca) tx.addOutputAddress(ca, BigInt(sel.change), txNet);
+    }
     APP.currentPsbt = tx.toPSBT();
     var info = 'To: ' + recipient + '\nAmount: ' + satsBtc(amountSats) + ' BTC\nFee: ' + sel.fee + ' sats\nInputs: ' + sel.selected.length;
-    if (sel.change > 0) info += '\nChange: ' + satsBtc(sel.change) + ' BTC → ' + changeAddr;
+    if (sel.change > 0) info += '\nChange: ' + satsBtc(sel.change) + ' BTC → ' + getChangeAddr();
     $t('tx-preview', info);
     go('sec-preview');
   } catch(e) { notify('TX error: ' + e.message) }
 });
 
-$on('btn-show-psbt', function() {
-  $v('psbt-ur', psbtToB64(APP.currentPsbt));
-  go('sec-psbt');
-});
+$on('btn-show-psbt', function() { $v('psbt-ur', toB64(APP.currentPsbt)); go('sec-psbt') });
 
 $on('btn-copy-psbt', function() {
   navigator.clipboard.writeText($v('psbt-ur')).then(function() { notify('Copied', 'ok') });
@@ -12489,7 +12470,7 @@ $on('btn-copy-psbt', function() {
 $on('btn-do-import-signed', function() {
   var text = $v('inp-signed').trim();
   if (!text) { notify('Paste signed PSBT'); return }
-  var psbt = b64ToPsbt(text);
+  var psbt = fromB64(text);
   if (!psbt) { notify('Invalid base64 data'); return }
   try {
     var tx = btcSigner.Transaction.fromPSBT(psbt);
@@ -12504,8 +12485,7 @@ $on('btn-do-import-signed', function() {
 $on('btn-broadcast', async function() {
   try {
     var txid = await api('/tx', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: APP.signedTxHex });
-    var link = APP.apiBaseUrl.replace('/api', '') + '/tx/' + txid;
-    $t('result-info', 'TXID: ' + txid + '\n\n' + link);
+    $t('result-info', 'TXID: ' + txid + '\n\n' + APP.apiBaseUrl.replace('/api', '') + '/tx/' + txid);
     go('sec-result');
   } catch(e) { notify('Broadcast failed: ' + e.message) }
 });

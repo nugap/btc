@@ -119,7 +119,6 @@
 
 var { generateMnemonic, mnemonicToSeedSync, validateMnemonic, wordlist,
       btcSigner, HDKey, sha256, ripemd160, secp256k1,
-      btcSigner, HDKey, sha256, ripemd160, secp256k1,
       base58c, hex } = nugap;
 
 var $ = function(id) { return document.getElementById(id) }
@@ -129,16 +128,16 @@ var $on = function(id, f) { $(id).onclick = f }
 var $show = function(id) { $(id).style.display = 'block' }
 var $hide = function(id) { $(id).style.display = 'none' }
 
-var secs = ['sec-landing','sec-create','sec-mnemonic','sec-verify','sec-import','sec-dash','sec-export','sec-scan','sec-review','sec-signing','sec-signed','sec-show-mn'];
-function go(id) { secs.forEach(function(s) { $hide(s) }); $show(id) }
+var SECS = ['sec-landing','sec-create','sec-mnemonic','sec-verify','sec-import','sec-dash','sec-export','sec-scan','sec-review','sec-signing','sec-signed','sec-show-mn'];
+function go(id) { SECS.forEach($hide); $show(id) }
 
-var state = {
+var S = {
   mnemonic: null, passphrase: '', seed: null, masterKey: null,
   accounts: { bip84: null, bip86: null }, activeAccount: 'bip84',
   network: 'mainnet', wordCount: 12, pendingPSBT: null
 };
 
-var notifyTimer = null;
+var notifyTimer;
 function notify(msg, type) {
   var el = $('notify');
   el.innerText = msg;
@@ -155,151 +154,129 @@ checkOnline();
 window.addEventListener('online', function() { checkOnline(); notify('Internet detected! Disconnect!') });
 window.addEventListener('offline', checkOnline);
 
+function toB64(bytes) {
+  var s = '';
+  for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+}
 
-function xpubToZpub(s) {
-  var b = new Uint8Array(base58c.decode(s));
-  b[0]=0x04; b[1]=0xB2; b[2]=0x47; b[3]=0x46;
+function fromB64(str) {
+  var s = atob(str.trim()), b = new Uint8Array(s.length);
+  for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
+  return b;
+}
+
+function convertXpub(xpub, v0, v1, v2, v3) {
+  var b = new Uint8Array(base58c.decode(xpub));
+  b[0] = v0; b[1] = v1; b[2] = v2; b[3] = v3;
   return base58c.encode(b);
 }
 
-function xpubToTpub(s) {
-  var b = new Uint8Array(base58c.decode(s));
-  b[0]=0x04; b[1]=0x35; b[2]=0x87; b[3]=0xCF;
-  return base58c.encode(b);
-}
-
-function xpubToVpub(s) {
-  var b = new Uint8Array(base58c.decode(s));
-  b[0]=0x04; b[1]=0x5F; b[2]=0x1C; b[3]=0xF6;
-  return base58c.encode(b);
-}
-
-function getNetwork() {
-  return state.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
+function getNet() {
+  return S.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
 }
 
 function deriveAccounts() {
-  var mk = state.masterKey;
-  var isTest = state.network === 'testnet4';
-  var coin = "0'";
-
-  var acc84 = mk.derive("m/84'/" + coin + "/0'");
-  var pub84 = isTest ? xpubToVpub(acc84.publicExtendedKey) : xpubToZpub(acc84.publicExtendedKey);
-  state.accounts.bip84 = { path: "m/84'/" + coin + "/0'", accountKey: acc84, pubkey: pub84 };
-
-  var acc86 = mk.derive("m/86'/" + coin + "/0'");
-  var pub86 = isTest ? xpubToTpub(acc86.publicExtendedKey) : acc86.publicExtendedKey;
-  state.accounts.bip86 = { path: "m/86'/" + coin + "/0'", accountKey: acc86, pubkey: pub86 };
+  var mk = S.masterKey, isTest = S.network === 'testnet4';
+  var acc84 = mk.derive("m/84'/0'/0'");
+  S.accounts.bip84 = {
+    path: "m/84'/0'/0'", accountKey: acc84,
+    pubkey: convertXpub(acc84.publicExtendedKey, ...(isTest ? [0x04,0x5F,0x1C,0xF6] : [0x04,0xB2,0x47,0x46]))
+  };
+  var acc86 = mk.derive("m/86'/0'/0'");
+  S.accounts.bip86 = {
+    path: "m/86'/0'/0'", accountKey: acc86,
+    pubkey: isTest ? convertXpub(acc86.publicExtendedKey, 0x04,0x35,0x87,0xCF) : acc86.publicExtendedKey
+  };
 }
 
 function goToDash() {
-  var fp = state.masterKey.fingerprint.toString(16).padStart(8, '0');
-  $t('dash-fp', fp);
-  var net = state.network === 'testnet4' ? ' [Testnet4]' : '';
-  var type = state.activeAccount === 'bip84' ? 'BIP-84 SegWit' : 'BIP-86 Taproot';
-  $t('dash-info', type + net);
+  $t('dash-fp', S.masterKey.fingerprint.toString(16).padStart(8, '0'));
+  var net = S.network === 'testnet4' ? ' [Testnet4]' : '';
+  $t('dash-info', (S.activeAccount === 'bip84' ? 'BIP-84 SegWit' : 'BIP-86 Taproot') + net);
   go('sec-dash');
 }
 
-function displayWords(containerId, words) {
-  var el = $(containerId);
-  el.innerHTML = '';
-  words.split(' ').forEach(function(w, i) {
-    var span = document.createElement('span');
-    span.innerText = (i + 1) + '. ' + w;
-    el.appendChild(span);
-  });
+function displayWords(id, words) {
+  var el = $(id);
+  el.innerHTML = words.split(' ').map(function(w, i) {
+    return '<span>' + (i + 1) + '. ' + w + '</span>';
+  }).join('');
 }
 
 function activateWallet() {
-  state.seed = mnemonicToSeedSync(state.mnemonic, state.passphrase);
-  state.masterKey = HDKey.fromMasterSeed(state.seed);
+  S.seed = mnemonicToSeedSync(S.mnemonic, S.passphrase);
+  S.masterKey = HDKey.fromMasterSeed(S.seed);
   deriveAccounts();
   notify('Wallet activated', 'ok');
   goToDash();
 }
+
+function formatBTC(sats) { return (Number(sats) / 1e8).toFixed(8) }
 
 var wcSelected = 12;
 $on('btn-create', function() { wcSelected = 12; go('sec-create') });
 $on('btn-import', function() { go('sec-import') });
 $on('btn-back-landing', function() { go('sec-landing') });
 $on('btn-back-landing2', function() { go('sec-landing') });
-
 $on('wc-12', function() { wcSelected = 12 });
 $on('wc-24', function() { wcSelected = 24 });
 
 $on('btn-generate', function() {
-  state.network = $v('sel-network');
-  state.passphrase = $v('inp-pass-create') || '';
-  state.mnemonic = generateMnemonic(wordlist, wcSelected === 24 ? 256 : 128);
-  displayWords('mnemonic-grid', state.mnemonic);
+  S.network = $v('sel-network');
+  S.passphrase = $v('inp-pass-create') || '';
+  S.mnemonic = generateMnemonic(wordlist, wcSelected === 24 ? 256 : 128);
+  displayWords('mnemonic-grid', S.mnemonic);
   go('sec-mnemonic');
   var sec = 60;
   $t('mnemonic-timer', 'Auto-hide in ' + sec + 's');
   var timer = setInterval(function() {
-    sec--;
-    if (sec <= 0) { clearInterval(timer); $('mnemonic-grid').innerHTML = '<span>Hidden</span>'; $t('mnemonic-timer', '') }
-    else $t('mnemonic-timer', 'Auto-hide in ' + sec + 's');
+    if (--sec <= 0) { clearInterval(timer); $('mnemonic-grid').innerHTML = '<span>Hidden</span>'; $t('mnemonic-timer', ''); return }
+    $t('mnemonic-timer', 'Auto-hide in ' + sec + 's');
   }, 1000);
 });
 
 $on('btn-wrote-down', function() {
-  var words = state.mnemonic.split(' ');
-  var indices = [];
+  var words = S.mnemonic.split(' '), indices = [];
   while (indices.length < 3) {
     var r = Math.floor(crypto.getRandomValues(new Uint8Array(1))[0] / 256 * words.length);
-    if (indices.indexOf(r) === -1) indices.push(r);
+    if (indices.indexOf(r) < 0) indices.push(r);
   }
-  indices.sort(function(a,b) { return a - b });
-  var container = $('verify-fields');
-  container.innerHTML = '';
-  indices.forEach(function(idx) {
-    var div = document.createElement('div');
-    div.innerHTML = '<span>Word #' + (idx + 1) + '</span><br><input data-idx="' + idx + '" type="text" autocomplete="off">';
-    container.appendChild(div);
-  });
+  indices.sort(function(a, b) { return a - b });
+  $('verify-fields').innerHTML = indices.map(function(idx) {
+    return '<span>Word #' + (idx + 1) + '</span><br><input data-idx="' + idx + '" type="text" autocomplete="off">';
+  }).join('');
   go('sec-verify');
 });
 
-$on('btn-show-again', function() {
-  displayWords('mnemonic-grid', state.mnemonic);
-  go('sec-mnemonic');
-});
+$on('btn-show-again', function() { displayWords('mnemonic-grid', S.mnemonic); go('sec-mnemonic') });
 
 $on('btn-verify', function() {
-  var words = state.mnemonic.split(' ');
-  var inputs = document.querySelectorAll('#verify-fields input');
-  var ok = true;
-  inputs.forEach(function(inp) {
-    var idx = parseInt(inp.getAttribute('data-idx'));
-    if (inp.value.trim().toLowerCase() !== words[idx]) ok = false;
+  var words = S.mnemonic.split(' '), ok = true;
+  document.querySelectorAll('#verify-fields input').forEach(function(inp) {
+    if (inp.value.trim().toLowerCase() !== words[parseInt(inp.getAttribute('data-idx'))]) ok = false;
   });
   if (!ok) { notify('Incorrect words'); return }
   activateWallet();
 });
 
 $on('btn-import-go', function() {
-  state.network = $v('sel-network');
+  S.network = $v('sel-network');
   var raw = $v('inp-mnemonic').trim().toLowerCase().replace(/\s+/g, ' ');
   var words = raw.split(' ');
   if (words.length !== 12 && words.length !== 24) { notify('Need 12 or 24 words, got ' + words.length); return }
-  for (var i = 0; i < words.length; i++) {
-    if (wordlist.indexOf(words[i]) === -1) { notify('Invalid word: ' + words[i]); return }
-  }
+  for (var i = 0; i < words.length; i++)
+    if (wordlist.indexOf(words[i]) < 0) { notify('Invalid word: ' + words[i]); return }
   if (!validateMnemonic(raw, wordlist)) { notify('Invalid checksum'); return }
-  state.mnemonic = raw;
-  state.passphrase = $v('inp-pass-import') || '';
+  S.mnemonic = raw;
+  S.passphrase = $v('inp-pass-import') || '';
   activateWallet();
 });
 
-$on('acc-84', function() { state.activeAccount = 'bip84'; goToDash() });
-$on('acc-86', function() { state.activeAccount = 'bip86'; goToDash() });
+$on('acc-84', function() { S.activeAccount = 'bip84'; goToDash() });
+$on('acc-86', function() { S.activeAccount = 'bip86'; goToDash() });
 
-$on('btn-export', function() {
-  var acc = state.accounts[state.activeAccount];
-  $v('export-key', acc.pubkey);
-  go('sec-export');
-});
+$on('btn-export', function() { $v('export-key', S.accounts[S.activeAccount].pubkey); go('sec-export') });
 
 $on('btn-copy-key', function() {
   navigator.clipboard.writeText($v('export-key')).then(function() { notify('Copied', 'ok') });
@@ -307,68 +284,52 @@ $on('btn-copy-key', function() {
 
 $on('btn-back-dash', function() { goToDash() });
 $on('btn-back-dash2', function() { goToDash() });
-
 $on('btn-scan', function() { go('sec-scan') });
 
 $on('btn-import-psbt', function() {
   var text = $v('inp-psbt').trim();
   if (!text) { notify('Paste PSBT base64'); return }
-  try {
-    var bin = atob(text);
-    var bytes = new Uint8Array(bin.length);
-    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    processPSBT(bytes);
-  } catch(e) { notify('Invalid base64: ' + e.message) }
+  try { processPSBT(fromB64(text)) }
+  catch(e) { notify('Invalid base64: ' + e.message) }
 });
 
-function formatBTC(sats) { return (Number(sats) / 1e8).toFixed(8) }
-
 function getChangeAddresses() {
-  var addrs = {};
-  var net = getNetwork();
+  var addrs = {}, net = getNet();
   ['bip84', 'bip86'].forEach(function(type) {
-    var acc = state.accounts[type];
+    var acc = S.accounts[type];
     if (!acc) return;
     for (var i = 0; i < 20; i++) {
       var child = acc.accountKey.deriveChild(1).deriveChild(i);
-      var addr;
-      if (type === 'bip84') addr = btcSigner.p2wpkh(child.publicKey, net).address;
-      else {
-        var xonly = child.publicKey.length === 33 ? child.publicKey.slice(1) : child.publicKey;
-        addr = btcSigner.p2tr(xonly, undefined, net).address;
-      }
-      addrs[addr] = true;
+      var pub = child.publicKey;
+      addrs[type === 'bip84'
+        ? btcSigner.p2wpkh(pub, net).address
+        : btcSigner.p2tr(pub.length === 33 ? pub.slice(1) : pub, undefined, net).address
+      ] = true;
     }
   });
   return addrs;
 }
 
 function processPSBT(psbtBytes) {
-  state.pendingPSBT = psbtBytes;
+  S.pendingPSBT = psbtBytes;
   var tx = btcSigner.Transaction.fromPSBT(psbtBytes);
-  var totalIn = 0n;
+  var totalIn = 0n, totalOut = 0n, outputs = [], net = getNet();
   for (var i = 0; i < tx.inputsLength; i++) {
     var inp = tx.getInput(i);
     if (inp.witnessUtxo) totalIn += BigInt(inp.witnessUtxo.amount);
   }
-  var totalOut = 0n;
-  var outputs = [];
-  var net = getNetwork();
   for (var i = 0; i < tx.outputsLength; i++) {
     var out = tx.getOutput(i);
     totalOut += BigInt(out.amount);
-    var addr = '';
+    var addr;
     try { addr = btcSigner.Address(net).encode(btcSigner.OutScript.decode(out.script)) } catch(e) { addr = '(unknown)' }
     outputs.push({ addr: addr, amount: out.amount });
   }
-  var fee = totalIn - totalOut;
   var changeAddrs = getChangeAddresses();
-  var info = '';
-  outputs.forEach(function(o) {
-    var isChange = changeAddrs[o.addr];
-    info += (isChange ? '[CHANGE] ' : '[SEND]   ') + formatBTC(o.amount) + ' BTC\n         ' + o.addr + '\n';
-  });
-  info += '\nFee: ' + formatBTC(Number(fee)) + ' BTC (' + Number(fee) + ' sats)\nInputs: ' + tx.inputsLength;
+  var info = outputs.map(function(o) {
+    return (changeAddrs[o.addr] ? '[CHANGE] ' : '[SEND]   ') + formatBTC(o.amount) + ' BTC\n         ' + o.addr;
+  }).join('\n');
+  info += '\n\nFee: ' + formatBTC(Number(totalIn - totalOut)) + ' BTC (' + Number(totalIn - totalOut) + ' sats)\nInputs: ' + tx.inputsLength;
   $t('review-body', info);
   go('sec-review');
 }
@@ -378,67 +339,48 @@ $on('btn-cancel-tx', function() { goToDash() });
 $on('btn-sign', function() {
   go('sec-signing');
   $t('sign-status', 'Signing...');
-  setTimeout(doSign, 50);
-});
-
-function doSign() {
-  try {
-    var tx = btcSigner.Transaction.fromPSBT(state.pendingPSBT);
-    var total = tx.inputsLength;
-    for (var i = 0; i < total; i++) {
-      var didSign = false;
+  setTimeout(function() {
+    try {
+      var tx = btcSigner.Transaction.fromPSBT(S.pendingPSBT);
       var paths = ["m/84'/0'/0'", "m/86'/0'/0'"];
-      for (var p = 0; p < paths.length && !didSign; p++) {
-        for (var chain = 0; chain <= 1 && !didSign; chain++) {
-          for (var idx = 0; idx < 20 && !didSign; idx++) {
-            try {
-              var child = state.masterKey.derive(paths[p] + '/' + chain + '/' + idx);
-              tx.signIdx(child.privateKey, i);
-              didSign = true;
-            } catch(e) {}
-          }
-        }
+      for (var i = 0; i < tx.inputsLength; i++) {
+        var signed = false;
+        for (var p = 0; p < paths.length && !signed; p++)
+          for (var ch = 0; ch <= 1 && !signed; ch++)
+            for (var idx = 0; idx < 20 && !signed; idx++)
+              try { tx.signIdx(S.masterKey.derive(paths[p] + '/' + ch + '/' + idx).privateKey, i); signed = true } catch(e) {}
+        $t('sign-status', 'Signed ' + (i + 1) + '/' + tx.inputsLength);
       }
-      $t('sign-status', 'Signed ' + (i + 1) + '/' + total);
+      $v('signed-ur', toB64(tx.toPSBT()));
+      go('sec-signed');
+      notify('Signed!', 'ok');
+    } catch(e) {
+      notify('Signing failed: ' + e.message);
+      goToDash();
     }
-    var signedPSBT = tx.toPSBT();
-    var bin = '';
-    for (var i = 0; i < signedPSBT.length; i++) bin += String.fromCharCode(signedPSBT[i]);
-    $v('signed-ur', btoa(bin));
-    go('sec-signed');
-    notify('Signed!', 'ok');
-  } catch(e) {
-    notify('Signing failed: ' + e.message);
-    goToDash();
-  }
-}
+  }, 50);
+});
 
 $on('btn-copy-signed', function() {
   navigator.clipboard.writeText($v('signed-ur')).then(function() { notify('Copied', 'ok') });
 });
 
-$on('btn-done', function() {
-  state.pendingPSBT = null;
-  goToDash();
-});
+$on('btn-done', function() { S.pendingPSBT = null; goToDash() });
 
 $on('btn-show-mn', function() {
   if (!confirm('Show sensitive data?')) return;
-  displayWords('show-mn-grid', state.mnemonic);
+  displayWords('show-mn-grid', S.mnemonic);
   go('sec-show-mn');
 });
 
-$on('btn-hide-mn', function() {
-  $('show-mn-grid').innerHTML = '';
-  goToDash();
-});
+$on('btn-hide-mn', function() { $('show-mn-grid').innerHTML = ''; goToDash() });
 
 $on('btn-wipe', function() {
   if (!confirm('Erase wallet? Make sure you backed up your mnemonic.')) return;
   if (!confirm('Are you sure?')) return;
-  try { if (state.seed) state.seed.fill(0) } catch(e) {}
-  state.mnemonic = null; state.passphrase = ''; state.seed = null; state.masterKey = null;
-  state.accounts = { bip84: null, bip86: null }; state.pendingPSBT = null;
+  try { if (S.seed) S.seed.fill(0) } catch(e) {}
+  S.mnemonic = null; S.passphrase = ''; S.seed = null; S.masterKey = null;
+  S.accounts = { bip84: null, bip86: null }; S.pendingPSBT = null;
   notify('Wiped', 'warn');
   go('sec-landing');
 });
