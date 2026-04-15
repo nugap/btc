@@ -140,6 +140,13 @@ header h1 { font-size: 1.2rem; font-weight: 700; }
     <div class="card text-center">
       <h2 style="margin-bottom:8px;">Air-Gapped BTC Signer</h2>
       <p class="text-secondary text-sm mb-12">Generate keys, sign transactions — fully offline.</p>
+      <div style="margin-bottom:12px">
+        <label class="text-sm text-secondary" style="display:block;margin-bottom:6px">Network</label>
+        <div class="flex-row">
+          <button id="net-main" class="blue" style="font-size:0.85rem">Mainnet</button>
+          <button id="net-test" class="secondary" style="font-size:0.85rem">Testnet4</button>
+        </div>
+      </div>
       <button id="btn-create" class="dash-btn">
         <span class="icon">🆕</span> Create New Wallet
         <span class="sub">Generate a fresh BIP-39 mnemonic</span>
@@ -223,7 +230,7 @@ header h1 { font-size: 1.2rem; font-weight: 700; }
     </div>
     <button id="btn-export" class="dash-btn">
       <span class="icon">📤</span> Export Public Key
-      <span class="sub">Show zpub/xpub QR for yolo.html</span>
+      <span class="sub">Show zpub/xpub/vpub/tpub QR for yolo.html</span>
     </button>
     <button id="btn-scan" class="dash-btn">
       <span class="icon">📷</span> Scan Transaction
@@ -332,6 +339,7 @@ let state = {
   accounts: { bip84: null, bip86: null },
   activeAccount: 'bip84',
   wordCount: 12,
+  network: 'mainnet',      // 'mainnet' | 'testnet4'
   pendingPSBT: null,      // raw Uint8Array of scanned unsigned PSBT
   pendingTx: null,        // parsed Transaction
 };
@@ -383,34 +391,47 @@ function makeQR(text, container, ecl) {
   }
 }
 
-/* ── zpub / xpub conversion ── */
+/* ── zpub / xpub / vpub / tpub conversion ── */
 function xpubToZpub(xpubStr) {
   const decoded = base58c.decode(xpubStr);
-  // Replace version bytes: 0x0488B21E (xpub) → 0x04B24746 (zpub)
   const buf = new Uint8Array(decoded);
+  // Replace version bytes: xpub (0x0488B21E) → zpub (0x04B24746)
   buf[0] = 0x04; buf[1] = 0xB2; buf[2] = 0x47; buf[3] = 0x46;
   return base58c.encode(buf);
+}
+function tpubToVpub(tpubStr) {
+  const decoded = base58c.decode(tpubStr);
+  const buf = new Uint8Array(decoded);
+  // Replace version bytes: tpub (0x043587CF) → vpub (0x045F1CF6)
+  buf[0] = 0x04; buf[1] = 0x5F; buf[2] = 0x1C; buf[3] = 0xF6;
+  return base58c.encode(buf);
+}
+function getNetwork() {
+  return state.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
 }
 
 /* ── Derive accounts from master key ── */
 function deriveAccounts() {
   const mk = state.masterKey;
+  const isTestnet = state.network === 'testnet4';
   // BIP-84 Native SegWit
-  const acc84 = mk.derive("m/84'/0'/0'");
-  const zpub = xpubToZpub(acc84.publicExtendedKey);
-  state.accounts.bip84 = { path: "m/84'/0'/0'", accountKey: acc84, pubkey: zpub };
+  const coinType = isTestnet ? "1'" : "0'";
+  const acc84 = mk.derive("m/84'/" + coinType + "/0'");
+  const pubkey84 = isTestnet ? tpubToVpub(acc84.publicExtendedKey) : xpubToZpub(acc84.publicExtendedKey);
+  state.accounts.bip84 = { path: "m/84'/" + coinType + "/0'", accountKey: acc84, pubkey: pubkey84 };
 
   // BIP-86 Taproot
-  const acc86 = mk.derive("m/86'/0'/0'");
-  state.accounts.bip86 = { path: "m/86'/0'/0'", accountKey: acc86, pubkey: acc86.publicExtendedKey };
+  const acc86 = mk.derive("m/86'/" + coinType + "/0'");
+  state.accounts.bip86 = { path: "m/86'/" + coinType + "/0'", accountKey: acc86, pubkey: acc86.publicExtendedKey };
 }
 
 /* ── Show dashboard ── */
 function goToDash() {
   const fp = state.masterKey.fingerprint.toString(16).padStart(8, '0');
   document.getElementById('dash-fingerprint').textContent = 'Fingerprint: ' + fp;
+  const netLabel = state.network === 'testnet4' ? ' [Testnet4]' : '';
   document.getElementById('dash-wallet-type').textContent =
-    'Wallet active — ' + (state.activeAccount === 'bip84' ? 'BIP-84 SegWit' : 'BIP-86 Taproot');
+    'Wallet active — ' + (state.activeAccount === 'bip84' ? 'BIP-84 SegWit' : 'BIP-86 Taproot') + netLabel;
   updateAccButtons();
   showSection('sec-dash');
 }
@@ -423,8 +444,9 @@ function updateAccButtons() {
   } else {
     b86.className = 'blue'; b84.className = 'secondary';
   }
+  const netLabel = state.network === 'testnet4' ? ' [Testnet4]' : '';
   document.getElementById('dash-wallet-type').textContent =
-    'Wallet active — ' + (state.activeAccount === 'bip84' ? 'BIP-84 SegWit' : 'BIP-86 Taproot');
+    'Wallet active — ' + (state.activeAccount === 'bip84' ? 'BIP-84 SegWit' : 'BIP-86 Taproot') + netLabel;
 }
 
 /* ──────────────────────────────────────────
@@ -441,6 +463,15 @@ document.getElementById('btn-create').onclick = () => {
   selectWC(12);
   showSection('sec-create');
 };
+
+/* ── Network selection ── */
+function selectNetwork(net) {
+  state.network = net;
+  document.getElementById('net-main').className = net === 'mainnet' ? 'blue' : 'secondary';
+  document.getElementById('net-test').className = net === 'testnet4' ? 'blue' : 'secondary';
+}
+document.getElementById('net-main').onclick = () => selectNetwork('mainnet');
+document.getElementById('net-test').onclick = () => selectNetwork('testnet4');
 document.getElementById('wc-12').onclick = () => selectWC(12);
 document.getElementById('wc-24').onclick = () => selectWC(24);
 document.getElementById('btn-back-landing').onclick = () => showSection('sec-landing');
@@ -719,12 +750,12 @@ function processPSBT(psbtBytes) {
       const out = tx.getOutput(i);
       totalOut += BigInt(out.amount);
       let addr = '';
-      try { addr = btcSigner.OutScript.decode(out.script).address || btcSigner.Address().encode(btcSigner.OutScript.decode(out.script)); } catch(e){}
+      try { addr = btcSigner.OutScript.decode(out.script).address || btcSigner.Address(getNetwork()).encode(btcSigner.OutScript.decode(out.script)); } catch(e){}
       // Try to figure out address from script
       if (!addr) {
         try {
           const decoded = btcSigner.OutScript.decode(out.script);
-          addr = btcSigner.Address().encode(decoded);
+          addr = btcSigner.Address(getNetwork()).encode(decoded);
         } catch(e2) { addr = '(unable to decode)'; }
       }
       outputs.push({ addr, amount: out.amount, script: out.script });
@@ -775,6 +806,7 @@ function processPSBT(psbtBytes) {
 function getChangeAddresses() {
   // Derive first 20 change addresses for both BIP-84 and BIP-86
   const addrs = new Set();
+  const network = getNetwork();
   try {
     for (const type of ['bip84', 'bip86']) {
       const acc = state.accounts[type];
@@ -782,12 +814,12 @@ function getChangeAddresses() {
       for (let i = 0; i < 20; i++) {
         const child = acc.accountKey.deriveChild(1).deriveChild(i); // change path: /1/i
         if (type === 'bip84') {
-          const addr = btcSigner.p2wpkh(child.publicKey).address;
+          const addr = btcSigner.p2wpkh(child.publicKey, network).address;
           addrs.add(addr);
         } else {
           // Taproot: x-only pubkey (drop first byte if 33 bytes)
           const xonly = child.publicKey.length === 33 ? child.publicKey.slice(1) : child.publicKey;
-          const addr = btcSigner.p2tr(xonly).address;
+          const addr = btcSigner.p2tr(xonly, undefined, network).address;
           addrs.add(addr);
         }
       }
