@@ -57953,6 +57953,13 @@ function tpubToVpub(tpubStr) {
   buf[0] = 0x04; buf[1] = 0x5F; buf[2] = 0x1C; buf[3] = 0xF6;
   return base58c.encode(buf);
 }
+function xpubToTpub(xpubStr) {
+  const decoded = base58c.decode(xpubStr);
+  const buf = new Uint8Array(decoded);
+  // Replace version bytes: xpub (0x0488B21E) → tpub (0x043587CF)
+  buf[0] = 0x04; buf[1] = 0x35; buf[2] = 0x87; buf[3] = 0xCF;
+  return base58c.encode(buf);
+}
 function getNetwork() {
   return state.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
 }
@@ -57969,7 +57976,8 @@ function deriveAccounts() {
 
   // BIP-86 Taproot
   const acc86 = mk.derive("m/86'/" + coinType + "/0'");
-  state.accounts.bip86 = { path: "m/86'/" + coinType + "/0'", accountKey: acc86, pubkey: acc86.publicExtendedKey };
+  const pubkey86 = isTestnet ? xpubToTpub(acc86.publicExtendedKey) : acc86.publicExtendedKey;
+  state.accounts.bip86 = { path: "m/86'/" + coinType + "/0'", accountKey: acc86, pubkey: pubkey86 };
 }
 
 /* ── Show dashboard ── */

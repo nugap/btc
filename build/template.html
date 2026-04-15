@@ -524,11 +524,13 @@ function deriveAddresses(extKey, keyType, startIdx, count, change) {
     xpubStr = convertToXpub(extKey);
     if (!xpubStr) throw new Error('Invalid zpub/vpub');
   }
-  const root = HDKey.fromExtendedKey(xpubStr);
+  const isTestnet = APP.network === 'testnet4';
+  const versions = isTestnet ? { public: 0x043587CF, private: 0x04358394 } : undefined;
+  const root = HDKey.fromExtendedKey(xpubStr, versions);
   const addresses = [];
   const changeVal = change ? 1 : 0;
   const branch = root.deriveChild(changeVal);
-  const network = APP.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
+  const network = isTestnet ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
 
   for (let i = startIdx; i < startIdx + count; i++) {
     const child = branch.deriveChild(i);
