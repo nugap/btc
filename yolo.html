@@ -134,18 +134,18 @@ input[type=range] { width: 100%; accent-color: #58a6ff; }
       <h3 style="margin-bottom:12px">Import Watch-Only Wallet</h3>
       <div style="margin-bottom:12px">
         <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer">
-          <input type="radio" name="import-type" value="xpub" checked onchange="toggleImportType()"> Extended Public Key (xpub / zpub)
+          <input type="radio" name="import-type" value="xpub" checked onchange="toggleImportType()"> Extended Public Key (xpub / zpub / tpub / vpub)
         </label>
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
           <input type="radio" name="import-type" value="address" onchange="toggleImportType()"> Single Address
         </label>
       </div>
       <div id="input-xpub">
-        <input type="text" id="inp-xpub" placeholder="zpub... or xpub..." spellcheck="false">
-        <p style="font-size:0.75rem;color:#8b949e;margin-top:4px">zpub → BIP-84 (Native SegWit) · xpub → BIP-86 (Taproot)</p>
+        <input type="text" id="inp-xpub" placeholder="zpub... / xpub... / vpub... / tpub..." spellcheck="false">
+        <p style="font-size:0.75rem;color:#8b949e;margin-top:4px">zpub/vpub → BIP-84 (Native SegWit) · xpub/tpub → BIP-86 (Taproot)</p>
       </div>
       <div id="input-addr" style="display:none">
-        <input type="text" id="inp-addr" placeholder="bc1q... or bc1p..." spellcheck="false">
+        <input type="text" id="inp-addr" placeholder="bc1q... / bc1p... / tb1q... / tb1p..." spellcheck="false">
       </div>
       <button style="margin-top:12px;width:100%" onclick="doImport()" id="btn-import">Import Wallet</button>
     </div>
@@ -245,8 +245,18 @@ input[type=range] { width: 100%; accent-color: #58a6ff; }
   <div class="modal">
     <h3 style="margin-bottom:12px">Settings</h3>
     <label style="font-size:0.85rem;color:#8b949e">API Endpoint</label>
+    <label style="font-size:0.85rem;color:#8b949e">Network</label>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.9rem">
+        <input type="radio" name="network" value="mainnet" checked onchange="switchNetwork(this.value)"> Mainnet
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.9rem">
+        <input type="radio" name="network" value="testnet4" onchange="switchNetwork(this.value)"> Testnet4
+      </label>
+    </div>
+    <label style="font-size:0.85rem;color:#8b949e">API Endpoint</label>
     <input type="text" id="inp-api" value="https://mempool.space/api" style="margin-bottom:8px">
-    <p style="font-size:0.75rem;color:#8b949e;margin-bottom:12px">Network: Mainnet</p>
+    <p style="font-size:0.75rem;color:#8b949e;margin-bottom:12px" id="network-label">Network: Mainnet</p>
     <div style="display:flex;gap:8px">
       <button onclick="saveSettings()" style="flex:1">Save</button>
       <button class="secondary" onclick="closeSettings()" style="flex:1">Cancel</button>
@@ -263,6 +273,7 @@ var nugap = (() => {
   var __getOwnPropNames = Object.getOwnPropertyNames;
   var __getProtoOf = Object.getPrototypeOf;
   var __hasOwnProp = Object.prototype.hasOwnProperty;
+  var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
   var __commonJS = (cb, mod4) => function __require() {
     return mod4 || (0, cb[__getOwnPropNames(cb)[0]])((mod4 = { exports: {} }).exports, mod4), mod4.exports;
   };
@@ -287,6 +298,7 @@ var nugap = (() => {
     mod4
   ));
   var __toCommonJS = (mod4) => __copyProps(__defProp({}, "__esModule", { value: true }), mod4);
+  var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 
   // node_modules/@ngraveio/bc-ur/dist/errors.js
   var require_errors = __commonJS({
@@ -37592,18 +37604,18 @@ var nugap = (() => {
     return a & b ^ a & c ^ b & c;
   }
   var HashMD = class {
-    blockLen;
-    outputLen;
-    padOffset;
-    isLE;
-    // For partial updates less than block size
-    buffer;
-    view;
-    finished = false;
-    length = 0;
-    pos = 0;
-    destroyed = false;
     constructor(blockLen, outputLen, padOffset, isLE) {
+      __publicField(this, "blockLen");
+      __publicField(this, "outputLen");
+      __publicField(this, "padOffset");
+      __publicField(this, "isLE");
+      // For partial updates less than block size
+      __publicField(this, "buffer");
+      __publicField(this, "view");
+      __publicField(this, "finished", false);
+      __publicField(this, "length", 0);
+      __publicField(this, "pos", 0);
+      __publicField(this, "destroyed", false);
       this.blockLen = blockLen;
       this.outputLen = outputLen;
       this.padOffset = padOffset;
@@ -37671,7 +37683,7 @@ var nugap = (() => {
       return res;
     }
     _cloneInto(to) {
-      to ||= new this.constructor();
+      to || (to = new this.constructor());
       to.set(...this.get());
       const { blockLen, buffer, length, finished, destroyed, pos } = this;
       to.destroyed = destroyed;
@@ -37828,18 +37840,18 @@ var nugap = (() => {
     }
   };
   var _SHA256 = class extends SHA2_32B {
-    // We cannot use array here since array allows indexing by variable
-    // which means optimizer/compiler cannot use registers.
-    A = SHA256_IV[0] | 0;
-    B = SHA256_IV[1] | 0;
-    C = SHA256_IV[2] | 0;
-    D = SHA256_IV[3] | 0;
-    E = SHA256_IV[4] | 0;
-    F = SHA256_IV[5] | 0;
-    G = SHA256_IV[6] | 0;
-    H = SHA256_IV[7] | 0;
     constructor() {
       super(32);
+      // We cannot use array here since array allows indexing by variable
+      // which means optimizer/compiler cannot use registers.
+      __publicField(this, "A", SHA256_IV[0] | 0);
+      __publicField(this, "B", SHA256_IV[1] | 0);
+      __publicField(this, "C", SHA256_IV[2] | 0);
+      __publicField(this, "D", SHA256_IV[3] | 0);
+      __publicField(this, "E", SHA256_IV[4] | 0);
+      __publicField(this, "F", SHA256_IV[5] | 0);
+      __publicField(this, "G", SHA256_IV[6] | 0);
+      __publicField(this, "H", SHA256_IV[7] | 0);
     }
   };
   var sha256 = /* @__PURE__ */ createHasher(
@@ -38223,17 +38235,17 @@ var nugap = (() => {
     return { nBitLength: _nBitLength, nByteLength };
   }
   var _Field = class {
-    ORDER;
-    BITS;
-    BYTES;
-    isLE;
-    ZERO = _0n2;
-    ONE = _1n2;
-    _lengths;
-    _sqrt;
-    // cached sqrt
-    _mod;
     constructor(ORDER, opts = {}) {
+      __publicField(this, "ORDER");
+      __publicField(this, "BITS");
+      __publicField(this, "BYTES");
+      __publicField(this, "isLE");
+      __publicField(this, "ZERO", _0n2);
+      __publicField(this, "ONE", _1n2);
+      __publicField(this, "_lengths");
+      __publicField(this, "_sqrt");
+      // cached sqrt
+      __publicField(this, "_mod");
       if (ORDER <= _0n2)
         throw new Error("invalid field: expected ORDER > 0, got " + ORDER);
       let _nbitLength = void 0;
@@ -38432,12 +38444,12 @@ var nugap = (() => {
       throw new Error("invalid wNAF");
   }
   var wNAF = class {
-    BASE;
-    ZERO;
-    Fn;
-    bits;
     // Parametrized with a given Point class (not individual point)
     constructor(Point3, bits) {
+      __publicField(this, "BASE");
+      __publicField(this, "ZERO");
+      __publicField(this, "Fn");
+      __publicField(this, "bits");
       this.BASE = Point3.BASE;
       this.ZERO = Point3.ZERO;
       this.Fn = Point3.Fn;
@@ -38617,13 +38629,13 @@ var nugap = (() => {
 
   // node_modules/@scure/btc-signer/node_modules/@noble/hashes/hmac.js
   var _HMAC = class {
-    oHash;
-    iHash;
-    blockLen;
-    outputLen;
-    finished = false;
-    destroyed = false;
     constructor(hash, key) {
+      __publicField(this, "oHash");
+      __publicField(this, "iHash");
+      __publicField(this, "blockLen");
+      __publicField(this, "outputLen");
+      __publicField(this, "finished", false);
+      __publicField(this, "destroyed", false);
       ahash(hash);
       abytes(key, void 0, "key");
       this.iHash = hash.create();
@@ -38663,7 +38675,7 @@ var nugap = (() => {
       return out;
     }
     _cloneInto(to) {
-      to ||= Object.create(Object.getPrototypeOf(this), {});
+      to || (to = Object.create(Object.getPrototypeOf(this), {}));
       const { oHash, iHash, finished, destroyed, blockLen, outputLen } = this;
       to = to;
       to.finished = finished;
@@ -38972,21 +38984,12 @@ var nugap = (() => {
       k2p = negateCt(k2neg, k2p);
       return k1p.add(k2p);
     }
-    class Point3 {
-      // base / generator point
-      static BASE = new Point3(CURVE.Gx, CURVE.Gy, Fp.ONE);
-      // zero / infinity / identity point
-      static ZERO = new Point3(Fp.ZERO, Fp.ONE, Fp.ZERO);
-      // 0, 1, 0
-      // math field
-      static Fp = Fp;
-      // scalar field
-      static Fn = Fn3;
-      X;
-      Y;
-      Z;
+    const _Point = class _Point {
       /** Does NOT validate if the point is valid. Use `.assertValidity()`. */
       constructor(X, Y, Z) {
+        __publicField(this, "X");
+        __publicField(this, "Y");
+        __publicField(this, "Z");
         this.X = acoord("x", X);
         this.Y = acoord("y", Y, true);
         this.Z = acoord("z", Z);
@@ -39000,19 +39003,19 @@ var nugap = (() => {
         const { x, y } = p || {};
         if (!p || !Fp.isValid(x) || !Fp.isValid(y))
           throw new Error("invalid affine point");
-        if (p instanceof Point3)
+        if (p instanceof _Point)
           throw new Error("projective point not allowed");
         if (Fp.is0(x) && Fp.is0(y))
-          return Point3.ZERO;
-        return new Point3(x, y, Fp.ONE);
+          return _Point.ZERO;
+        return new _Point(x, y, Fp.ONE);
       }
       static fromBytes(bytes) {
-        const P = Point3.fromAffine(decodePoint(abytes(bytes, void 0, "point")));
+        const P = _Point.fromAffine(decodePoint(abytes(bytes, void 0, "point")));
         P.assertValidity();
         return P;
       }
       static fromHex(hex2) {
-        return Point3.fromBytes(hexToBytes(hex2));
+        return _Point.fromBytes(hexToBytes(hex2));
       }
       get x() {
         return this.toAffine().x;
@@ -39054,7 +39057,7 @@ var nugap = (() => {
       }
       /** Flips point to one corresponding to (x, -y) in Affine coordinates. */
       negate() {
-        return new Point3(this.X, Fp.neg(this.Y), this.Z);
+        return new _Point(this.X, Fp.neg(this.Y), this.Z);
       }
       // Renes-Costello-Batina exception-free doubling formula.
       // There is 30% faster Jacobian formula, but it is not complete.
@@ -39096,7 +39099,7 @@ var nugap = (() => {
         Z3 = Fp.mul(t2, t1);
         Z3 = Fp.add(Z3, Z3);
         Z3 = Fp.add(Z3, Z3);
-        return new Point3(X3, Y3, Z3);
+        return new _Point(X3, Y3, Z3);
       }
       // Renes-Costello-Batina exception-free addition formula.
       // There is 30% faster Jacobian formula, but it is not complete.
@@ -39149,13 +39152,13 @@ var nugap = (() => {
         t0 = Fp.mul(t3, t1);
         Z3 = Fp.mul(t5, Z3);
         Z3 = Fp.add(Z3, t0);
-        return new Point3(X3, Y3, Z3);
+        return new _Point(X3, Y3, Z3);
       }
       subtract(other) {
         return this.add(other.negate());
       }
       is0() {
-        return this.equals(Point3.ZERO);
+        return this.equals(_Point.ZERO);
       }
       /**
        * Constant time multiplication.
@@ -39171,7 +39174,7 @@ var nugap = (() => {
         if (!Fn3.isValidNot0(scalar))
           throw new Error("invalid scalar: out of range");
         let point, fake;
-        const mul = (n) => wnaf.cached(this, n, (p) => normalizeZ(Point3, p));
+        const mul = (n) => wnaf.cached(this, n, (p) => normalizeZ(_Point, p));
         if (endo2) {
           const { k1neg, k1, k2neg, k2 } = splitEndoScalarN(scalar);
           const { p: k1p, f: k1f } = mul(k1);
@@ -39183,7 +39186,7 @@ var nugap = (() => {
           point = p;
           fake = f;
         }
-        return normalizeZ(Point3, [point, fake])[0];
+        return normalizeZ(_Point, [point, fake])[0];
       }
       /**
        * Non-constant-time multiplication. Uses double-and-add algorithm.
@@ -39196,14 +39199,14 @@ var nugap = (() => {
         if (!Fn3.isValid(sc))
           throw new Error("invalid scalar: out of range");
         if (sc === _0n4 || p.is0())
-          return Point3.ZERO;
+          return _Point.ZERO;
         if (sc === _1n4)
           return p;
         if (wnaf.hasCache(this))
           return this.multiply(sc);
         if (endo2) {
           const { k1neg, k1, k2neg, k2 } = splitEndoScalarN(sc);
-          const { p1, p2 } = mulEndoUnsafe(Point3, p, k1, k2);
+          const { p1, p2 } = mulEndoUnsafe(_Point, p, k1, k2);
           return finishEndo(endo2.beta, p1, p2, k1neg, k2neg);
         } else {
           return wnaf.unsafe(p, sc);
@@ -39225,7 +39228,7 @@ var nugap = (() => {
         if (cofactor === _1n4)
           return true;
         if (isTorsionFree)
-          return isTorsionFree(Point3, this);
+          return isTorsionFree(_Point, this);
         return wnaf.unsafe(this, CURVE_ORDER2).is0();
       }
       clearCofactor() {
@@ -39233,7 +39236,7 @@ var nugap = (() => {
         if (cofactor === _1n4)
           return this;
         if (clearCofactor)
-          return clearCofactor(Point3, this);
+          return clearCofactor(_Point, this);
         return this.multiplyUnsafe(cofactor);
       }
       isSmallOrder() {
@@ -39242,7 +39245,7 @@ var nugap = (() => {
       toBytes(isCompressed = true) {
         abool(isCompressed, "isCompressed");
         this.assertValidity();
-        return encodePoint(Point3, this, isCompressed);
+        return encodePoint(_Point, this, isCompressed);
       }
       toHex(isCompressed = true) {
         return bytesToHex(this.toBytes(isCompressed));
@@ -39250,7 +39253,17 @@ var nugap = (() => {
       toString() {
         return `<Point ${this.is0() ? "ZERO" : this.toHex()}>`;
       }
-    }
+    };
+    // base / generator point
+    __publicField(_Point, "BASE", new _Point(CURVE.Gx, CURVE.Gy, Fp.ONE));
+    // zero / infinity / identity point
+    __publicField(_Point, "ZERO", new _Point(Fp.ZERO, Fp.ONE, Fp.ZERO));
+    // 0, 1, 0
+    // math field
+    __publicField(_Point, "Fp", Fp);
+    // scalar field
+    __publicField(_Point, "Fn", Fn3);
+    let Point3 = _Point;
     const bits = Fn3.BITS;
     const wnaf = new wNAF(Point3, extraOpts.endo ? Math.ceil(bits / 2) : bits);
     Point3.BASE.precompute(8);
@@ -39367,10 +39380,10 @@ var nugap = (() => {
       return abytes(bytes, sizer);
     }
     class Signature {
-      r;
-      s;
-      recovery;
       constructor(r, s, recovery) {
+        __publicField(this, "r");
+        __publicField(this, "s");
+        __publicField(this, "recovery");
         this.r = validateRS("r", r);
         this.s = validateRS("s", s);
         if (recovery != null) {
@@ -39779,13 +39792,13 @@ var nugap = (() => {
   }
   var BUF_160 = /* @__PURE__ */ new Uint32Array(16);
   var _RIPEMD160 = class extends HashMD {
-    h0 = 1732584193 | 0;
-    h1 = 4023233417 | 0;
-    h2 = 2562383102 | 0;
-    h3 = 271733878 | 0;
-    h4 = 3285377520 | 0;
     constructor() {
       super(64, 20, 8, true);
+      __publicField(this, "h0", 1732584193 | 0);
+      __publicField(this, "h1", 4023233417 | 0);
+      __publicField(this, "h2", 2562383102 | 0);
+      __publicField(this, "h3", 271733878 | 0);
+      __publicField(this, "h4", 3285377520 | 0);
     }
     get() {
       const { h0, h1, h2, h3, h4 } = this;
@@ -40431,18 +40444,18 @@ var nugap = (() => {
     }
   };
   var _Reader = class __Reader {
-    pos = 0;
-    data;
-    opts;
-    stack;
-    parent;
-    parentOffset;
-    bitBuf = 0;
-    bitPos = 0;
-    bs;
-    // bitset
-    view;
     constructor(data, opts = {}, stack = [], parent = void 0, parentOffset = 0) {
+      __publicField(this, "pos", 0);
+      __publicField(this, "data");
+      __publicField(this, "opts");
+      __publicField(this, "stack");
+      __publicField(this, "parent");
+      __publicField(this, "parentOffset");
+      __publicField(this, "bitBuf", 0);
+      __publicField(this, "bitPos", 0);
+      __publicField(this, "bs");
+      // bitset
+      __publicField(this, "view");
       this.data = data;
       this.opts = opts;
       this.stack = stack;
@@ -40590,19 +40603,19 @@ var nugap = (() => {
     }
   };
   var _Writer = class {
-    pos = 0;
-    stack;
-    // We could have a single buffer here and re-alloc it with
-    // x1.5-2 size each time it full, but it will be slower:
-    // basic/encode bench: 395ns -> 560ns
-    buffers = [];
-    ptrs = [];
-    bitBuf = 0;
-    bitPos = 0;
-    viewBuf = new Uint8Array(8);
-    view;
-    finished = false;
     constructor(stack = []) {
+      __publicField(this, "pos", 0);
+      __publicField(this, "stack");
+      // We could have a single buffer here and re-alloc it with
+      // x1.5-2 size each time it full, but it will be slower:
+      // basic/encode bench: 395ns -> 560ns
+      __publicField(this, "buffers", []);
+      __publicField(this, "ptrs", []);
+      __publicField(this, "bitBuf", 0);
+      __publicField(this, "bitPos", 0);
+      __publicField(this, "viewBuf", new Uint8Array(8));
+      __publicField(this, "view");
+      __publicField(this, "finished", false);
       this.stack = stack;
       this.view = createView2(this.viewBuf);
     }
@@ -43003,13 +43016,13 @@ var nugap = (() => {
     }
   }
   var Transaction = class _Transaction {
-    global = {};
-    inputs = [];
-    // use getInput()
-    outputs = [];
-    // use getOutput()
-    opts;
     constructor(opts = {}) {
+      __publicField(this, "global", {});
+      __publicField(this, "inputs", []);
+      // use getInput()
+      __publicField(this, "outputs", []);
+      // use getOutput()
+      __publicField(this, "opts");
       const _opts = this.opts = validateOpts(opts);
       if (_opts.lockTime !== DEFAULT_LOCKTIME)
         this.global.fallbackLocktime = _opts.lockTime;
@@ -43925,19 +43938,19 @@ var nugap = (() => {
     return script;
   }
   var _Estimator = class {
-    baseWeight;
-    changeWeight;
-    amount;
-    requiredIndices = [];
-    normalizedInputs;
-    // Dust used in accumExact + change address algo
-    // - change address: can be smaller for segwit
-    // - accumExact: ???
-    dust;
-    // total dust limit (3||opts.dustRelayFeeRate * 182||opts.dust). Default: 546
-    outputs;
-    opts;
     constructor(inputs, outputs, opts) {
+      __publicField(this, "baseWeight");
+      __publicField(this, "changeWeight");
+      __publicField(this, "amount");
+      __publicField(this, "requiredIndices", []);
+      __publicField(this, "normalizedInputs");
+      // Dust used in accumExact + change address algo
+      // - change address: can be smaller for segwit
+      // - accumExact: ???
+      __publicField(this, "dust");
+      // total dust limit (3||opts.dustRelayFeeRate * 182||opts.dust). Default: 546
+      __publicField(this, "outputs");
+      __publicField(this, "opts");
       this.outputs = outputs;
       this.opts = opts;
       if (typeof opts.feePerByte !== "bigint")
@@ -44335,18 +44348,18 @@ var nugap = (() => {
     return a & b ^ a & c ^ b & c;
   }
   var HashMD2 = class {
-    blockLen;
-    outputLen;
-    padOffset;
-    isLE;
-    // For partial updates less than block size
-    buffer;
-    view;
-    finished = false;
-    length = 0;
-    pos = 0;
-    destroyed = false;
     constructor(blockLen, outputLen, padOffset, isLE) {
+      __publicField(this, "blockLen");
+      __publicField(this, "outputLen");
+      __publicField(this, "padOffset");
+      __publicField(this, "isLE");
+      // For partial updates less than block size
+      __publicField(this, "buffer");
+      __publicField(this, "view");
+      __publicField(this, "finished", false);
+      __publicField(this, "length", 0);
+      __publicField(this, "pos", 0);
+      __publicField(this, "destroyed", false);
       this.blockLen = blockLen;
       this.outputLen = outputLen;
       this.padOffset = padOffset;
@@ -44414,7 +44427,7 @@ var nugap = (() => {
       return res;
     }
     _cloneInto(to) {
-      to ||= new this.constructor();
+      to || (to = new this.constructor());
       to.set(...this.get());
       const { blockLen, buffer, length, finished, destroyed, pos } = this;
       to.destroyed = destroyed;
@@ -44624,18 +44637,18 @@ var nugap = (() => {
     }
   };
   var _SHA2562 = class extends SHA2_32B2 {
-    // We cannot use array here since array allows indexing by variable
-    // which means optimizer/compiler cannot use registers.
-    A = SHA256_IV2[0] | 0;
-    B = SHA256_IV2[1] | 0;
-    C = SHA256_IV2[2] | 0;
-    D = SHA256_IV2[3] | 0;
-    E = SHA256_IV2[4] | 0;
-    F = SHA256_IV2[5] | 0;
-    G = SHA256_IV2[6] | 0;
-    H = SHA256_IV2[7] | 0;
     constructor() {
       super(32);
+      // We cannot use array here since array allows indexing by variable
+      // which means optimizer/compiler cannot use registers.
+      __publicField(this, "A", SHA256_IV2[0] | 0);
+      __publicField(this, "B", SHA256_IV2[1] | 0);
+      __publicField(this, "C", SHA256_IV2[2] | 0);
+      __publicField(this, "D", SHA256_IV2[3] | 0);
+      __publicField(this, "E", SHA256_IV2[4] | 0);
+      __publicField(this, "F", SHA256_IV2[5] | 0);
+      __publicField(this, "G", SHA256_IV2[6] | 0);
+      __publicField(this, "H", SHA256_IV2[7] | 0);
     }
   };
   var K512 = /* @__PURE__ */ (() => split([
@@ -44820,24 +44833,24 @@ var nugap = (() => {
     }
   };
   var _SHA512 = class extends SHA2_64B {
-    Ah = SHA512_IV2[0] | 0;
-    Al = SHA512_IV2[1] | 0;
-    Bh = SHA512_IV2[2] | 0;
-    Bl = SHA512_IV2[3] | 0;
-    Ch = SHA512_IV2[4] | 0;
-    Cl = SHA512_IV2[5] | 0;
-    Dh = SHA512_IV2[6] | 0;
-    Dl = SHA512_IV2[7] | 0;
-    Eh = SHA512_IV2[8] | 0;
-    El = SHA512_IV2[9] | 0;
-    Fh = SHA512_IV2[10] | 0;
-    Fl = SHA512_IV2[11] | 0;
-    Gh = SHA512_IV2[12] | 0;
-    Gl = SHA512_IV2[13] | 0;
-    Hh = SHA512_IV2[14] | 0;
-    Hl = SHA512_IV2[15] | 0;
     constructor() {
       super(64);
+      __publicField(this, "Ah", SHA512_IV2[0] | 0);
+      __publicField(this, "Al", SHA512_IV2[1] | 0);
+      __publicField(this, "Bh", SHA512_IV2[2] | 0);
+      __publicField(this, "Bl", SHA512_IV2[3] | 0);
+      __publicField(this, "Ch", SHA512_IV2[4] | 0);
+      __publicField(this, "Cl", SHA512_IV2[5] | 0);
+      __publicField(this, "Dh", SHA512_IV2[6] | 0);
+      __publicField(this, "Dl", SHA512_IV2[7] | 0);
+      __publicField(this, "Eh", SHA512_IV2[8] | 0);
+      __publicField(this, "El", SHA512_IV2[9] | 0);
+      __publicField(this, "Fh", SHA512_IV2[10] | 0);
+      __publicField(this, "Fl", SHA512_IV2[11] | 0);
+      __publicField(this, "Gh", SHA512_IV2[12] | 0);
+      __publicField(this, "Gl", SHA512_IV2[13] | 0);
+      __publicField(this, "Hh", SHA512_IV2[14] | 0);
+      __publicField(this, "Hl", SHA512_IV2[15] | 0);
     }
   };
   var sha2562 = /* @__PURE__ */ createHasher2(
@@ -45216,17 +45229,17 @@ var nugap = (() => {
     return { nBitLength: _nBitLength, nByteLength };
   }
   var _Field2 = class {
-    ORDER;
-    BITS;
-    BYTES;
-    isLE;
-    ZERO = _0n7;
-    ONE = _1n6;
-    _lengths;
-    _sqrt;
-    // cached sqrt
-    _mod;
     constructor(ORDER, opts = {}) {
+      __publicField(this, "ORDER");
+      __publicField(this, "BITS");
+      __publicField(this, "BYTES");
+      __publicField(this, "isLE");
+      __publicField(this, "ZERO", _0n7);
+      __publicField(this, "ONE", _1n6);
+      __publicField(this, "_lengths");
+      __publicField(this, "_sqrt");
+      // cached sqrt
+      __publicField(this, "_mod");
       if (ORDER <= _0n7)
         throw new Error("invalid field: expected ORDER > 0, got " + ORDER);
       let _nbitLength = void 0;
@@ -45425,12 +45438,12 @@ var nugap = (() => {
       throw new Error("invalid wNAF");
   }
   var wNAF2 = class {
-    BASE;
-    ZERO;
-    Fn;
-    bits;
     // Parametrized with a given Point class (not individual point)
     constructor(Point3, bits) {
+      __publicField(this, "BASE");
+      __publicField(this, "ZERO");
+      __publicField(this, "Fn");
+      __publicField(this, "bits");
       this.BASE = Point3.BASE;
       this.ZERO = Point3.ZERO;
       this.Fn = Point3.Fn;
@@ -45610,13 +45623,13 @@ var nugap = (() => {
 
   // node_modules/@scure/bip32/node_modules/@noble/hashes/hmac.js
   var _HMAC2 = class {
-    oHash;
-    iHash;
-    blockLen;
-    outputLen;
-    finished = false;
-    destroyed = false;
     constructor(hash, key) {
+      __publicField(this, "oHash");
+      __publicField(this, "iHash");
+      __publicField(this, "blockLen");
+      __publicField(this, "outputLen");
+      __publicField(this, "finished", false);
+      __publicField(this, "destroyed", false);
       ahash2(hash);
       abytes3(key, void 0, "key");
       this.iHash = hash.create();
@@ -45656,7 +45669,7 @@ var nugap = (() => {
       return out;
     }
     _cloneInto(to) {
-      to ||= Object.create(Object.getPrototypeOf(this), {});
+      to || (to = Object.create(Object.getPrototypeOf(this), {}));
       const { oHash, iHash, finished, destroyed, blockLen, outputLen } = this;
       to = to;
       to.finished = finished;
@@ -45965,21 +45978,12 @@ var nugap = (() => {
       k2p = negateCt2(k2neg, k2p);
       return k1p.add(k2p);
     }
-    class Point3 {
-      // base / generator point
-      static BASE = new Point3(CURVE.Gx, CURVE.Gy, Fp.ONE);
-      // zero / infinity / identity point
-      static ZERO = new Point3(Fp.ZERO, Fp.ONE, Fp.ZERO);
-      // 0, 1, 0
-      // math field
-      static Fp = Fp;
-      // scalar field
-      static Fn = Fn3;
-      X;
-      Y;
-      Z;
+    const _Point = class _Point {
       /** Does NOT validate if the point is valid. Use `.assertValidity()`. */
       constructor(X, Y, Z) {
+        __publicField(this, "X");
+        __publicField(this, "Y");
+        __publicField(this, "Z");
         this.X = acoord("x", X);
         this.Y = acoord("y", Y, true);
         this.Z = acoord("z", Z);
@@ -45993,19 +45997,19 @@ var nugap = (() => {
         const { x, y } = p || {};
         if (!p || !Fp.isValid(x) || !Fp.isValid(y))
           throw new Error("invalid affine point");
-        if (p instanceof Point3)
+        if (p instanceof _Point)
           throw new Error("projective point not allowed");
         if (Fp.is0(x) && Fp.is0(y))
-          return Point3.ZERO;
-        return new Point3(x, y, Fp.ONE);
+          return _Point.ZERO;
+        return new _Point(x, y, Fp.ONE);
       }
       static fromBytes(bytes) {
-        const P = Point3.fromAffine(decodePoint(abytes3(bytes, void 0, "point")));
+        const P = _Point.fromAffine(decodePoint(abytes3(bytes, void 0, "point")));
         P.assertValidity();
         return P;
       }
       static fromHex(hex2) {
-        return Point3.fromBytes(hexToBytes2(hex2));
+        return _Point.fromBytes(hexToBytes2(hex2));
       }
       get x() {
         return this.toAffine().x;
@@ -46047,7 +46051,7 @@ var nugap = (() => {
       }
       /** Flips point to one corresponding to (x, -y) in Affine coordinates. */
       negate() {
-        return new Point3(this.X, Fp.neg(this.Y), this.Z);
+        return new _Point(this.X, Fp.neg(this.Y), this.Z);
       }
       // Renes-Costello-Batina exception-free doubling formula.
       // There is 30% faster Jacobian formula, but it is not complete.
@@ -46089,7 +46093,7 @@ var nugap = (() => {
         Z3 = Fp.mul(t2, t1);
         Z3 = Fp.add(Z3, Z3);
         Z3 = Fp.add(Z3, Z3);
-        return new Point3(X3, Y3, Z3);
+        return new _Point(X3, Y3, Z3);
       }
       // Renes-Costello-Batina exception-free addition formula.
       // There is 30% faster Jacobian formula, but it is not complete.
@@ -46142,13 +46146,13 @@ var nugap = (() => {
         t0 = Fp.mul(t3, t1);
         Z3 = Fp.mul(t5, Z3);
         Z3 = Fp.add(Z3, t0);
-        return new Point3(X3, Y3, Z3);
+        return new _Point(X3, Y3, Z3);
       }
       subtract(other) {
         return this.add(other.negate());
       }
       is0() {
-        return this.equals(Point3.ZERO);
+        return this.equals(_Point.ZERO);
       }
       /**
        * Constant time multiplication.
@@ -46164,7 +46168,7 @@ var nugap = (() => {
         if (!Fn3.isValidNot0(scalar))
           throw new Error("invalid scalar: out of range");
         let point, fake;
-        const mul = (n) => wnaf.cached(this, n, (p) => normalizeZ2(Point3, p));
+        const mul = (n) => wnaf.cached(this, n, (p) => normalizeZ2(_Point, p));
         if (endo2) {
           const { k1neg, k1, k2neg, k2 } = splitEndoScalarN(scalar);
           const { p: k1p, f: k1f } = mul(k1);
@@ -46176,7 +46180,7 @@ var nugap = (() => {
           point = p;
           fake = f;
         }
-        return normalizeZ2(Point3, [point, fake])[0];
+        return normalizeZ2(_Point, [point, fake])[0];
       }
       /**
        * Non-constant-time multiplication. Uses double-and-add algorithm.
@@ -46189,14 +46193,14 @@ var nugap = (() => {
         if (!Fn3.isValid(sc))
           throw new Error("invalid scalar: out of range");
         if (sc === _0n9 || p.is0())
-          return Point3.ZERO;
+          return _Point.ZERO;
         if (sc === _1n8)
           return p;
         if (wnaf.hasCache(this))
           return this.multiply(sc);
         if (endo2) {
           const { k1neg, k1, k2neg, k2 } = splitEndoScalarN(sc);
-          const { p1, p2 } = mulEndoUnsafe2(Point3, p, k1, k2);
+          const { p1, p2 } = mulEndoUnsafe2(_Point, p, k1, k2);
           return finishEndo(endo2.beta, p1, p2, k1neg, k2neg);
         } else {
           return wnaf.unsafe(p, sc);
@@ -46218,7 +46222,7 @@ var nugap = (() => {
         if (cofactor === _1n8)
           return true;
         if (isTorsionFree)
-          return isTorsionFree(Point3, this);
+          return isTorsionFree(_Point, this);
         return wnaf.unsafe(this, CURVE_ORDER2).is0();
       }
       clearCofactor() {
@@ -46226,7 +46230,7 @@ var nugap = (() => {
         if (cofactor === _1n8)
           return this;
         if (clearCofactor)
-          return clearCofactor(Point3, this);
+          return clearCofactor(_Point, this);
         return this.multiplyUnsafe(cofactor);
       }
       isSmallOrder() {
@@ -46235,7 +46239,7 @@ var nugap = (() => {
       toBytes(isCompressed = true) {
         abool2(isCompressed, "isCompressed");
         this.assertValidity();
-        return encodePoint(Point3, this, isCompressed);
+        return encodePoint(_Point, this, isCompressed);
       }
       toHex(isCompressed = true) {
         return bytesToHex2(this.toBytes(isCompressed));
@@ -46243,7 +46247,17 @@ var nugap = (() => {
       toString() {
         return `<Point ${this.is0() ? "ZERO" : this.toHex()}>`;
       }
-    }
+    };
+    // base / generator point
+    __publicField(_Point, "BASE", new _Point(CURVE.Gx, CURVE.Gy, Fp.ONE));
+    // zero / infinity / identity point
+    __publicField(_Point, "ZERO", new _Point(Fp.ZERO, Fp.ONE, Fp.ZERO));
+    // 0, 1, 0
+    // math field
+    __publicField(_Point, "Fp", Fp);
+    // scalar field
+    __publicField(_Point, "Fn", Fn3);
+    let Point3 = _Point;
     const bits = Fn3.BITS;
     const wnaf = new wNAF2(Point3, extraOpts.endo ? Math.ceil(bits / 2) : bits);
     Point3.BASE.precompute(8);
@@ -46360,10 +46374,10 @@ var nugap = (() => {
       return abytes3(bytes, sizer);
     }
     class Signature {
-      r;
-      s;
-      recovery;
       constructor(r, s, recovery) {
+        __publicField(this, "r");
+        __publicField(this, "s");
+        __publicField(this, "recovery");
         this.r = validateRS("r", r);
         this.s = validateRS("s", s);
         if (recovery != null) {
@@ -46666,13 +46680,13 @@ var nugap = (() => {
   }
   var BUF_1602 = /* @__PURE__ */ new Uint32Array(16);
   var _RIPEMD1602 = class extends HashMD2 {
-    h0 = 1732584193 | 0;
-    h1 = 4023233417 | 0;
-    h2 = 2562383102 | 0;
-    h3 = 271733878 | 0;
-    h4 = 3285377520 | 0;
     constructor() {
       super(64, 20, 8, true);
+      __publicField(this, "h0", 1732584193 | 0);
+      __publicField(this, "h1", 4023233417 | 0);
+      __publicField(this, "h2", 2562383102 | 0);
+      __publicField(this, "h3", 271733878 | 0);
+      __publicField(this, "h4", 3285377520 | 0);
     }
     get() {
       const { h0, h1, h2, h3, h4 } = this;
@@ -46734,6 +46748,46 @@ var nugap = (() => {
     return buf;
   };
   var HDKey = class _HDKey {
+    constructor(opt) {
+      __publicField(this, "versions");
+      __publicField(this, "depth", 0);
+      __publicField(this, "index", 0);
+      __publicField(this, "chainCode", null);
+      __publicField(this, "parentFingerprint", 0);
+      __publicField(this, "_privateKey");
+      __publicField(this, "_publicKey");
+      __publicField(this, "pubHash");
+      if (!opt || typeof opt !== "object") {
+        throw new Error("HDKey.constructor must not be called directly");
+      }
+      this.versions = opt.versions || BITCOIN_VERSIONS;
+      this.depth = opt.depth || 0;
+      this.chainCode = opt.chainCode || null;
+      this.index = opt.index || 0;
+      this.parentFingerprint = opt.parentFingerprint || 0;
+      if (!this.depth) {
+        if (this.parentFingerprint || this.index) {
+          throw new Error("HDKey: zero depth with non-zero index/parent fingerprint");
+        }
+      }
+      if (this.depth > 255) {
+        throw new Error("HDKey: depth exceeds the serializable value 255");
+      }
+      if (opt.publicKey && opt.privateKey) {
+        throw new Error("HDKey: publicKey and privateKey at same time.");
+      }
+      if (opt.privateKey) {
+        if (!secp256k12.utils.isValidSecretKey(opt.privateKey))
+          throw new Error("Invalid private key");
+        this._privateKey = opt.privateKey;
+        this._publicKey = secp256k12.getPublicKey(opt.privateKey, true);
+      } else if (opt.publicKey) {
+        this._publicKey = Point2.fromBytes(opt.publicKey).toBytes(true);
+      } else {
+        throw new Error("HDKey: no public or private key provided");
+      }
+      this.pubHash = hash1602(this._publicKey);
+    }
     get fingerprint() {
       if (!this.pubHash) {
         throw new Error("No publicKey set!");
@@ -46799,46 +46853,6 @@ var nugap = (() => {
     }
     static fromJSON(json) {
       return _HDKey.fromExtendedKey(json.xpriv);
-    }
-    versions;
-    depth = 0;
-    index = 0;
-    chainCode = null;
-    parentFingerprint = 0;
-    _privateKey;
-    _publicKey;
-    pubHash;
-    constructor(opt) {
-      if (!opt || typeof opt !== "object") {
-        throw new Error("HDKey.constructor must not be called directly");
-      }
-      this.versions = opt.versions || BITCOIN_VERSIONS;
-      this.depth = opt.depth || 0;
-      this.chainCode = opt.chainCode || null;
-      this.index = opt.index || 0;
-      this.parentFingerprint = opt.parentFingerprint || 0;
-      if (!this.depth) {
-        if (this.parentFingerprint || this.index) {
-          throw new Error("HDKey: zero depth with non-zero index/parent fingerprint");
-        }
-      }
-      if (this.depth > 255) {
-        throw new Error("HDKey: depth exceeds the serializable value 255");
-      }
-      if (opt.publicKey && opt.privateKey) {
-        throw new Error("HDKey: publicKey and privateKey at same time.");
-      }
-      if (opt.privateKey) {
-        if (!secp256k12.utils.isValidSecretKey(opt.privateKey))
-          throw new Error("Invalid private key");
-        this._privateKey = opt.privateKey;
-        this._publicKey = secp256k12.getPublicKey(opt.privateKey, true);
-      } else if (opt.publicKey) {
-        this._publicKey = Point2.fromBytes(opt.publicKey).toBytes(true);
-      } else {
-        throw new Error("HDKey: no public or private key provided");
-      }
-      this.pubHash = hash1602(this._publicKey);
     }
     derive(path) {
       if (!/^[mM]'?/.test(path)) {
@@ -47116,19 +47130,19 @@ var nugap = (() => {
     return a & b ^ a & c ^ b & c;
   }
   var HashMD3 = class {
-    blockLen;
-    outputLen;
-    canXOF = false;
-    padOffset;
-    isLE;
-    // For partial updates less than block size
-    buffer;
-    view;
-    finished = false;
-    length = 0;
-    pos = 0;
-    destroyed = false;
     constructor(blockLen, outputLen, padOffset, isLE) {
+      __publicField(this, "blockLen");
+      __publicField(this, "outputLen");
+      __publicField(this, "canXOF", false);
+      __publicField(this, "padOffset");
+      __publicField(this, "isLE");
+      // For partial updates less than block size
+      __publicField(this, "buffer");
+      __publicField(this, "view");
+      __publicField(this, "finished", false);
+      __publicField(this, "length", 0);
+      __publicField(this, "pos", 0);
+      __publicField(this, "destroyed", false);
       this.blockLen = blockLen;
       this.outputLen = outputLen;
       this.padOffset = padOffset;
@@ -47196,7 +47210,7 @@ var nugap = (() => {
       return res;
     }
     _cloneInto(to) {
-      to ||= new this.constructor();
+      to || (to = new this.constructor());
       to.set(...this.get());
       const { blockLen, buffer, length, finished, destroyed, pos } = this;
       to.destroyed = destroyed;
@@ -47354,18 +47368,18 @@ var nugap = (() => {
     }
   };
   var _SHA2563 = class extends SHA2_32B3 {
-    // We cannot use array here since array allows indexing by variable
-    // which means optimizer/compiler cannot use registers.
-    A = SHA256_IV3[0] | 0;
-    B = SHA256_IV3[1] | 0;
-    C = SHA256_IV3[2] | 0;
-    D = SHA256_IV3[3] | 0;
-    E = SHA256_IV3[4] | 0;
-    F = SHA256_IV3[5] | 0;
-    G = SHA256_IV3[6] | 0;
-    H = SHA256_IV3[7] | 0;
     constructor() {
       super(32);
+      // We cannot use array here since array allows indexing by variable
+      // which means optimizer/compiler cannot use registers.
+      __publicField(this, "A", SHA256_IV3[0] | 0);
+      __publicField(this, "B", SHA256_IV3[1] | 0);
+      __publicField(this, "C", SHA256_IV3[2] | 0);
+      __publicField(this, "D", SHA256_IV3[3] | 0);
+      __publicField(this, "E", SHA256_IV3[4] | 0);
+      __publicField(this, "F", SHA256_IV3[5] | 0);
+      __publicField(this, "G", SHA256_IV3[6] | 0);
+      __publicField(this, "H", SHA256_IV3[7] | 0);
     }
   };
   var sha2563 = /* @__PURE__ */ createHasher3(
@@ -47441,13 +47455,13 @@ var nugap = (() => {
   }
   var BUF_1603 = /* @__PURE__ */ new Uint32Array(16);
   var _RIPEMD1603 = class extends HashMD3 {
-    h0 = 1732584193 | 0;
-    h1 = 4023233417 | 0;
-    h2 = 2562383102 | 0;
-    h3 = 271733878 | 0;
-    h4 = 3285377520 | 0;
     constructor() {
       super(64, 20, 8, true);
+      __publicField(this, "h0", 1732584193 | 0);
+      __publicField(this, "h1", 4023233417 | 0);
+      __publicField(this, "h2", 2562383102 | 0);
+      __publicField(this, "h3", 271733878 | 0);
+      __publicField(this, "h4", 3285377520 | 0);
     }
     get() {
       const { h0, h1, h2, h3, h4 } = this;
@@ -47896,15 +47910,15 @@ var nugap = (() => {
   }
   var FIELD_SQRT = /* @__PURE__ */ new WeakMap();
   var _Field3 = class {
-    ORDER;
-    BITS;
-    BYTES;
-    isLE;
-    ZERO = _0n11;
-    ONE = _1n10;
-    _lengths;
-    _mod;
     constructor(ORDER, opts = {}) {
+      __publicField(this, "ORDER");
+      __publicField(this, "BITS");
+      __publicField(this, "BYTES");
+      __publicField(this, "isLE");
+      __publicField(this, "ZERO", _0n11);
+      __publicField(this, "ONE", _1n10);
+      __publicField(this, "_lengths");
+      __publicField(this, "_mod");
       if (ORDER <= _1n10)
         throw new Error("invalid field: expected ORDER > 1, got " + ORDER);
       let _nbitLength = void 0;
@@ -48107,12 +48121,12 @@ var nugap = (() => {
       throw new Error("invalid wNAF");
   }
   var wNAF3 = class {
-    BASE;
-    ZERO;
-    Fn;
-    bits;
     // Parametrized with a given Point class (not individual point)
     constructor(Point3, bits) {
+      __publicField(this, "BASE");
+      __publicField(this, "ZERO");
+      __publicField(this, "Fn");
+      __publicField(this, "bits");
       this.BASE = Point3.BASE;
       this.ZERO = Point3.ZERO;
       this.Fn = Point3.Fn;
@@ -48293,14 +48307,14 @@ var nugap = (() => {
 
   // node_modules/@noble/hashes/hmac.js
   var _HMAC3 = class {
-    oHash;
-    iHash;
-    blockLen;
-    outputLen;
-    canXOF = false;
-    finished = false;
-    destroyed = false;
     constructor(hash, key) {
+      __publicField(this, "oHash");
+      __publicField(this, "iHash");
+      __publicField(this, "blockLen");
+      __publicField(this, "outputLen");
+      __publicField(this, "canXOF", false);
+      __publicField(this, "finished", false);
+      __publicField(this, "destroyed", false);
       ahash3(hash);
       abytes4(key, void 0, "key");
       this.iHash = hash.create();
@@ -48341,7 +48355,7 @@ var nugap = (() => {
       return out;
     }
     _cloneInto(to) {
-      to ||= Object.create(Object.getPrototypeOf(this), {});
+      to || (to = Object.create(Object.getPrototypeOf(this), {}));
       const { oHash, iHash, finished, destroyed, blockLen, outputLen } = this;
       to = to;
       to.finished = finished;
@@ -48639,21 +48653,12 @@ var nugap = (() => {
       k2p = negateCt3(k2neg, k2p);
       return k1p.add(k2p);
     }
-    class Point3 {
-      // base / generator point
-      static BASE = new Point3(CURVE.Gx, CURVE.Gy, Fp.ONE);
-      // zero / infinity / identity point
-      static ZERO = new Point3(Fp.ZERO, Fp.ONE, Fp.ZERO);
-      // 0, 1, 0
-      // math field
-      static Fp = Fp;
-      // scalar field
-      static Fn = Fn3;
-      X;
-      Y;
-      Z;
+    const _Point = class _Point {
       /** Does NOT validate if the point is valid. Use `.assertValidity()`. */
       constructor(X, Y, Z) {
+        __publicField(this, "X");
+        __publicField(this, "Y");
+        __publicField(this, "Z");
         this.X = acoord("x", X);
         this.Y = acoord("y", Y, true);
         this.Z = acoord("z", Z);
@@ -48667,19 +48672,19 @@ var nugap = (() => {
         const { x, y } = p || {};
         if (!p || !Fp.isValid(x) || !Fp.isValid(y))
           throw new Error("invalid affine point");
-        if (p instanceof Point3)
+        if (p instanceof _Point)
           throw new Error("projective point not allowed");
         if (Fp.is0(x) && Fp.is0(y))
-          return Point3.ZERO;
-        return new Point3(x, y, Fp.ONE);
+          return _Point.ZERO;
+        return new _Point(x, y, Fp.ONE);
       }
       static fromBytes(bytes) {
-        const P = Point3.fromAffine(decodePoint(abytes5(bytes, void 0, "point")));
+        const P = _Point.fromAffine(decodePoint(abytes5(bytes, void 0, "point")));
         P.assertValidity();
         return P;
       }
       static fromHex(hex2) {
-        return Point3.fromBytes(hexToBytes4(hex2));
+        return _Point.fromBytes(hexToBytes4(hex2));
       }
       get x() {
         return this.toAffine().x;
@@ -48733,7 +48738,7 @@ var nugap = (() => {
       }
       /** Flips point to one corresponding to (x, -y) in Affine coordinates. */
       negate() {
-        return new Point3(this.X, Fp.neg(this.Y), this.Z);
+        return new _Point(this.X, Fp.neg(this.Y), this.Z);
       }
       // Renes-Costello-Batina exception-free doubling formula.
       // There is 30% faster Jacobian formula, but it is not complete.
@@ -48775,7 +48780,7 @@ var nugap = (() => {
         Z3 = Fp.mul(t2, t1);
         Z3 = Fp.add(Z3, Z3);
         Z3 = Fp.add(Z3, Z3);
-        return new Point3(X3, Y3, Z3);
+        return new _Point(X3, Y3, Z3);
       }
       // Renes-Costello-Batina exception-free addition formula.
       // There is 30% faster Jacobian formula, but it is not complete.
@@ -48828,14 +48833,14 @@ var nugap = (() => {
         t0 = Fp.mul(t3, t1);
         Z3 = Fp.mul(t5, Z3);
         Z3 = Fp.add(Z3, t0);
-        return new Point3(X3, Y3, Z3);
+        return new _Point(X3, Y3, Z3);
       }
       subtract(other) {
         aprjpoint(other);
         return this.add(other.negate());
       }
       is0() {
-        return this.equals(Point3.ZERO);
+        return this.equals(_Point.ZERO);
       }
       /**
        * Constant time multiplication.
@@ -48851,7 +48856,7 @@ var nugap = (() => {
         if (!Fn3.isValidNot0(scalar))
           throw new RangeError("invalid scalar: out of range");
         let point, fake;
-        const mul = (n) => wnaf.cached(this, n, (p) => normalizeZ3(Point3, p));
+        const mul = (n) => wnaf.cached(this, n, (p) => normalizeZ3(_Point, p));
         if (endo2) {
           const { k1neg, k1, k2neg, k2 } = splitEndoScalarN(scalar);
           const { p: k1p, f: k1f } = mul(k1);
@@ -48863,7 +48868,7 @@ var nugap = (() => {
           point = p;
           fake = f;
         }
-        return normalizeZ3(Point3, [point, fake])[0];
+        return normalizeZ3(_Point, [point, fake])[0];
       }
       /**
        * Non-constant-time multiplication. Uses double-and-add algorithm.
@@ -48877,14 +48882,14 @@ var nugap = (() => {
         if (!Fn3.isValid(sc))
           throw new RangeError("invalid scalar: out of range");
         if (sc === _0n13 || p.is0())
-          return Point3.ZERO;
+          return _Point.ZERO;
         if (sc === _1n12)
           return p;
         if (wnaf.hasCache(this))
           return this.multiply(sc);
         if (endo2) {
           const { k1neg, k1, k2neg, k2 } = splitEndoScalarN(sc);
-          const { p1, p2 } = mulEndoUnsafe3(Point3, p, k1, k2);
+          const { p1, p2 } = mulEndoUnsafe3(_Point, p, k1, k2);
           return finishEndo(endo2.beta, p1, p2, k1neg, k2neg);
         } else {
           return wnaf.unsafe(p, sc);
@@ -48922,7 +48927,7 @@ var nugap = (() => {
         if (cofactor === _1n12)
           return true;
         if (isTorsionFree)
-          return isTorsionFree(Point3, this);
+          return isTorsionFree(_Point, this);
         return wnaf.unsafe(this, CURVE_ORDER2).is0();
       }
       clearCofactor() {
@@ -48930,7 +48935,7 @@ var nugap = (() => {
         if (cofactor === _1n12)
           return this;
         if (clearCofactor)
-          return clearCofactor(Point3, this);
+          return clearCofactor(_Point, this);
         return this.multiplyUnsafe(cofactor);
       }
       isSmallOrder() {
@@ -48941,7 +48946,7 @@ var nugap = (() => {
       toBytes(isCompressed = true) {
         abool3(isCompressed, "isCompressed");
         this.assertValidity();
-        return encodePoint(Point3, this, isCompressed);
+        return encodePoint(_Point, this, isCompressed);
       }
       toHex(isCompressed = true) {
         return bytesToHex4(this.toBytes(isCompressed));
@@ -48949,7 +48954,17 @@ var nugap = (() => {
       toString() {
         return `<Point ${this.is0() ? "ZERO" : this.toHex()}>`;
       }
-    }
+    };
+    // base / generator point
+    __publicField(_Point, "BASE", new _Point(CURVE.Gx, CURVE.Gy, Fp.ONE));
+    // zero / infinity / identity point
+    __publicField(_Point, "ZERO", new _Point(Fp.ZERO, Fp.ONE, Fp.ZERO));
+    // 0, 1, 0
+    // math field
+    __publicField(_Point, "Fp", Fp);
+    // scalar field
+    __publicField(_Point, "Fn", Fn3);
+    let Point3 = _Point;
     const bits = Fn3.BITS;
     const wnaf = new wNAF3(Point3, extraOpts.endo ? Math.ceil(bits / 2) : bits);
     if (bits >= 8)
@@ -49080,10 +49095,10 @@ var nugap = (() => {
       return abytes5(bytes, sizer);
     }
     class Signature {
-      r;
-      s;
-      recovery;
       constructor(r, s, recovery) {
+        __publicField(this, "r");
+        __publicField(this, "s");
+        __publicField(this, "recovery");
         this.r = validateRS("r", r);
         this.s = validateRS("s", s);
         if (recovery != null) {
@@ -54926,6 +54941,7 @@ let APP = {
   keyType: null,          // 'bip84' | 'bip86'
   addresses: [],
   totalBalance: 0,
+  network: 'mainnet',          // 'mainnet' | 'testnet4'
   apiBaseUrl: 'https://mempool.space/api',
   currentPsbt: null,      // Uint8Array
   signedPsbt: null,       // Uint8Array
@@ -54972,11 +54988,27 @@ function showPreview() { showSection('preview'); }
 function showScan() { showSection('scan'); startScanner(); }
 
 // --- Settings ---
-function openSettings() { document.getElementById('settings-modal').classList.add('open'); document.getElementById('inp-api').value = APP.apiBaseUrl; }
+function openSettings() {
+  document.getElementById('settings-modal').classList.add('open');
+  document.getElementById('inp-api').value = APP.apiBaseUrl;
+  const radios = document.querySelectorAll('input[name="network"]');
+  radios.forEach(r => r.checked = (r.value === APP.network));
+}
 function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
+function switchNetwork(net) {
+  if (net === 'testnet4') {
+    document.getElementById('inp-api').value = 'https://mempool.space/testnet4/api';
+    document.getElementById('network-label').textContent = 'Network: Testnet4';
+  } else {
+    document.getElementById('inp-api').value = 'https://mempool.space/api';
+    document.getElementById('network-label').textContent = 'Network: Mainnet';
+  }
+}
 function saveSettings() {
   let v = document.getElementById('inp-api').value.trim().replace(/\/+$/, '');
   if (!v) { notify('API endpoint cannot be empty'); return; }
+  const net = document.querySelector('input[name="network"]:checked').value;
+  APP.network = net;
   APP.apiBaseUrl = v; closeSettings(); notify('Settings saved', 'success');
 }
 
@@ -55064,11 +55096,14 @@ function bech32Decode(str) {
 
 function validateAddress(addr) {
   // Reject legacy
-  if (/^[13]/.test(addr)) return { valid: false, error: 'Only SegWit (bc1q) and Taproot (bc1p) addresses supported' };
-  // Reject testnet
-  if (/^tb1/i.test(addr)) return { valid: false, error: 'Testnet addresses not supported' };
+  if (/^[13]/.test(addr)) return { valid: false, error: 'Only SegWit (bc1q/tb1q) and Taproot (bc1p/tb1p) addresses supported' };
+  // Network-aware validation
+  const isTestnet = APP.network === 'testnet4';
+  const expectedHrp = isTestnet ? 'tb' : 'bc';
+  if (isTestnet && /^bc1/i.test(addr)) return { valid: false, error: 'Mainnet address — switch to Mainnet or use a tb1 address' };
+  if (!isTestnet && /^tb1/i.test(addr)) return { valid: false, error: 'Testnet address — switch to Testnet4 or use a bc1 address' };
   const dec = bech32Decode(addr);
-  if (!dec || dec.hrp !== 'bc') return { valid: false, error: 'Invalid address format or checksum' };
+  if (!dec || dec.hrp !== expectedHrp) return { valid: false, error: 'Invalid address format or checksum' };
   if (dec.witnessVer === 0 && dec.encoding !== 'bech32') return { valid: false, error: 'v0 address must use bech32 encoding' };
   if (dec.witnessVer > 0 && dec.encoding !== 'bech32m') return { valid: false, error: 'v1+ address must use bech32m encoding' };
   if (dec.witnessVer === 0 && dec.program.length !== 20 && dec.program.length !== 32) return { valid: false, error: 'Invalid witness program length' };
@@ -55104,19 +55139,25 @@ function b58decode(str) {
 }
 
 function detectKeyType(key) {
-  // zpub (0x04B24746) → BIP84, xpub (0x0488B21E) → BIP86
-  if (key.startsWith('zpub')) return 'bip84';
-  if (key.startsWith('xpub')) return 'bip86';
+  // Mainnet: zpub → BIP84, xpub → BIP86
+  // Testnet: vpub → BIP84, tpub → BIP86
+  if (key.startsWith('zpub') || key.startsWith('vpub')) return 'bip84';
+  if (key.startsWith('xpub') || key.startsWith('tpub')) return 'bip86';
   return null;
 }
 
-function convertZpubToXpub(zpubStr) {
-  // Convert zpub to xpub by replacing version bytes
-  const data = b58decode(zpubStr);
+function convertToXpub(keyStr) {
+  // Convert zpub/vpub to xpub/tpub by replacing version bytes
+  const data = b58decode(keyStr);
   if (!data || data.length !== 78) return null;
-  // Replace first 4 bytes (0x04B24746) with xpub version (0x0488B21E)
+  const isTestnet = keyStr.startsWith('vpub') || keyStr.startsWith('tpub');
+  // Target: xpub (0x0488B21E) or tpub (0x043587CF)
   const xpubData = new Uint8Array(data);
-  xpubData[0]=0x04; xpubData[1]=0x88; xpubData[2]=0xB2; xpubData[3]=0x1E;
+  if (isTestnet) {
+    xpubData[0]=0x04; xpubData[1]=0x35; xpubData[2]=0x87; xpubData[3]=0xCF;
+  } else {
+    xpubData[0]=0x04; xpubData[1]=0x88; xpubData[2]=0xB2; xpubData[3]=0x1E;
+  }
   // Re-encode with base58check
   const hash1 = sha256(xpubData);
   const hash2 = sha256(hash1);
@@ -55138,23 +55179,24 @@ function b58encode(bytes) {
 function deriveAddresses(extKey, keyType, startIdx, count, change) {
   // Parse xpub using HDKey
   let xpubStr = extKey;
-  if (keyType === 'bip84' && extKey.startsWith('zpub')) {
-    xpubStr = convertZpubToXpub(extKey);
-    if (!xpubStr) throw new Error('Invalid zpub');
+  if (keyType === 'bip84' && (extKey.startsWith('zpub') || extKey.startsWith('vpub'))) {
+    xpubStr = convertToXpub(extKey);
+    if (!xpubStr) throw new Error('Invalid zpub/vpub');
   }
   const root = HDKey.fromExtendedKey(xpubStr);
   const addresses = [];
   const changeVal = change ? 1 : 0;
   const branch = root.deriveChild(changeVal);
+  const network = APP.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
 
   for (let i = startIdx; i < startIdx + count; i++) {
     const child = branch.deriveChild(i);
     const pubkey = child.publicKey;
     let address;
     if (keyType === 'bip84') {
-      address = btcSigner.p2wpkh(pubkey).address;
+      address = btcSigner.p2wpkh(pubkey, network).address;
     } else {
-      address = btcSigner.p2tr(pubkey.slice(1)).address;
+      address = btcSigner.p2tr(pubkey.slice(1), undefined, network).address;
     }
     const pathBase = keyType === 'bip84' ? "m/84'/0'/0'" : "m/86'/0'/0'";
     addresses.push({
@@ -55170,10 +55212,9 @@ function deriveAddresses(extKey, keyType, startIdx, count, change) {
 }
 
 function deriveInitialAddresses(extKey, keyType) {
-  // Derive first 20 receive + 20 change
+  // Derive first address only (testing mode)
   return [
-    ...deriveAddresses(extKey, keyType, 0, 20, false),
-    ...deriveAddresses(extKey, keyType, 0, 20, true),
+    ...deriveAddresses(extKey, keyType, 0, 1, false),
   ];
 }
 
@@ -55190,10 +55231,13 @@ async function doImport() {
       const key = document.getElementById('inp-xpub').value.trim();
       if (!key) { notify('Please enter an xpub or zpub'); return; }
       const kt = detectKeyType(key);
-      if (!kt) { notify('Unsupported key format. Use zpub (BIP-84) or xpub (BIP-86)'); return; }
+      if (!kt) { notify('Unsupported key format. Use zpub/vpub (BIP-84) or xpub/tpub (BIP-86)'); return; }
       // Validate base58check
       if (!b58decode(key)) { notify('Invalid key — checksum failed'); return; }
-      if (key.startsWith('tpub') || key.startsWith('vpub')) { notify('Testnet keys not supported'); return; }
+      // Check network consistency
+      const isTestnetKey = key.startsWith('tpub') || key.startsWith('vpub');
+      if (APP.network === 'testnet4' && !isTestnetKey) { notify('Mainnet key — switch to Mainnet in Settings or use tpub/vpub'); return; }
+      if (APP.network === 'mainnet' && isTestnetKey) { notify('Testnet key — switch to Testnet4 in Settings or use xpub/zpub'); return; }
 
       APP.walletType = 'xpub'; APP.extendedKey = key; APP.keyType = kt;
       APP.addresses = deriveInitialAddresses(key, kt);
@@ -55222,73 +55266,32 @@ async function doImport() {
 // ============================================================
 async function fetchAllBalances() {
   let total = 0;
-  const GAP_LIMIT = 20;
 
-  // Scan addresses with dynamic gap limit extension for xpub wallets
-  async function scanAddresses(addrList) {
-    for (let i = 0; i < addrList.length; i++) {
-      const a = addrList[i];
-      try {
-        const info = await api('/address/' + a.address);
-        const cs = info.chain_stats || {};
-        const ms = info.mempool_stats || {};
-        a.balance = (cs.funded_txo_sum - cs.spent_txo_sum) + (ms.funded_txo_sum - ms.spent_txo_sum);
-        const txCount = (cs.tx_count || 0) + (ms.tx_count || 0);
+  // Simple scan: fetch balances for all addresses we have
+  for (let i = 0; i < APP.addresses.length; i++) {
+    const a = APP.addresses[i];
+    try {
+      const info = await api('/address/' + a.address);
+      const cs = info.chain_stats || {};
+      const ms = info.mempool_stats || {};
+      a.balance = (cs.funded_txo_sum - cs.spent_txo_sum) + (ms.funded_txo_sum - ms.spent_txo_sum);
+      const txCount = (cs.tx_count || 0) + (ms.tx_count || 0);
 
-        if (a.balance > 0 || txCount > 0) {
-          const utxos = await api('/address/' + a.address + '/utxo');
-          a.utxos = (utxos || []).map(u => ({
-            txid: u.txid, vout: u.vout, value: u.value,
-            confirmed: u.status && u.status.confirmed,
-            blockHeight: u.status && u.status.block_height,
-          }));
-        } else {
-          a.utxos = [];
-        }
-        total += a.balance;
-      } catch(e) {
-        console.warn('Error fetching', a.address, e);
+      if (a.balance > 0 || txCount > 0) {
+        const utxos = await api('/address/' + a.address + '/utxo');
+        a.utxos = (utxos || []).map(u => ({
+          txid: u.txid, vout: u.vout, value: u.value,
+          confirmed: u.status && u.status.confirmed,
+          blockHeight: u.status && u.status.block_height,
+        }));
+      } else {
+        a.utxos = [];
       }
-      await sleep(200);
+      total += a.balance;
+    } catch(e) {
+      console.warn('Error fetching', a.address, e);
     }
-  }
-
-  if (APP.walletType === 'xpub') {
-    // Scan receive and change separately with gap limit extension
-    for (const isChange of [false, true]) {
-      let startIdx = 0;
-      let consecutive = 0;
-      let batchSize = 20;
-
-      while (consecutive < GAP_LIMIT) {
-        const existing = APP.addresses.filter(a => a.isChange === isChange);
-        const alreadyDerived = existing.length;
-        // Derive more if needed
-        if (startIdx + batchSize > alreadyDerived) {
-          const need = startIdx + batchSize - alreadyDerived;
-          const extra = deriveAddresses(APP.extendedKey, APP.keyType, alreadyDerived, need, isChange);
-          APP.addresses.push(...extra);
-        }
-        // Scan the current batch
-        const batch = APP.addresses.filter(a => a.isChange === isChange).slice(startIdx, startIdx + batchSize);
-        await scanAddresses(batch);
-
-        // Count consecutive empty from end
-        const allOfType = APP.addresses.filter(a => a.isChange === isChange);
-        consecutive = 0;
-        for (let j = allOfType.length - 1; j >= 0; j--) {
-          const a = allOfType[j];
-          if (a.balance === 0 && a.utxos.length === 0) consecutive++;
-          else break;
-        }
-        if (consecutive >= GAP_LIMIT) break;
-        // If we found activity near the end, extend
-        startIdx += batchSize;
-        batchSize = 10; // smaller increments for extension
-      }
-    }
-  } else {
-    await scanAddresses(APP.addresses);
+    if (i < APP.addresses.length - 1) await sleep(300);
   }
 
   APP.totalBalance = total;
@@ -55509,6 +55512,7 @@ async function createTransaction() {
     const changeAddr = sel.change > 0 ? getChangeAddress() : null;
 
     // Create transaction
+    const txNetwork = APP.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
     const tx = new btcSigner.Transaction();
 
     for (const u of sel.selected) {
@@ -55516,7 +55520,7 @@ async function createTransaction() {
         txid: u.txid,
         index: u.vout,
         witnessUtxo: {
-          script: btcSigner.OutScript.encode(btcSigner.Address().decode(u.address)),
+          script: btcSigner.OutScript.encode(btcSigner.Address(APP.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK).decode(u.address)),
           amount: BigInt(u.value),
         },
       };
@@ -55529,11 +55533,11 @@ async function createTransaction() {
     }
 
     // Add recipient output
-    tx.addOutputAddress(recipientAddr, BigInt(amountSats));
+    tx.addOutputAddress(recipientAddr, BigInt(amountSats), txNetwork);
 
     // Add change output
     if (sel.change > 0 && changeAddr) {
-      tx.addOutputAddress(changeAddr, BigInt(sel.change));
+      tx.addOutputAddress(changeAddr, BigInt(sel.change), txNetwork);
     }
 
     const psbtBytes = tx.toPSBT();

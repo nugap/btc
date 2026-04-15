@@ -134,18 +134,18 @@ input[type=range] { width: 100%; accent-color: #58a6ff; }
       <h3 style="margin-bottom:12px">Import Watch-Only Wallet</h3>
       <div style="margin-bottom:12px">
         <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer">
-          <input type="radio" name="import-type" value="xpub" checked onchange="toggleImportType()"> Extended Public Key (xpub / zpub)
+          <input type="radio" name="import-type" value="xpub" checked onchange="toggleImportType()"> Extended Public Key (xpub / zpub / tpub / vpub)
         </label>
         <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
           <input type="radio" name="import-type" value="address" onchange="toggleImportType()"> Single Address
         </label>
       </div>
       <div id="input-xpub">
-        <input type="text" id="inp-xpub" placeholder="zpub... or xpub..." spellcheck="false">
-        <p style="font-size:0.75rem;color:#8b949e;margin-top:4px">zpub → BIP-84 (Native SegWit) · xpub → BIP-86 (Taproot)</p>
+        <input type="text" id="inp-xpub" placeholder="zpub... / xpub... / vpub... / tpub..." spellcheck="false">
+        <p style="font-size:0.75rem;color:#8b949e;margin-top:4px">zpub/vpub → BIP-84 (Native SegWit) · xpub/tpub → BIP-86 (Taproot)</p>
       </div>
       <div id="input-addr" style="display:none">
-        <input type="text" id="inp-addr" placeholder="bc1q... or bc1p..." spellcheck="false">
+        <input type="text" id="inp-addr" placeholder="bc1q... / bc1p... / tb1q... / tb1p..." spellcheck="false">
       </div>
       <button style="margin-top:12px;width:100%" onclick="doImport()" id="btn-import">Import Wallet</button>
     </div>
@@ -245,8 +245,18 @@ input[type=range] { width: 100%; accent-color: #58a6ff; }
   <div class="modal">
     <h3 style="margin-bottom:12px">Settings</h3>
     <label style="font-size:0.85rem;color:#8b949e">API Endpoint</label>
+    <label style="font-size:0.85rem;color:#8b949e">Network</label>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.9rem">
+        <input type="radio" name="network" value="mainnet" checked onchange="switchNetwork(this.value)"> Mainnet
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.9rem">
+        <input type="radio" name="network" value="testnet4" onchange="switchNetwork(this.value)"> Testnet4
+      </label>
+    </div>
+    <label style="font-size:0.85rem;color:#8b949e">API Endpoint</label>
     <input type="text" id="inp-api" value="https://mempool.space/api" style="margin-bottom:8px">
-    <p style="font-size:0.75rem;color:#8b949e;margin-bottom:12px">Network: Mainnet</p>
+    <p style="font-size:0.75rem;color:#8b949e;margin-bottom:12px" id="network-label">Network: Mainnet</p>
     <div style="display:flex;gap:8px">
       <button onclick="saveSettings()" style="flex:1">Save</button>
       <button class="secondary" onclick="closeSettings()" style="flex:1">Cancel</button>
@@ -272,6 +282,7 @@ let APP = {
   keyType: null,          // 'bip84' | 'bip86'
   addresses: [],
   totalBalance: 0,
+  network: 'mainnet',          // 'mainnet' | 'testnet4'
   apiBaseUrl: 'https://mempool.space/api',
   currentPsbt: null,      // Uint8Array
   signedPsbt: null,       // Uint8Array
@@ -318,11 +329,27 @@ function showPreview() { showSection('preview'); }
 function showScan() { showSection('scan'); startScanner(); }
 
 // --- Settings ---
-function openSettings() { document.getElementById('settings-modal').classList.add('open'); document.getElementById('inp-api').value = APP.apiBaseUrl; }
+function openSettings() {
+  document.getElementById('settings-modal').classList.add('open');
+  document.getElementById('inp-api').value = APP.apiBaseUrl;
+  const radios = document.querySelectorAll('input[name="network"]');
+  radios.forEach(r => r.checked = (r.value === APP.network));
+}
 function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
+function switchNetwork(net) {
+  if (net === 'testnet4') {
+    document.getElementById('inp-api').value = 'https://mempool.space/testnet4/api';
+    document.getElementById('network-label').textContent = 'Network: Testnet4';
+  } else {
+    document.getElementById('inp-api').value = 'https://mempool.space/api';
+    document.getElementById('network-label').textContent = 'Network: Mainnet';
+  }
+}
 function saveSettings() {
   let v = document.getElementById('inp-api').value.trim().replace(/\/+$/, '');
   if (!v) { notify('API endpoint cannot be empty'); return; }
+  const net = document.querySelector('input[name="network"]:checked').value;
+  APP.network = net;
   APP.apiBaseUrl = v; closeSettings(); notify('Settings saved', 'success');
 }
 
@@ -410,11 +437,14 @@ function bech32Decode(str) {
 
 function validateAddress(addr) {
   // Reject legacy
-  if (/^[13]/.test(addr)) return { valid: false, error: 'Only SegWit (bc1q) and Taproot (bc1p) addresses supported' };
-  // Reject testnet
-  if (/^tb1/i.test(addr)) return { valid: false, error: 'Testnet addresses not supported' };
+  if (/^[13]/.test(addr)) return { valid: false, error: 'Only SegWit (bc1q/tb1q) and Taproot (bc1p/tb1p) addresses supported' };
+  // Network-aware validation
+  const isTestnet = APP.network === 'testnet4';
+  const expectedHrp = isTestnet ? 'tb' : 'bc';
+  if (isTestnet && /^bc1/i.test(addr)) return { valid: false, error: 'Mainnet address — switch to Mainnet or use a tb1 address' };
+  if (!isTestnet && /^tb1/i.test(addr)) return { valid: false, error: 'Testnet address — switch to Testnet4 or use a bc1 address' };
   const dec = bech32Decode(addr);
-  if (!dec || dec.hrp !== 'bc') return { valid: false, error: 'Invalid address format or checksum' };
+  if (!dec || dec.hrp !== expectedHrp) return { valid: false, error: 'Invalid address format or checksum' };
   if (dec.witnessVer === 0 && dec.encoding !== 'bech32') return { valid: false, error: 'v0 address must use bech32 encoding' };
   if (dec.witnessVer > 0 && dec.encoding !== 'bech32m') return { valid: false, error: 'v1+ address must use bech32m encoding' };
   if (dec.witnessVer === 0 && dec.program.length !== 20 && dec.program.length !== 32) return { valid: false, error: 'Invalid witness program length' };
@@ -450,19 +480,25 @@ function b58decode(str) {
 }
 
 function detectKeyType(key) {
-  // zpub (0x04B24746) → BIP84, xpub (0x0488B21E) → BIP86
-  if (key.startsWith('zpub')) return 'bip84';
-  if (key.startsWith('xpub')) return 'bip86';
+  // Mainnet: zpub → BIP84, xpub → BIP86
+  // Testnet: vpub → BIP84, tpub → BIP86
+  if (key.startsWith('zpub') || key.startsWith('vpub')) return 'bip84';
+  if (key.startsWith('xpub') || key.startsWith('tpub')) return 'bip86';
   return null;
 }
 
-function convertZpubToXpub(zpubStr) {
-  // Convert zpub to xpub by replacing version bytes
-  const data = b58decode(zpubStr);
+function convertToXpub(keyStr) {
+  // Convert zpub/vpub to xpub/tpub by replacing version bytes
+  const data = b58decode(keyStr);
   if (!data || data.length !== 78) return null;
-  // Replace first 4 bytes (0x04B24746) with xpub version (0x0488B21E)
+  const isTestnet = keyStr.startsWith('vpub') || keyStr.startsWith('tpub');
+  // Target: xpub (0x0488B21E) or tpub (0x043587CF)
   const xpubData = new Uint8Array(data);
-  xpubData[0]=0x04; xpubData[1]=0x88; xpubData[2]=0xB2; xpubData[3]=0x1E;
+  if (isTestnet) {
+    xpubData[0]=0x04; xpubData[1]=0x35; xpubData[2]=0x87; xpubData[3]=0xCF;
+  } else {
+    xpubData[0]=0x04; xpubData[1]=0x88; xpubData[2]=0xB2; xpubData[3]=0x1E;
+  }
   // Re-encode with base58check
   const hash1 = sha256(xpubData);
   const hash2 = sha256(hash1);
@@ -484,23 +520,24 @@ function b58encode(bytes) {
 function deriveAddresses(extKey, keyType, startIdx, count, change) {
   // Parse xpub using HDKey
   let xpubStr = extKey;
-  if (keyType === 'bip84' && extKey.startsWith('zpub')) {
-    xpubStr = convertZpubToXpub(extKey);
-    if (!xpubStr) throw new Error('Invalid zpub');
+  if (keyType === 'bip84' && (extKey.startsWith('zpub') || extKey.startsWith('vpub'))) {
+    xpubStr = convertToXpub(extKey);
+    if (!xpubStr) throw new Error('Invalid zpub/vpub');
   }
   const root = HDKey.fromExtendedKey(xpubStr);
   const addresses = [];
   const changeVal = change ? 1 : 0;
   const branch = root.deriveChild(changeVal);
+  const network = APP.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
 
   for (let i = startIdx; i < startIdx + count; i++) {
     const child = branch.deriveChild(i);
     const pubkey = child.publicKey;
     let address;
     if (keyType === 'bip84') {
-      address = btcSigner.p2wpkh(pubkey).address;
+      address = btcSigner.p2wpkh(pubkey, network).address;
     } else {
-      address = btcSigner.p2tr(pubkey.slice(1)).address;
+      address = btcSigner.p2tr(pubkey.slice(1), undefined, network).address;
     }
     const pathBase = keyType === 'bip84' ? "m/84'/0'/0'" : "m/86'/0'/0'";
     addresses.push({
@@ -516,10 +553,9 @@ function deriveAddresses(extKey, keyType, startIdx, count, change) {
 }
 
 function deriveInitialAddresses(extKey, keyType) {
-  // Derive first 20 receive + 20 change
+  // Derive first address only (testing mode)
   return [
-    ...deriveAddresses(extKey, keyType, 0, 20, false),
-    ...deriveAddresses(extKey, keyType, 0, 20, true),
+    ...deriveAddresses(extKey, keyType, 0, 1, false),
   ];
 }
 
@@ -536,10 +572,13 @@ async function doImport() {
       const key = document.getElementById('inp-xpub').value.trim();
       if (!key) { notify('Please enter an xpub or zpub'); return; }
       const kt = detectKeyType(key);
-      if (!kt) { notify('Unsupported key format. Use zpub (BIP-84) or xpub (BIP-86)'); return; }
+      if (!kt) { notify('Unsupported key format. Use zpub/vpub (BIP-84) or xpub/tpub (BIP-86)'); return; }
       // Validate base58check
       if (!b58decode(key)) { notify('Invalid key — checksum failed'); return; }
-      if (key.startsWith('tpub') || key.startsWith('vpub')) { notify('Testnet keys not supported'); return; }
+      // Check network consistency
+      const isTestnetKey = key.startsWith('tpub') || key.startsWith('vpub');
+      if (APP.network === 'testnet4' && !isTestnetKey) { notify('Mainnet key — switch to Mainnet in Settings or use tpub/vpub'); return; }
+      if (APP.network === 'mainnet' && isTestnetKey) { notify('Testnet key — switch to Testnet4 in Settings or use xpub/zpub'); return; }
 
       APP.walletType = 'xpub'; APP.extendedKey = key; APP.keyType = kt;
       APP.addresses = deriveInitialAddresses(key, kt);
@@ -568,73 +607,32 @@ async function doImport() {
 // ============================================================
 async function fetchAllBalances() {
   let total = 0;
-  const GAP_LIMIT = 20;
 
-  // Scan addresses with dynamic gap limit extension for xpub wallets
-  async function scanAddresses(addrList) {
-    for (let i = 0; i < addrList.length; i++) {
-      const a = addrList[i];
-      try {
-        const info = await api('/address/' + a.address);
-        const cs = info.chain_stats || {};
-        const ms = info.mempool_stats || {};
-        a.balance = (cs.funded_txo_sum - cs.spent_txo_sum) + (ms.funded_txo_sum - ms.spent_txo_sum);
-        const txCount = (cs.tx_count || 0) + (ms.tx_count || 0);
+  // Simple scan: fetch balances for all addresses we have
+  for (let i = 0; i < APP.addresses.length; i++) {
+    const a = APP.addresses[i];
+    try {
+      const info = await api('/address/' + a.address);
+      const cs = info.chain_stats || {};
+      const ms = info.mempool_stats || {};
+      a.balance = (cs.funded_txo_sum - cs.spent_txo_sum) + (ms.funded_txo_sum - ms.spent_txo_sum);
+      const txCount = (cs.tx_count || 0) + (ms.tx_count || 0);
 
-        if (a.balance > 0 || txCount > 0) {
-          const utxos = await api('/address/' + a.address + '/utxo');
-          a.utxos = (utxos || []).map(u => ({
-            txid: u.txid, vout: u.vout, value: u.value,
-            confirmed: u.status && u.status.confirmed,
-            blockHeight: u.status && u.status.block_height,
-          }));
-        } else {
-          a.utxos = [];
-        }
-        total += a.balance;
-      } catch(e) {
-        console.warn('Error fetching', a.address, e);
+      if (a.balance > 0 || txCount > 0) {
+        const utxos = await api('/address/' + a.address + '/utxo');
+        a.utxos = (utxos || []).map(u => ({
+          txid: u.txid, vout: u.vout, value: u.value,
+          confirmed: u.status && u.status.confirmed,
+          blockHeight: u.status && u.status.block_height,
+        }));
+      } else {
+        a.utxos = [];
       }
-      await sleep(200);
+      total += a.balance;
+    } catch(e) {
+      console.warn('Error fetching', a.address, e);
     }
-  }
-
-  if (APP.walletType === 'xpub') {
-    // Scan receive and change separately with gap limit extension
-    for (const isChange of [false, true]) {
-      let startIdx = 0;
-      let consecutive = 0;
-      let batchSize = 20;
-
-      while (consecutive < GAP_LIMIT) {
-        const existing = APP.addresses.filter(a => a.isChange === isChange);
-        const alreadyDerived = existing.length;
-        // Derive more if needed
-        if (startIdx + batchSize > alreadyDerived) {
-          const need = startIdx + batchSize - alreadyDerived;
-          const extra = deriveAddresses(APP.extendedKey, APP.keyType, alreadyDerived, need, isChange);
-          APP.addresses.push(...extra);
-        }
-        // Scan the current batch
-        const batch = APP.addresses.filter(a => a.isChange === isChange).slice(startIdx, startIdx + batchSize);
-        await scanAddresses(batch);
-
-        // Count consecutive empty from end
-        const allOfType = APP.addresses.filter(a => a.isChange === isChange);
-        consecutive = 0;
-        for (let j = allOfType.length - 1; j >= 0; j--) {
-          const a = allOfType[j];
-          if (a.balance === 0 && a.utxos.length === 0) consecutive++;
-          else break;
-        }
-        if (consecutive >= GAP_LIMIT) break;
-        // If we found activity near the end, extend
-        startIdx += batchSize;
-        batchSize = 10; // smaller increments for extension
-      }
-    }
-  } else {
-    await scanAddresses(APP.addresses);
+    if (i < APP.addresses.length - 1) await sleep(300);
   }
 
   APP.totalBalance = total;
@@ -855,6 +853,7 @@ async function createTransaction() {
     const changeAddr = sel.change > 0 ? getChangeAddress() : null;
 
     // Create transaction
+    const txNetwork = APP.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
     const tx = new btcSigner.Transaction();
 
     for (const u of sel.selected) {
@@ -862,7 +861,7 @@ async function createTransaction() {
         txid: u.txid,
         index: u.vout,
         witnessUtxo: {
-          script: btcSigner.OutScript.encode(btcSigner.Address().decode(u.address)),
+          script: btcSigner.OutScript.encode(btcSigner.Address(APP.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK).decode(u.address)),
           amount: BigInt(u.value),
         },
       };
@@ -875,11 +874,11 @@ async function createTransaction() {
     }
 
     // Add recipient output
-    tx.addOutputAddress(recipientAddr, BigInt(amountSats));
+    tx.addOutputAddress(recipientAddr, BigInt(amountSats), txNetwork);
 
     // Add change output
     if (sel.change > 0 && changeAddr) {
-      tx.addOutputAddress(changeAddr, BigInt(sel.change));
+      tx.addOutputAddress(changeAddr, BigInt(sel.change), txNetwork);
     }
 
     const psbtBytes = tx.toPSBT();
