@@ -55781,14 +55781,15 @@ async function startScanner() {
       () => {} // ignore errors
     );
   } catch(e) {
-    if (e.toString().includes('permission')) {
+    const msg = (typeof e === 'string') ? e : (e && e.message) ? e.message : String(e);
+    if (msg.includes('permission') || msg.includes('Permission')) {
       notify('Camera permission denied. Please allow camera access.');
-    } else if (e.toString().includes('No camera')) {
-      notify('No camera found.');
+    } else if (msg.includes('No camera') || msg.includes('NotFound')) {
+      notify('No camera found. Use paste option below.');
     } else {
-      notify('Scanner error: ' + e.message);
+      notify('Scanner error: ' + msg + '. Use paste option below.');
     }
-    showDashboard();
+    // Don't navigate away — leave scan section so user can paste
   }
 }
 
