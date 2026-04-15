@@ -1,6 +1,10 @@
 // entry-hodl.js — Bundle all libraries for hodl.html (offline signer)
 // This gets bundled by esbuild into a single IIFE
 
+// Buffer polyfill for browser (required by @ngraveio/bc-ur)
+import { Buffer } from 'buffer';
+if (typeof globalThis.Buffer === 'undefined') globalThis.Buffer = Buffer;
+
 // BIP-39 mnemonic (NEW — not in yolo)
 import { generateMnemonic, mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
 import { wordlist } from '@scure/bip39/wordlists/english.js';
