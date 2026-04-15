@@ -1,10 +1,6 @@
 // entry.js — Bundle all libraries for yolo.html
 // This gets bundled by esbuild into a single IIFE
 
-// Buffer polyfill for browser (required by @ngraveio/bc-ur)
-import { Buffer } from 'buffer';
-if (typeof globalThis.Buffer === 'undefined') globalThis.Buffer = Buffer;
-
 // BTC transaction construction & PSBT
 import * as btcSigner from '@scure/btc-signer';
 

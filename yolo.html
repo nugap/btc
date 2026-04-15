@@ -317,6 +317,7 @@ var nugap = (() => {
   var require_base64_js = __commonJS({
     "node_modules/base64-js/index.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       exports.byteLength = byteLength;
       exports.toByteArray = toByteArray;
       exports.fromByteArray = fromByteArray;
@@ -417,6 +418,7 @@ var nugap = (() => {
   // node_modules/ieee754/index.js
   var require_ieee754 = __commonJS({
     "node_modules/ieee754/index.js"(exports) {
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       exports.read = function(buffer, offset, isLE, mLen, nBytes) {
         var e, m;
         var eLen = nBytes * 8 - mLen - 1;
@@ -501,16 +503,17 @@ var nugap = (() => {
   var require_buffer = __commonJS({
     "node_modules/buffer/index.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var base64 = require_base64_js();
       var ieee754 = require_ieee754();
       var customInspectSymbol = typeof Symbol === "function" && typeof Symbol["for"] === "function" ? Symbol["for"]("nodejs.util.inspect.custom") : null;
-      exports.Buffer = Buffer3;
+      exports.Buffer = Buffer2;
       exports.SlowBuffer = SlowBuffer;
       exports.INSPECT_MAX_BYTES = 50;
       var K_MAX_LENGTH = 2147483647;
       exports.kMaxLength = K_MAX_LENGTH;
-      Buffer3.TYPED_ARRAY_SUPPORT = typedArraySupport();
-      if (!Buffer3.TYPED_ARRAY_SUPPORT && typeof console !== "undefined" && typeof console.error === "function") {
+      Buffer2.TYPED_ARRAY_SUPPORT = typedArraySupport();
+      if (!Buffer2.TYPED_ARRAY_SUPPORT && typeof console !== "undefined" && typeof console.error === "function") {
         console.error(
           "This browser lacks typed array (Uint8Array) support which is required by `buffer` v5.x. Use `buffer` v4.x if you require old browser support."
         );
@@ -528,17 +531,17 @@ var nugap = (() => {
           return false;
         }
       }
-      Object.defineProperty(Buffer3.prototype, "parent", {
+      Object.defineProperty(Buffer2.prototype, "parent", {
         enumerable: true,
         get: function() {
-          if (!Buffer3.isBuffer(this)) return void 0;
+          if (!Buffer2.isBuffer(this)) return void 0;
           return this.buffer;
         }
       });
-      Object.defineProperty(Buffer3.prototype, "offset", {
+      Object.defineProperty(Buffer2.prototype, "offset", {
         enumerable: true,
         get: function() {
-          if (!Buffer3.isBuffer(this)) return void 0;
+          if (!Buffer2.isBuffer(this)) return void 0;
           return this.byteOffset;
         }
       });
@@ -547,10 +550,10 @@ var nugap = (() => {
           throw new RangeError('The value "' + length + '" is invalid for option "size"');
         }
         var buf = new Uint8Array(length);
-        Object.setPrototypeOf(buf, Buffer3.prototype);
+        Object.setPrototypeOf(buf, Buffer2.prototype);
         return buf;
       }
-      function Buffer3(arg, encodingOrOffset, length) {
+      function Buffer2(arg, encodingOrOffset, length) {
         if (typeof arg === "number") {
           if (typeof encodingOrOffset === "string") {
             throw new TypeError(
@@ -561,7 +564,7 @@ var nugap = (() => {
         }
         return from(arg, encodingOrOffset, length);
       }
-      Buffer3.poolSize = 8192;
+      Buffer2.poolSize = 8192;
       function from(value, encodingOrOffset, length) {
         if (typeof value === "string") {
           return fromString(value, encodingOrOffset);
@@ -587,12 +590,12 @@ var nugap = (() => {
         }
         var valueOf = value.valueOf && value.valueOf();
         if (valueOf != null && valueOf !== value) {
-          return Buffer3.from(valueOf, encodingOrOffset, length);
+          return Buffer2.from(valueOf, encodingOrOffset, length);
         }
         var b = fromObject(value);
         if (b) return b;
         if (typeof Symbol !== "undefined" && Symbol.toPrimitive != null && typeof value[Symbol.toPrimitive] === "function") {
-          return Buffer3.from(
+          return Buffer2.from(
             value[Symbol.toPrimitive]("string"),
             encodingOrOffset,
             length
@@ -602,11 +605,11 @@ var nugap = (() => {
           "The first argument must be one of type string, Buffer, ArrayBuffer, Array, or Array-like Object. Received type " + typeof value
         );
       }
-      Buffer3.from = function(value, encodingOrOffset, length) {
+      Buffer2.from = function(value, encodingOrOffset, length) {
         return from(value, encodingOrOffset, length);
       };
-      Object.setPrototypeOf(Buffer3.prototype, Uint8Array.prototype);
-      Object.setPrototypeOf(Buffer3, Uint8Array);
+      Object.setPrototypeOf(Buffer2.prototype, Uint8Array.prototype);
+      Object.setPrototypeOf(Buffer2, Uint8Array);
       function assertSize(size) {
         if (typeof size !== "number") {
           throw new TypeError('"size" argument must be of type number');
@@ -624,24 +627,24 @@ var nugap = (() => {
         }
         return createBuffer(size);
       }
-      Buffer3.alloc = function(size, fill, encoding) {
+      Buffer2.alloc = function(size, fill, encoding) {
         return alloc(size, fill, encoding);
       };
       function allocUnsafe(size) {
         assertSize(size);
         return createBuffer(size < 0 ? 0 : checked(size) | 0);
       }
-      Buffer3.allocUnsafe = function(size) {
+      Buffer2.allocUnsafe = function(size) {
         return allocUnsafe(size);
       };
-      Buffer3.allocUnsafeSlow = function(size) {
+      Buffer2.allocUnsafeSlow = function(size) {
         return allocUnsafe(size);
       };
       function fromString(string2, encoding) {
         if (typeof encoding !== "string" || encoding === "") {
           encoding = "utf8";
         }
-        if (!Buffer3.isEncoding(encoding)) {
+        if (!Buffer2.isEncoding(encoding)) {
           throw new TypeError("Unknown encoding: " + encoding);
         }
         var length = byteLength(string2, encoding) | 0;
@@ -682,11 +685,11 @@ var nugap = (() => {
         } else {
           buf = new Uint8Array(array2, byteOffset, length);
         }
-        Object.setPrototypeOf(buf, Buffer3.prototype);
+        Object.setPrototypeOf(buf, Buffer2.prototype);
         return buf;
       }
       function fromObject(obj) {
-        if (Buffer3.isBuffer(obj)) {
+        if (Buffer2.isBuffer(obj)) {
           var len = checked(obj.length) | 0;
           var buf = createBuffer(len);
           if (buf.length === 0) {
@@ -715,15 +718,15 @@ var nugap = (() => {
         if (+length != length) {
           length = 0;
         }
-        return Buffer3.alloc(+length);
+        return Buffer2.alloc(+length);
       }
-      Buffer3.isBuffer = function isBuffer(b) {
-        return b != null && b._isBuffer === true && b !== Buffer3.prototype;
+      Buffer2.isBuffer = function isBuffer(b) {
+        return b != null && b._isBuffer === true && b !== Buffer2.prototype;
       };
-      Buffer3.compare = function compare(a, b) {
-        if (isInstance(a, Uint8Array)) a = Buffer3.from(a, a.offset, a.byteLength);
-        if (isInstance(b, Uint8Array)) b = Buffer3.from(b, b.offset, b.byteLength);
-        if (!Buffer3.isBuffer(a) || !Buffer3.isBuffer(b)) {
+      Buffer2.compare = function compare(a, b) {
+        if (isInstance(a, Uint8Array)) a = Buffer2.from(a, a.offset, a.byteLength);
+        if (isInstance(b, Uint8Array)) b = Buffer2.from(b, b.offset, b.byteLength);
+        if (!Buffer2.isBuffer(a) || !Buffer2.isBuffer(b)) {
           throw new TypeError(
             'The "buf1", "buf2" arguments must be one of type Buffer or Uint8Array'
           );
@@ -742,7 +745,7 @@ var nugap = (() => {
         if (y < x) return 1;
         return 0;
       };
-      Buffer3.isEncoding = function isEncoding(encoding) {
+      Buffer2.isEncoding = function isEncoding(encoding) {
         switch (String(encoding).toLowerCase()) {
           case "hex":
           case "utf8":
@@ -760,12 +763,12 @@ var nugap = (() => {
             return false;
         }
       };
-      Buffer3.concat = function concat(list, length) {
+      Buffer2.concat = function concat(list, length) {
         if (!Array.isArray(list)) {
           throw new TypeError('"list" argument must be an Array of Buffers');
         }
         if (list.length === 0) {
-          return Buffer3.alloc(0);
+          return Buffer2.alloc(0);
         }
         var i;
         if (length === void 0) {
@@ -774,13 +777,13 @@ var nugap = (() => {
             length += list[i].length;
           }
         }
-        var buffer = Buffer3.allocUnsafe(length);
+        var buffer = Buffer2.allocUnsafe(length);
         var pos = 0;
         for (i = 0; i < list.length; ++i) {
           var buf = list[i];
           if (isInstance(buf, Uint8Array)) {
             if (pos + buf.length > buffer.length) {
-              Buffer3.from(buf).copy(buffer, pos);
+              Buffer2.from(buf).copy(buffer, pos);
             } else {
               Uint8Array.prototype.set.call(
                 buffer,
@@ -788,7 +791,7 @@ var nugap = (() => {
                 pos
               );
             }
-          } else if (!Buffer3.isBuffer(buf)) {
+          } else if (!Buffer2.isBuffer(buf)) {
             throw new TypeError('"list" argument must be an Array of Buffers');
           } else {
             buf.copy(buffer, pos);
@@ -798,7 +801,7 @@ var nugap = (() => {
         return buffer;
       };
       function byteLength(string2, encoding) {
-        if (Buffer3.isBuffer(string2)) {
+        if (Buffer2.isBuffer(string2)) {
           return string2.length;
         }
         if (ArrayBuffer.isView(string2) || isInstance(string2, ArrayBuffer)) {
@@ -840,7 +843,7 @@ var nugap = (() => {
           }
         }
       }
-      Buffer3.byteLength = byteLength;
+      Buffer2.byteLength = byteLength;
       function slowToString(encoding, start, end) {
         var loweredCase = false;
         if (start === void 0 || start < 0) {
@@ -887,13 +890,13 @@ var nugap = (() => {
           }
         }
       }
-      Buffer3.prototype._isBuffer = true;
+      Buffer2.prototype._isBuffer = true;
       function swap(b, n, m) {
         var i = b[n];
         b[n] = b[m];
         b[m] = i;
       }
-      Buffer3.prototype.swap16 = function swap16() {
+      Buffer2.prototype.swap16 = function swap16() {
         var len = this.length;
         if (len % 2 !== 0) {
           throw new RangeError("Buffer size must be a multiple of 16-bits");
@@ -903,7 +906,7 @@ var nugap = (() => {
         }
         return this;
       };
-      Buffer3.prototype.swap32 = function swap32() {
+      Buffer2.prototype.swap32 = function swap32() {
         var len = this.length;
         if (len % 4 !== 0) {
           throw new RangeError("Buffer size must be a multiple of 32-bits");
@@ -914,7 +917,7 @@ var nugap = (() => {
         }
         return this;
       };
-      Buffer3.prototype.swap64 = function swap64() {
+      Buffer2.prototype.swap64 = function swap64() {
         var len = this.length;
         if (len % 8 !== 0) {
           throw new RangeError("Buffer size must be a multiple of 64-bits");
@@ -927,19 +930,19 @@ var nugap = (() => {
         }
         return this;
       };
-      Buffer3.prototype.toString = function toString() {
+      Buffer2.prototype.toString = function toString() {
         var length = this.length;
         if (length === 0) return "";
         if (arguments.length === 0) return utf8Slice(this, 0, length);
         return slowToString.apply(this, arguments);
       };
-      Buffer3.prototype.toLocaleString = Buffer3.prototype.toString;
-      Buffer3.prototype.equals = function equals(b) {
-        if (!Buffer3.isBuffer(b)) throw new TypeError("Argument must be a Buffer");
+      Buffer2.prototype.toLocaleString = Buffer2.prototype.toString;
+      Buffer2.prototype.equals = function equals(b) {
+        if (!Buffer2.isBuffer(b)) throw new TypeError("Argument must be a Buffer");
         if (this === b) return true;
-        return Buffer3.compare(this, b) === 0;
+        return Buffer2.compare(this, b) === 0;
       };
-      Buffer3.prototype.inspect = function inspect() {
+      Buffer2.prototype.inspect = function inspect() {
         var str = "";
         var max = exports.INSPECT_MAX_BYTES;
         str = this.toString("hex", 0, max).replace(/(.{2})/g, "$1 ").trim();
@@ -947,13 +950,13 @@ var nugap = (() => {
         return "<Buffer " + str + ">";
       };
       if (customInspectSymbol) {
-        Buffer3.prototype[customInspectSymbol] = Buffer3.prototype.inspect;
+        Buffer2.prototype[customInspectSymbol] = Buffer2.prototype.inspect;
       }
-      Buffer3.prototype.compare = function compare(target, start, end, thisStart, thisEnd) {
+      Buffer2.prototype.compare = function compare(target, start, end, thisStart, thisEnd) {
         if (isInstance(target, Uint8Array)) {
-          target = Buffer3.from(target, target.offset, target.byteLength);
+          target = Buffer2.from(target, target.offset, target.byteLength);
         }
-        if (!Buffer3.isBuffer(target)) {
+        if (!Buffer2.isBuffer(target)) {
           throw new TypeError(
             'The "target" argument must be one of type Buffer or Uint8Array. Received type ' + typeof target
           );
@@ -1026,9 +1029,9 @@ var nugap = (() => {
           else return -1;
         }
         if (typeof val === "string") {
-          val = Buffer3.from(val, encoding);
+          val = Buffer2.from(val, encoding);
         }
-        if (Buffer3.isBuffer(val)) {
+        if (Buffer2.isBuffer(val)) {
           if (val.length === 0) {
             return -1;
           }
@@ -1096,13 +1099,13 @@ var nugap = (() => {
         }
         return -1;
       }
-      Buffer3.prototype.includes = function includes(val, byteOffset, encoding) {
+      Buffer2.prototype.includes = function includes(val, byteOffset, encoding) {
         return this.indexOf(val, byteOffset, encoding) !== -1;
       };
-      Buffer3.prototype.indexOf = function indexOf(val, byteOffset, encoding) {
+      Buffer2.prototype.indexOf = function indexOf(val, byteOffset, encoding) {
         return bidirectionalIndexOf(this, val, byteOffset, encoding, true);
       };
-      Buffer3.prototype.lastIndexOf = function lastIndexOf(val, byteOffset, encoding) {
+      Buffer2.prototype.lastIndexOf = function lastIndexOf(val, byteOffset, encoding) {
         return bidirectionalIndexOf(this, val, byteOffset, encoding, false);
       };
       function hexWrite(buf, string2, offset, length) {
@@ -1139,7 +1142,7 @@ var nugap = (() => {
       function ucs2Write(buf, string2, offset, length) {
         return blitBuffer(utf16leToBytes(string2, buf.length - offset), buf, offset, length);
       }
-      Buffer3.prototype.write = function write(string2, offset, length, encoding) {
+      Buffer2.prototype.write = function write(string2, offset, length, encoding) {
         if (offset === void 0) {
           encoding = "utf8";
           length = this.length;
@@ -1194,7 +1197,7 @@ var nugap = (() => {
           }
         }
       };
-      Buffer3.prototype.toJSON = function toJSON() {
+      Buffer2.prototype.toJSON = function toJSON() {
         return {
           type: "Buffer",
           data: Array.prototype.slice.call(this._arr || this, 0)
@@ -1317,7 +1320,7 @@ var nugap = (() => {
         }
         return res;
       }
-      Buffer3.prototype.slice = function slice(start, end) {
+      Buffer2.prototype.slice = function slice(start, end) {
         var len = this.length;
         start = ~~start;
         end = end === void 0 ? len : ~~end;
@@ -1335,14 +1338,14 @@ var nugap = (() => {
         }
         if (end < start) end = start;
         var newBuf = this.subarray(start, end);
-        Object.setPrototypeOf(newBuf, Buffer3.prototype);
+        Object.setPrototypeOf(newBuf, Buffer2.prototype);
         return newBuf;
       };
       function checkOffset(offset, ext, length) {
         if (offset % 1 !== 0 || offset < 0) throw new RangeError("offset is not uint");
         if (offset + ext > length) throw new RangeError("Trying to access beyond buffer length");
       }
-      Buffer3.prototype.readUintLE = Buffer3.prototype.readUIntLE = function readUIntLE(offset, byteLength2, noAssert) {
+      Buffer2.prototype.readUintLE = Buffer2.prototype.readUIntLE = function readUIntLE(offset, byteLength2, noAssert) {
         offset = offset >>> 0;
         byteLength2 = byteLength2 >>> 0;
         if (!noAssert) checkOffset(offset, byteLength2, this.length);
@@ -1354,7 +1357,7 @@ var nugap = (() => {
         }
         return val;
       };
-      Buffer3.prototype.readUintBE = Buffer3.prototype.readUIntBE = function readUIntBE(offset, byteLength2, noAssert) {
+      Buffer2.prototype.readUintBE = Buffer2.prototype.readUIntBE = function readUIntBE(offset, byteLength2, noAssert) {
         offset = offset >>> 0;
         byteLength2 = byteLength2 >>> 0;
         if (!noAssert) {
@@ -1367,32 +1370,32 @@ var nugap = (() => {
         }
         return val;
       };
-      Buffer3.prototype.readUint8 = Buffer3.prototype.readUInt8 = function readUInt8(offset, noAssert) {
+      Buffer2.prototype.readUint8 = Buffer2.prototype.readUInt8 = function readUInt8(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 1, this.length);
         return this[offset];
       };
-      Buffer3.prototype.readUint16LE = Buffer3.prototype.readUInt16LE = function readUInt16LE(offset, noAssert) {
+      Buffer2.prototype.readUint16LE = Buffer2.prototype.readUInt16LE = function readUInt16LE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 2, this.length);
         return this[offset] | this[offset + 1] << 8;
       };
-      Buffer3.prototype.readUint16BE = Buffer3.prototype.readUInt16BE = function readUInt16BE(offset, noAssert) {
+      Buffer2.prototype.readUint16BE = Buffer2.prototype.readUInt16BE = function readUInt16BE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 2, this.length);
         return this[offset] << 8 | this[offset + 1];
       };
-      Buffer3.prototype.readUint32LE = Buffer3.prototype.readUInt32LE = function readUInt32LE(offset, noAssert) {
+      Buffer2.prototype.readUint32LE = Buffer2.prototype.readUInt32LE = function readUInt32LE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 4, this.length);
         return (this[offset] | this[offset + 1] << 8 | this[offset + 2] << 16) + this[offset + 3] * 16777216;
       };
-      Buffer3.prototype.readUint32BE = Buffer3.prototype.readUInt32BE = function readUInt32BE(offset, noAssert) {
+      Buffer2.prototype.readUint32BE = Buffer2.prototype.readUInt32BE = function readUInt32BE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 4, this.length);
         return this[offset] * 16777216 + (this[offset + 1] << 16 | this[offset + 2] << 8 | this[offset + 3]);
       };
-      Buffer3.prototype.readIntLE = function readIntLE(offset, byteLength2, noAssert) {
+      Buffer2.prototype.readIntLE = function readIntLE(offset, byteLength2, noAssert) {
         offset = offset >>> 0;
         byteLength2 = byteLength2 >>> 0;
         if (!noAssert) checkOffset(offset, byteLength2, this.length);
@@ -1406,7 +1409,7 @@ var nugap = (() => {
         if (val >= mul) val -= Math.pow(2, 8 * byteLength2);
         return val;
       };
-      Buffer3.prototype.readIntBE = function readIntBE(offset, byteLength2, noAssert) {
+      Buffer2.prototype.readIntBE = function readIntBE(offset, byteLength2, noAssert) {
         offset = offset >>> 0;
         byteLength2 = byteLength2 >>> 0;
         if (!noAssert) checkOffset(offset, byteLength2, this.length);
@@ -1420,60 +1423,60 @@ var nugap = (() => {
         if (val >= mul) val -= Math.pow(2, 8 * byteLength2);
         return val;
       };
-      Buffer3.prototype.readInt8 = function readInt8(offset, noAssert) {
+      Buffer2.prototype.readInt8 = function readInt8(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 1, this.length);
         if (!(this[offset] & 128)) return this[offset];
         return (255 - this[offset] + 1) * -1;
       };
-      Buffer3.prototype.readInt16LE = function readInt16LE(offset, noAssert) {
+      Buffer2.prototype.readInt16LE = function readInt16LE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 2, this.length);
         var val = this[offset] | this[offset + 1] << 8;
         return val & 32768 ? val | 4294901760 : val;
       };
-      Buffer3.prototype.readInt16BE = function readInt16BE(offset, noAssert) {
+      Buffer2.prototype.readInt16BE = function readInt16BE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 2, this.length);
         var val = this[offset + 1] | this[offset] << 8;
         return val & 32768 ? val | 4294901760 : val;
       };
-      Buffer3.prototype.readInt32LE = function readInt32LE(offset, noAssert) {
+      Buffer2.prototype.readInt32LE = function readInt32LE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 4, this.length);
         return this[offset] | this[offset + 1] << 8 | this[offset + 2] << 16 | this[offset + 3] << 24;
       };
-      Buffer3.prototype.readInt32BE = function readInt32BE(offset, noAssert) {
+      Buffer2.prototype.readInt32BE = function readInt32BE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 4, this.length);
         return this[offset] << 24 | this[offset + 1] << 16 | this[offset + 2] << 8 | this[offset + 3];
       };
-      Buffer3.prototype.readFloatLE = function readFloatLE(offset, noAssert) {
+      Buffer2.prototype.readFloatLE = function readFloatLE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 4, this.length);
         return ieee754.read(this, offset, true, 23, 4);
       };
-      Buffer3.prototype.readFloatBE = function readFloatBE(offset, noAssert) {
+      Buffer2.prototype.readFloatBE = function readFloatBE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 4, this.length);
         return ieee754.read(this, offset, false, 23, 4);
       };
-      Buffer3.prototype.readDoubleLE = function readDoubleLE(offset, noAssert) {
+      Buffer2.prototype.readDoubleLE = function readDoubleLE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 8, this.length);
         return ieee754.read(this, offset, true, 52, 8);
       };
-      Buffer3.prototype.readDoubleBE = function readDoubleBE(offset, noAssert) {
+      Buffer2.prototype.readDoubleBE = function readDoubleBE(offset, noAssert) {
         offset = offset >>> 0;
         if (!noAssert) checkOffset(offset, 8, this.length);
         return ieee754.read(this, offset, false, 52, 8);
       };
       function checkInt(buf, value, offset, ext, max, min) {
-        if (!Buffer3.isBuffer(buf)) throw new TypeError('"buffer" argument must be a Buffer instance');
+        if (!Buffer2.isBuffer(buf)) throw new TypeError('"buffer" argument must be a Buffer instance');
         if (value > max || value < min) throw new RangeError('"value" argument is out of bounds');
         if (offset + ext > buf.length) throw new RangeError("Index out of range");
       }
-      Buffer3.prototype.writeUintLE = Buffer3.prototype.writeUIntLE = function writeUIntLE(value, offset, byteLength2, noAssert) {
+      Buffer2.prototype.writeUintLE = Buffer2.prototype.writeUIntLE = function writeUIntLE(value, offset, byteLength2, noAssert) {
         value = +value;
         offset = offset >>> 0;
         byteLength2 = byteLength2 >>> 0;
@@ -1489,7 +1492,7 @@ var nugap = (() => {
         }
         return offset + byteLength2;
       };
-      Buffer3.prototype.writeUintBE = Buffer3.prototype.writeUIntBE = function writeUIntBE(value, offset, byteLength2, noAssert) {
+      Buffer2.prototype.writeUintBE = Buffer2.prototype.writeUIntBE = function writeUIntBE(value, offset, byteLength2, noAssert) {
         value = +value;
         offset = offset >>> 0;
         byteLength2 = byteLength2 >>> 0;
@@ -1505,14 +1508,14 @@ var nugap = (() => {
         }
         return offset + byteLength2;
       };
-      Buffer3.prototype.writeUint8 = Buffer3.prototype.writeUInt8 = function writeUInt8(value, offset, noAssert) {
+      Buffer2.prototype.writeUint8 = Buffer2.prototype.writeUInt8 = function writeUInt8(value, offset, noAssert) {
         value = +value;
         offset = offset >>> 0;
         if (!noAssert) checkInt(this, value, offset, 1, 255, 0);
         this[offset] = value & 255;
         return offset + 1;
       };
-      Buffer3.prototype.writeUint16LE = Buffer3.prototype.writeUInt16LE = function writeUInt16LE(value, offset, noAssert) {
+      Buffer2.prototype.writeUint16LE = Buffer2.prototype.writeUInt16LE = function writeUInt16LE(value, offset, noAssert) {
         value = +value;
         offset = offset >>> 0;
         if (!noAssert) checkInt(this, value, offset, 2, 65535, 0);
@@ -1520,7 +1523,7 @@ var nugap = (() => {
         this[offset + 1] = value >>> 8;
         return offset + 2;
       };
-      Buffer3.prototype.writeUint16BE = Buffer3.prototype.writeUInt16BE = function writeUInt16BE(value, offset, noAssert) {
+      Buffer2.prototype.writeUint16BE = Buffer2.prototype.writeUInt16BE = function writeUInt16BE(value, offset, noAssert) {
         value = +value;
         offset = offset >>> 0;
         if (!noAssert) checkInt(this, value, offset, 2, 65535, 0);
@@ -1528,7 +1531,7 @@ var nugap = (() => {
         this[offset + 1] = value & 255;
         return offset + 2;
       };
-      Buffer3.prototype.writeUint32LE = Buffer3.prototype.writeUInt32LE = function writeUInt32LE(value, offset, noAssert) {
+      Buffer2.prototype.writeUint32LE = Buffer2.prototype.writeUInt32LE = function writeUInt32LE(value, offset, noAssert) {
         value = +value;
         offset = offset >>> 0;
         if (!noAssert) checkInt(this, value, offset, 4, 4294967295, 0);
@@ -1538,7 +1541,7 @@ var nugap = (() => {
         this[offset] = value & 255;
         return offset + 4;
       };
-      Buffer3.prototype.writeUint32BE = Buffer3.prototype.writeUInt32BE = function writeUInt32BE(value, offset, noAssert) {
+      Buffer2.prototype.writeUint32BE = Buffer2.prototype.writeUInt32BE = function writeUInt32BE(value, offset, noAssert) {
         value = +value;
         offset = offset >>> 0;
         if (!noAssert) checkInt(this, value, offset, 4, 4294967295, 0);
@@ -1548,7 +1551,7 @@ var nugap = (() => {
         this[offset + 3] = value & 255;
         return offset + 4;
       };
-      Buffer3.prototype.writeIntLE = function writeIntLE(value, offset, byteLength2, noAssert) {
+      Buffer2.prototype.writeIntLE = function writeIntLE(value, offset, byteLength2, noAssert) {
         value = +value;
         offset = offset >>> 0;
         if (!noAssert) {
@@ -1567,7 +1570,7 @@ var nugap = (() => {
         }
         return offset + byteLength2;
       };
-      Buffer3.prototype.writeIntBE = function writeIntBE(value, offset, byteLength2, noAssert) {
+      Buffer2.prototype.writeIntBE = function writeIntBE(value, offset, byteLength2, noAssert) {
         value = +value;
         offset = offset >>> 0;
         if (!noAssert) {
@@ -1586,7 +1589,7 @@ var nugap = (() => {
         }
         return offset + byteLength2;
       };
-      Buffer3.prototype.writeInt8 = function writeInt8(value, offset, noAssert) {
+      Buffer2.prototype.writeInt8 = function writeInt8(value, offset, noAssert) {
         value = +value;
         offset = offset >>> 0;
         if (!noAssert) checkInt(this, value, offset, 1, 127, -128);
@@ -1594,7 +1597,7 @@ var nugap = (() => {
         this[offset] = value & 255;
         return offset + 1;
       };
-      Buffer3.prototype.writeInt16LE = function writeInt16LE(value, offset, noAssert) {
+      Buffer2.prototype.writeInt16LE = function writeInt16LE(value, offset, noAssert) {
         value = +value;
         offset = offset >>> 0;
         if (!noAssert) checkInt(this, value, offset, 2, 32767, -32768);
@@ -1602,7 +1605,7 @@ var nugap = (() => {
         this[offset + 1] = value >>> 8;
         return offset + 2;
       };
-      Buffer3.prototype.writeInt16BE = function writeInt16BE(value, offset, noAssert) {
+      Buffer2.prototype.writeInt16BE = function writeInt16BE(value, offset, noAssert) {
         value = +value;
         offset = offset >>> 0;
         if (!noAssert) checkInt(this, value, offset, 2, 32767, -32768);
@@ -1610,7 +1613,7 @@ var nugap = (() => {
         this[offset + 1] = value & 255;
         return offset + 2;
       };
-      Buffer3.prototype.writeInt32LE = function writeInt32LE(value, offset, noAssert) {
+      Buffer2.prototype.writeInt32LE = function writeInt32LE(value, offset, noAssert) {
         value = +value;
         offset = offset >>> 0;
         if (!noAssert) checkInt(this, value, offset, 4, 2147483647, -2147483648);
@@ -1620,7 +1623,7 @@ var nugap = (() => {
         this[offset + 3] = value >>> 24;
         return offset + 4;
       };
-      Buffer3.prototype.writeInt32BE = function writeInt32BE(value, offset, noAssert) {
+      Buffer2.prototype.writeInt32BE = function writeInt32BE(value, offset, noAssert) {
         value = +value;
         offset = offset >>> 0;
         if (!noAssert) checkInt(this, value, offset, 4, 2147483647, -2147483648);
@@ -1644,10 +1647,10 @@ var nugap = (() => {
         ieee754.write(buf, value, offset, littleEndian, 23, 4);
         return offset + 4;
       }
-      Buffer3.prototype.writeFloatLE = function writeFloatLE(value, offset, noAssert) {
+      Buffer2.prototype.writeFloatLE = function writeFloatLE(value, offset, noAssert) {
         return writeFloat(this, value, offset, true, noAssert);
       };
-      Buffer3.prototype.writeFloatBE = function writeFloatBE(value, offset, noAssert) {
+      Buffer2.prototype.writeFloatBE = function writeFloatBE(value, offset, noAssert) {
         return writeFloat(this, value, offset, false, noAssert);
       };
       function writeDouble(buf, value, offset, littleEndian, noAssert) {
@@ -1659,14 +1662,14 @@ var nugap = (() => {
         ieee754.write(buf, value, offset, littleEndian, 52, 8);
         return offset + 8;
       }
-      Buffer3.prototype.writeDoubleLE = function writeDoubleLE(value, offset, noAssert) {
+      Buffer2.prototype.writeDoubleLE = function writeDoubleLE(value, offset, noAssert) {
         return writeDouble(this, value, offset, true, noAssert);
       };
-      Buffer3.prototype.writeDoubleBE = function writeDoubleBE(value, offset, noAssert) {
+      Buffer2.prototype.writeDoubleBE = function writeDoubleBE(value, offset, noAssert) {
         return writeDouble(this, value, offset, false, noAssert);
       };
-      Buffer3.prototype.copy = function copy(target, targetStart, start, end) {
-        if (!Buffer3.isBuffer(target)) throw new TypeError("argument should be a Buffer");
+      Buffer2.prototype.copy = function copy(target, targetStart, start, end) {
+        if (!Buffer2.isBuffer(target)) throw new TypeError("argument should be a Buffer");
         if (!start) start = 0;
         if (!end && end !== 0) end = this.length;
         if (targetStart >= target.length) targetStart = target.length;
@@ -1695,7 +1698,7 @@ var nugap = (() => {
         }
         return len;
       };
-      Buffer3.prototype.fill = function fill(val, start, end, encoding) {
+      Buffer2.prototype.fill = function fill(val, start, end, encoding) {
         if (typeof val === "string") {
           if (typeof start === "string") {
             encoding = start;
@@ -1708,7 +1711,7 @@ var nugap = (() => {
           if (encoding !== void 0 && typeof encoding !== "string") {
             throw new TypeError("encoding must be a string");
           }
-          if (typeof encoding === "string" && !Buffer3.isEncoding(encoding)) {
+          if (typeof encoding === "string" && !Buffer2.isEncoding(encoding)) {
             throw new TypeError("Unknown encoding: " + encoding);
           }
           if (val.length === 1) {
@@ -1737,7 +1740,7 @@ var nugap = (() => {
             this[i] = val;
           }
         } else {
-          var bytes = Buffer3.isBuffer(val) ? val : Buffer3.from(val, encoding);
+          var bytes = Buffer2.isBuffer(val) ? val : Buffer2.from(val, encoding);
           var len = bytes.length;
           if (len === 0) {
             throw new TypeError('The value "' + val + '" is invalid for argument "value"');
@@ -1868,10 +1871,19 @@ var nugap = (() => {
     }
   });
 
+  // buffer-shim.js
+  var require_buffer_shim = __commonJS({
+    "buffer-shim.js"() {
+      var import_buffer = __toESM(require_buffer());
+      globalThis.Buffer = import_buffer.Buffer;
+    }
+  });
+
   // node_modules/@ngraveio/bc-ur/dist/errors.js
   var require_errors = __commonJS({
     "node_modules/@ngraveio/bc-ur/dist/errors.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.InvalidChecksumError = exports.InvalidSequenceComponentError = exports.InvalidTypeError = exports.InvalidPathLengthError = exports.InvalidSchemeError = void 0;
       var InvalidSchemeError = class extends Error {
@@ -1915,6 +1927,7 @@ var nugap = (() => {
   // node_modules/inherits/inherits_browser.js
   var require_inherits_browser = __commonJS({
     "node_modules/inherits/inherits_browser.js"(exports, module) {
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       if (typeof Object.create === "function") {
         module.exports = function inherits(ctor, superCtor) {
           if (superCtor) {
@@ -1947,35 +1960,36 @@ var nugap = (() => {
   // node_modules/safe-buffer/index.js
   var require_safe_buffer = __commonJS({
     "node_modules/safe-buffer/index.js"(exports, module) {
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var buffer = require_buffer();
-      var Buffer3 = buffer.Buffer;
+      var Buffer2 = buffer.Buffer;
       function copyProps(src, dst) {
         for (var key in src) {
           dst[key] = src[key];
         }
       }
-      if (Buffer3.from && Buffer3.alloc && Buffer3.allocUnsafe && Buffer3.allocUnsafeSlow) {
+      if (Buffer2.from && Buffer2.alloc && Buffer2.allocUnsafe && Buffer2.allocUnsafeSlow) {
         module.exports = buffer;
       } else {
         copyProps(buffer, exports);
         exports.Buffer = SafeBuffer;
       }
       function SafeBuffer(arg, encodingOrOffset, length) {
-        return Buffer3(arg, encodingOrOffset, length);
+        return Buffer2(arg, encodingOrOffset, length);
       }
-      SafeBuffer.prototype = Object.create(Buffer3.prototype);
-      copyProps(Buffer3, SafeBuffer);
+      SafeBuffer.prototype = Object.create(Buffer2.prototype);
+      copyProps(Buffer2, SafeBuffer);
       SafeBuffer.from = function(arg, encodingOrOffset, length) {
         if (typeof arg === "number") {
           throw new TypeError("Argument must not be a number");
         }
-        return Buffer3(arg, encodingOrOffset, length);
+        return Buffer2(arg, encodingOrOffset, length);
       };
       SafeBuffer.alloc = function(size, fill, encoding) {
         if (typeof size !== "number") {
           throw new TypeError("Argument must be a number");
         }
-        var buf = Buffer3(size);
+        var buf = Buffer2(size);
         if (fill !== void 0) {
           if (typeof encoding === "string") {
             buf.fill(fill, encoding);
@@ -1991,7 +2005,7 @@ var nugap = (() => {
         if (typeof size !== "number") {
           throw new TypeError("Argument must be a number");
         }
-        return Buffer3(size);
+        return Buffer2(size);
       };
       SafeBuffer.allocUnsafeSlow = function(size) {
         if (typeof size !== "number") {
@@ -2005,6 +2019,7 @@ var nugap = (() => {
   // node_modules/isarray/index.js
   var require_isarray = __commonJS({
     "node_modules/isarray/index.js"(exports, module) {
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var toString = {}.toString;
       module.exports = Array.isArray || function(arr) {
         return toString.call(arr) == "[object Array]";
@@ -2016,6 +2031,7 @@ var nugap = (() => {
   var require_type = __commonJS({
     "node_modules/es-errors/type.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = TypeError;
     }
   });
@@ -2024,6 +2040,7 @@ var nugap = (() => {
   var require_es_object_atoms = __commonJS({
     "node_modules/es-object-atoms/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = Object;
     }
   });
@@ -2032,6 +2049,7 @@ var nugap = (() => {
   var require_es_errors = __commonJS({
     "node_modules/es-errors/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = Error;
     }
   });
@@ -2040,6 +2058,7 @@ var nugap = (() => {
   var require_eval = __commonJS({
     "node_modules/es-errors/eval.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = EvalError;
     }
   });
@@ -2048,6 +2067,7 @@ var nugap = (() => {
   var require_range = __commonJS({
     "node_modules/es-errors/range.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = RangeError;
     }
   });
@@ -2056,6 +2076,7 @@ var nugap = (() => {
   var require_ref = __commonJS({
     "node_modules/es-errors/ref.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = ReferenceError;
     }
   });
@@ -2064,6 +2085,7 @@ var nugap = (() => {
   var require_syntax = __commonJS({
     "node_modules/es-errors/syntax.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = SyntaxError;
     }
   });
@@ -2072,6 +2094,7 @@ var nugap = (() => {
   var require_uri = __commonJS({
     "node_modules/es-errors/uri.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = URIError;
     }
   });
@@ -2080,6 +2103,7 @@ var nugap = (() => {
   var require_abs = __commonJS({
     "node_modules/math-intrinsics/abs.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = Math.abs;
     }
   });
@@ -2088,6 +2112,7 @@ var nugap = (() => {
   var require_floor = __commonJS({
     "node_modules/math-intrinsics/floor.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = Math.floor;
     }
   });
@@ -2096,6 +2121,7 @@ var nugap = (() => {
   var require_max = __commonJS({
     "node_modules/math-intrinsics/max.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = Math.max;
     }
   });
@@ -2104,6 +2130,7 @@ var nugap = (() => {
   var require_min = __commonJS({
     "node_modules/math-intrinsics/min.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = Math.min;
     }
   });
@@ -2112,6 +2139,7 @@ var nugap = (() => {
   var require_pow = __commonJS({
     "node_modules/math-intrinsics/pow.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = Math.pow;
     }
   });
@@ -2120,6 +2148,7 @@ var nugap = (() => {
   var require_round = __commonJS({
     "node_modules/math-intrinsics/round.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = Math.round;
     }
   });
@@ -2128,6 +2157,7 @@ var nugap = (() => {
   var require_isNaN = __commonJS({
     "node_modules/math-intrinsics/isNaN.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = Number.isNaN || function isNaN2(a) {
         return a !== a;
       };
@@ -2138,6 +2168,7 @@ var nugap = (() => {
   var require_sign = __commonJS({
     "node_modules/math-intrinsics/sign.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var $isNaN = require_isNaN();
       module.exports = function sign(number) {
         if ($isNaN(number) || number === 0) {
@@ -2152,6 +2183,7 @@ var nugap = (() => {
   var require_gOPD = __commonJS({
     "node_modules/gopd/gOPD.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = Object.getOwnPropertyDescriptor;
     }
   });
@@ -2160,6 +2192,7 @@ var nugap = (() => {
   var require_gopd = __commonJS({
     "node_modules/gopd/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var $gOPD = require_gOPD();
       if ($gOPD) {
         try {
@@ -2176,6 +2209,7 @@ var nugap = (() => {
   var require_es_define_property = __commonJS({
     "node_modules/es-define-property/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var $defineProperty = Object.defineProperty || false;
       if ($defineProperty) {
         try {
@@ -2192,6 +2226,7 @@ var nugap = (() => {
   var require_shams = __commonJS({
     "node_modules/has-symbols/shams.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = function hasSymbols() {
         if (typeof Symbol !== "function" || typeof Object.getOwnPropertySymbols !== "function") {
           return false;
@@ -2247,6 +2282,7 @@ var nugap = (() => {
   var require_has_symbols = __commonJS({
     "node_modules/has-symbols/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var origSymbol = typeof Symbol !== "undefined" && Symbol;
       var hasSymbolSham = require_shams();
       module.exports = function hasNativeSymbols() {
@@ -2271,6 +2307,7 @@ var nugap = (() => {
   var require_Reflect_getPrototypeOf = __commonJS({
     "node_modules/get-proto/Reflect.getPrototypeOf.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = typeof Reflect !== "undefined" && Reflect.getPrototypeOf || null;
     }
   });
@@ -2279,6 +2316,7 @@ var nugap = (() => {
   var require_Object_getPrototypeOf = __commonJS({
     "node_modules/get-proto/Object.getPrototypeOf.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var $Object = require_es_object_atoms();
       module.exports = $Object.getPrototypeOf || null;
     }
@@ -2288,6 +2326,7 @@ var nugap = (() => {
   var require_implementation = __commonJS({
     "node_modules/function-bind/implementation.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var ERROR_MESSAGE = "Function.prototype.bind called on incompatible ";
       var toStr = Object.prototype.toString;
       var max = Math.max;
@@ -2364,6 +2403,7 @@ var nugap = (() => {
   var require_function_bind = __commonJS({
     "node_modules/function-bind/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var implementation = require_implementation();
       module.exports = Function.prototype.bind || implementation;
     }
@@ -2373,6 +2413,7 @@ var nugap = (() => {
   var require_functionCall = __commonJS({
     "node_modules/call-bind-apply-helpers/functionCall.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = Function.prototype.call;
     }
   });
@@ -2381,6 +2422,7 @@ var nugap = (() => {
   var require_functionApply = __commonJS({
     "node_modules/call-bind-apply-helpers/functionApply.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = Function.prototype.apply;
     }
   });
@@ -2389,6 +2431,7 @@ var nugap = (() => {
   var require_reflectApply = __commonJS({
     "node_modules/call-bind-apply-helpers/reflectApply.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = typeof Reflect !== "undefined" && Reflect && Reflect.apply;
     }
   });
@@ -2397,6 +2440,7 @@ var nugap = (() => {
   var require_actualApply = __commonJS({
     "node_modules/call-bind-apply-helpers/actualApply.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var bind = require_function_bind();
       var $apply = require_functionApply();
       var $call = require_functionCall();
@@ -2409,6 +2453,7 @@ var nugap = (() => {
   var require_call_bind_apply_helpers = __commonJS({
     "node_modules/call-bind-apply-helpers/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var bind = require_function_bind();
       var $TypeError = require_type();
       var $call = require_functionCall();
@@ -2426,6 +2471,7 @@ var nugap = (() => {
   var require_get = __commonJS({
     "node_modules/dunder-proto/get.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var callBind = require_call_bind_apply_helpers();
       var gOPD = require_gopd();
       var hasProtoAccessor;
@@ -2457,6 +2503,7 @@ var nugap = (() => {
   var require_get_proto = __commonJS({
     "node_modules/get-proto/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var reflectGetProto = require_Reflect_getPrototypeOf();
       var originalGetProto = require_Object_getPrototypeOf();
       var getDunderProto = require_get();
@@ -2477,6 +2524,7 @@ var nugap = (() => {
   var require_hasown = __commonJS({
     "node_modules/hasown/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var call = Function.prototype.call;
       var $hasOwn = Object.prototype.hasOwnProperty;
       var bind = require_function_bind();
@@ -2488,6 +2536,7 @@ var nugap = (() => {
   var require_get_intrinsic = __commonJS({
     "node_modules/get-intrinsic/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var undefined2;
       var $Object = require_es_object_atoms();
       var $Error = require_es_errors();
@@ -2819,6 +2868,7 @@ var nugap = (() => {
   var require_call_bound = __commonJS({
     "node_modules/call-bound/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var GetIntrinsic = require_get_intrinsic();
       var callBindBasic = require_call_bind_apply_helpers();
       var $indexOf = callBindBasic([GetIntrinsic("%String.prototype.indexOf%")]);
@@ -2842,6 +2892,7 @@ var nugap = (() => {
   var require_is_callable = __commonJS({
     "node_modules/is-callable/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var fnToStr = Function.prototype.toString;
       var reflectApply = typeof Reflect === "object" && Reflect !== null && Reflect.apply;
       var badArrayLike;
@@ -2960,6 +3011,7 @@ var nugap = (() => {
   var require_for_each = __commonJS({
     "node_modules/for-each/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var isCallable = require_is_callable();
       var toStr = Object.prototype.toString;
       var hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -3020,6 +3072,7 @@ var nugap = (() => {
   var require_possible_typed_array_names = __commonJS({
     "node_modules/possible-typed-array-names/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = [
         "Float16Array",
         "Float32Array",
@@ -3041,6 +3094,7 @@ var nugap = (() => {
   var require_available_typed_arrays = __commonJS({
     "node_modules/available-typed-arrays/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var possibleNames = require_possible_typed_array_names();
       var g = typeof globalThis === "undefined" ? global : globalThis;
       module.exports = function availableTypedArrays() {
@@ -3059,6 +3113,7 @@ var nugap = (() => {
   var require_define_data_property = __commonJS({
     "node_modules/define-data-property/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var $defineProperty = require_es_define_property();
       var $SyntaxError = require_syntax();
       var $TypeError = require_type();
@@ -3107,6 +3162,7 @@ var nugap = (() => {
   var require_has_property_descriptors = __commonJS({
     "node_modules/has-property-descriptors/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var $defineProperty = require_es_define_property();
       var hasPropertyDescriptors = function hasPropertyDescriptors2() {
         return !!$defineProperty;
@@ -3129,6 +3185,7 @@ var nugap = (() => {
   var require_set_function_length = __commonJS({
     "node_modules/set-function-length/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var GetIntrinsic = require_get_intrinsic();
       var define2 = require_define_data_property();
       var hasDescriptors = require_has_property_descriptors()();
@@ -3182,6 +3239,7 @@ var nugap = (() => {
   var require_applyBind = __commonJS({
     "node_modules/call-bind-apply-helpers/applyBind.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var bind = require_function_bind();
       var $apply = require_functionApply();
       var actualApply = require_actualApply();
@@ -3195,6 +3253,7 @@ var nugap = (() => {
   var require_call_bind = __commonJS({
     "node_modules/call-bind/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var setFunctionLength = require_set_function_length();
       var $defineProperty = require_es_define_property();
       var callBindBasic = require_call_bind_apply_helpers();
@@ -3220,6 +3279,7 @@ var nugap = (() => {
   var require_shams2 = __commonJS({
     "node_modules/has-tostringtag/shams.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var hasSymbols = require_shams();
       module.exports = function hasToStringTagShams() {
         return hasSymbols() && !!Symbol.toStringTag;
@@ -3231,6 +3291,7 @@ var nugap = (() => {
   var require_which_typed_array = __commonJS({
     "node_modules/which-typed-array/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var forEach = require_for_each();
       var availableTypedArrays = require_available_typed_arrays();
       var callBind = require_call_bind();
@@ -3352,6 +3413,7 @@ var nugap = (() => {
   var require_is_typed_array = __commonJS({
     "node_modules/is-typed-array/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var whichTypedArray = require_which_typed_array();
       module.exports = function isTypedArray(value) {
         return !!whichTypedArray(value);
@@ -3363,6 +3425,7 @@ var nugap = (() => {
   var require_typed_array_buffer = __commonJS({
     "node_modules/typed-array-buffer/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var $TypeError = require_type();
       var callBound = require_call_bound();
       var $typedArrayBuffer = callBound("TypedArray.prototype.buffer", true);
@@ -3380,7 +3443,8 @@ var nugap = (() => {
   var require_to_buffer = __commonJS({
     "node_modules/to-buffer/index.js"(exports, module) {
       "use strict";
-      var Buffer3 = require_safe_buffer().Buffer;
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
+      var Buffer2 = require_safe_buffer().Buffer;
       var isArray = require_isarray();
       var typedArrayBuffer = require_typed_array_buffer();
       var isView = ArrayBuffer.isView || function isView2(obj) {
@@ -3393,35 +3457,35 @@ var nugap = (() => {
       };
       var useUint8Array = typeof Uint8Array !== "undefined";
       var useArrayBuffer = typeof ArrayBuffer !== "undefined" && typeof Uint8Array !== "undefined";
-      var useFromArrayBuffer = useArrayBuffer && (Buffer3.prototype instanceof Uint8Array || Buffer3.TYPED_ARRAY_SUPPORT);
+      var useFromArrayBuffer = useArrayBuffer && (Buffer2.prototype instanceof Uint8Array || Buffer2.TYPED_ARRAY_SUPPORT);
       module.exports = function toBuffer(data, encoding) {
-        if (Buffer3.isBuffer(data)) {
+        if (Buffer2.isBuffer(data)) {
           if (data.constructor && !("isBuffer" in data)) {
-            return Buffer3.from(data);
+            return Buffer2.from(data);
           }
           return data;
         }
         if (typeof data === "string") {
-          return Buffer3.from(data, encoding);
+          return Buffer2.from(data, encoding);
         }
         if (useArrayBuffer && isView(data)) {
           if (data.byteLength === 0) {
-            return Buffer3.alloc(0);
+            return Buffer2.alloc(0);
           }
           if (useFromArrayBuffer) {
-            var res = Buffer3.from(data.buffer, data.byteOffset, data.byteLength);
+            var res = Buffer2.from(data.buffer, data.byteOffset, data.byteLength);
             if (res.byteLength === data.byteLength) {
               return res;
             }
           }
           var uint8 = data instanceof Uint8Array ? data : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-          var result = Buffer3.from(uint8);
+          var result = Buffer2.from(uint8);
           if (result.length === data.byteLength) {
             return result;
           }
         }
         if (useUint8Array && data instanceof Uint8Array) {
-          return Buffer3.from(data);
+          return Buffer2.from(data);
         }
         var isArr = isArray(data);
         if (isArr) {
@@ -3432,8 +3496,8 @@ var nugap = (() => {
             }
           }
         }
-        if (isArr || Buffer3.isBuffer(data) && data.constructor && typeof data.constructor.isBuffer === "function" && data.constructor.isBuffer(data)) {
-          return Buffer3.from(data);
+        if (isArr || Buffer2.isBuffer(data) && data.constructor && typeof data.constructor.isBuffer === "function" && data.constructor.isBuffer(data)) {
+          return Buffer2.from(data);
         }
         throw new TypeError('The "data" argument must be a string, an Array, a Buffer, a Uint8Array, or a DataView.');
       };
@@ -3444,10 +3508,11 @@ var nugap = (() => {
   var require_hash = __commonJS({
     "node_modules/sha.js/hash.js"(exports, module) {
       "use strict";
-      var Buffer3 = require_safe_buffer().Buffer;
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
+      var Buffer2 = require_safe_buffer().Buffer;
       var toBuffer = require_to_buffer();
       function Hash(blockSize, finalSize) {
-        this._block = Buffer3.alloc(blockSize);
+        this._block = Buffer2.alloc(blockSize);
         this._finalSize = finalSize;
         this._blockSize = blockSize;
         this._len = 0;
@@ -3505,9 +3570,10 @@ var nugap = (() => {
   var require_sha = __commonJS({
     "node_modules/sha.js/sha.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var inherits = require_inherits_browser();
       var Hash = require_hash();
-      var Buffer3 = require_safe_buffer().Buffer;
+      var Buffer2 = require_safe_buffer().Buffer;
       var K = [
         1518500249,
         1859775393,
@@ -3573,7 +3639,7 @@ var nugap = (() => {
         this._e = e + this._e | 0;
       };
       Sha.prototype._hash = function() {
-        var H = Buffer3.allocUnsafe(20);
+        var H = Buffer2.allocUnsafe(20);
         H.writeInt32BE(this._a | 0, 0);
         H.writeInt32BE(this._b | 0, 4);
         H.writeInt32BE(this._c | 0, 8);
@@ -3589,9 +3655,10 @@ var nugap = (() => {
   var require_sha1 = __commonJS({
     "node_modules/sha.js/sha1.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var inherits = require_inherits_browser();
       var Hash = require_hash();
-      var Buffer3 = require_safe_buffer().Buffer;
+      var Buffer2 = require_safe_buffer().Buffer;
       var K = [
         1518500249,
         1859775393,
@@ -3660,7 +3727,7 @@ var nugap = (() => {
         this._e = e + this._e | 0;
       };
       Sha1.prototype._hash = function() {
-        var H = Buffer3.allocUnsafe(20);
+        var H = Buffer2.allocUnsafe(20);
         H.writeInt32BE(this._a | 0, 0);
         H.writeInt32BE(this._b | 0, 4);
         H.writeInt32BE(this._c | 0, 8);
@@ -3676,9 +3743,10 @@ var nugap = (() => {
   var require_sha256 = __commonJS({
     "node_modules/sha.js/sha256.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var inherits = require_inherits_browser();
       var Hash = require_hash();
-      var Buffer3 = require_safe_buffer().Buffer;
+      var Buffer2 = require_safe_buffer().Buffer;
       var K = [
         1116352408,
         1899447441,
@@ -3819,7 +3887,7 @@ var nugap = (() => {
         this._h = h + this._h | 0;
       };
       Sha256.prototype._hash = function() {
-        var H = Buffer3.allocUnsafe(32);
+        var H = Buffer2.allocUnsafe(32);
         H.writeInt32BE(this._a, 0);
         H.writeInt32BE(this._b, 4);
         H.writeInt32BE(this._c, 8);
@@ -3838,10 +3906,11 @@ var nugap = (() => {
   var require_sha224 = __commonJS({
     "node_modules/sha.js/sha224.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var inherits = require_inherits_browser();
       var Sha256 = require_sha256();
       var Hash = require_hash();
-      var Buffer3 = require_safe_buffer().Buffer;
+      var Buffer2 = require_safe_buffer().Buffer;
       var W = new Array(64);
       function Sha224() {
         this.init();
@@ -3861,7 +3930,7 @@ var nugap = (() => {
         return this;
       };
       Sha224.prototype._hash = function() {
-        var H = Buffer3.allocUnsafe(28);
+        var H = Buffer2.allocUnsafe(28);
         H.writeInt32BE(this._a, 0);
         H.writeInt32BE(this._b, 4);
         H.writeInt32BE(this._c, 8);
@@ -3879,9 +3948,10 @@ var nugap = (() => {
   var require_sha512 = __commonJS({
     "node_modules/sha.js/sha512.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var inherits = require_inherits_browser();
       var Hash = require_hash();
-      var Buffer3 = require_safe_buffer().Buffer;
+      var Buffer2 = require_safe_buffer().Buffer;
       var K = [
         1116352408,
         3609767458,
@@ -4199,7 +4269,7 @@ var nugap = (() => {
         this._hh = this._hh + hh + getCarry(this._hl, hl) | 0;
       };
       Sha512.prototype._hash = function() {
-        var H = Buffer3.allocUnsafe(64);
+        var H = Buffer2.allocUnsafe(64);
         function writeInt64BE(h, l, offset) {
           H.writeInt32BE(h, offset);
           H.writeInt32BE(l, offset + 4);
@@ -4222,10 +4292,11 @@ var nugap = (() => {
   var require_sha384 = __commonJS({
     "node_modules/sha.js/sha384.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var inherits = require_inherits_browser();
       var SHA512 = require_sha512();
       var Hash = require_hash();
-      var Buffer3 = require_safe_buffer().Buffer;
+      var Buffer2 = require_safe_buffer().Buffer;
       var W = new Array(160);
       function Sha384() {
         this.init();
@@ -4253,7 +4324,7 @@ var nugap = (() => {
         return this;
       };
       Sha384.prototype._hash = function() {
-        var H = Buffer3.allocUnsafe(48);
+        var H = Buffer2.allocUnsafe(48);
         function writeInt64BE(h, l, offset) {
           H.writeInt32BE(h, offset);
           H.writeInt32BE(l, offset + 4);
@@ -4274,6 +4345,7 @@ var nugap = (() => {
   var require_sha2 = __commonJS({
     "node_modules/sha.js/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = function SHA(algorithm) {
         var alg = algorithm.toLowerCase();
         var Algorithm = module.exports[alg];
@@ -4295,6 +4367,7 @@ var nugap = (() => {
   var require_create_buffer = __commonJS({
     "node_modules/crc/lib/es6/create_buffer.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       Object.defineProperty(exports, "__esModule", {
         value: true
       });
@@ -4313,6 +4386,7 @@ var nugap = (() => {
   var require_define_crc = __commonJS({
     "node_modules/crc/lib/es6/define_crc.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       Object.defineProperty(exports, "__esModule", {
         value: true
       });
@@ -4332,6 +4406,7 @@ var nugap = (() => {
   var require_crc1 = __commonJS({
     "node_modules/crc/lib/es6/crc1.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       Object.defineProperty(exports, "__esModule", {
         value: true
       });
@@ -4362,6 +4437,7 @@ var nugap = (() => {
   var require_crc12 = __commonJS({
     "node_modules/crc/lib/crc1.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = require_crc1().default;
     }
   });
@@ -4370,6 +4446,7 @@ var nugap = (() => {
   var require_crc8 = __commonJS({
     "node_modules/crc/lib/es6/crc8.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       Object.defineProperty(exports, "__esModule", {
         value: true
       });
@@ -4400,6 +4477,7 @@ var nugap = (() => {
   var require_crc82 = __commonJS({
     "node_modules/crc/lib/crc8.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = require_crc8().default;
     }
   });
@@ -4408,6 +4486,7 @@ var nugap = (() => {
   var require_crc81wire = __commonJS({
     "node_modules/crc/lib/es6/crc81wire.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       Object.defineProperty(exports, "__esModule", {
         value: true
       });
@@ -4438,6 +4517,7 @@ var nugap = (() => {
   var require_crc8_1wire = __commonJS({
     "node_modules/crc/lib/crc8_1wire.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = require_crc81wire().default;
     }
   });
@@ -4446,6 +4526,7 @@ var nugap = (() => {
   var require_crc16 = __commonJS({
     "node_modules/crc/lib/es6/crc16.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       Object.defineProperty(exports, "__esModule", {
         value: true
       });
@@ -4476,6 +4557,7 @@ var nugap = (() => {
   var require_crc162 = __commonJS({
     "node_modules/crc/lib/crc16.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = require_crc16().default;
     }
   });
@@ -4484,6 +4566,7 @@ var nugap = (() => {
   var require_crc16ccitt = __commonJS({
     "node_modules/crc/lib/es6/crc16ccitt.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       Object.defineProperty(exports, "__esModule", {
         value: true
       });
@@ -4514,6 +4597,7 @@ var nugap = (() => {
   var require_crc16_ccitt = __commonJS({
     "node_modules/crc/lib/crc16_ccitt.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = require_crc16ccitt().default;
     }
   });
@@ -4522,6 +4606,7 @@ var nugap = (() => {
   var require_crc16modbus = __commonJS({
     "node_modules/crc/lib/es6/crc16modbus.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       Object.defineProperty(exports, "__esModule", {
         value: true
       });
@@ -4552,6 +4637,7 @@ var nugap = (() => {
   var require_crc16_modbus = __commonJS({
     "node_modules/crc/lib/crc16_modbus.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = require_crc16modbus().default;
     }
   });
@@ -4560,6 +4646,7 @@ var nugap = (() => {
   var require_crc16xmodem = __commonJS({
     "node_modules/crc/lib/es6/crc16xmodem.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       Object.defineProperty(exports, "__esModule", {
         value: true
       });
@@ -4596,6 +4683,7 @@ var nugap = (() => {
   var require_crc16_xmodem = __commonJS({
     "node_modules/crc/lib/crc16_xmodem.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = require_crc16xmodem().default;
     }
   });
@@ -4604,6 +4692,7 @@ var nugap = (() => {
   var require_crc16kermit = __commonJS({
     "node_modules/crc/lib/es6/crc16kermit.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       Object.defineProperty(exports, "__esModule", {
         value: true
       });
@@ -4634,6 +4723,7 @@ var nugap = (() => {
   var require_crc16_kermit = __commonJS({
     "node_modules/crc/lib/crc16_kermit.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = require_crc16kermit().default;
     }
   });
@@ -4642,6 +4732,7 @@ var nugap = (() => {
   var require_crc24 = __commonJS({
     "node_modules/crc/lib/es6/crc24.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       Object.defineProperty(exports, "__esModule", {
         value: true
       });
@@ -4672,6 +4763,7 @@ var nugap = (() => {
   var require_crc242 = __commonJS({
     "node_modules/crc/lib/crc24.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = require_crc24().default;
     }
   });
@@ -4680,6 +4772,7 @@ var nugap = (() => {
   var require_crc32 = __commonJS({
     "node_modules/crc/lib/es6/crc32.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       Object.defineProperty(exports, "__esModule", {
         value: true
       });
@@ -4710,6 +4803,7 @@ var nugap = (() => {
   var require_crc322 = __commonJS({
     "node_modules/crc/lib/crc32.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = require_crc32().default;
     }
   });
@@ -4718,6 +4812,7 @@ var nugap = (() => {
   var require_crcjam = __commonJS({
     "node_modules/crc/lib/es6/crcjam.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       Object.defineProperty(exports, "__esModule", {
         value: true
       });
@@ -4749,6 +4844,7 @@ var nugap = (() => {
   var require_crcjam2 = __commonJS({
     "node_modules/crc/lib/crcjam.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = require_crcjam().default;
     }
   });
@@ -4757,6 +4853,7 @@ var nugap = (() => {
   var require_lib = __commonJS({
     "node_modules/crc/lib/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = {
         crc1: require_crc12(),
         crc8: require_crc82(),
@@ -4777,6 +4874,7 @@ var nugap = (() => {
   var require_utils = __commonJS({
     "node_modules/@ngraveio/bc-ur/dist/utils.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var __importDefault = exports && exports.__importDefault || function(mod4) {
         return mod4 && mod4.__esModule ? mod4 : { "default": mod4 };
       };
@@ -4848,6 +4946,7 @@ var nugap = (() => {
   // node_modules/cbor-sync/main.js
   var require_main = __commonJS({
     "node_modules/cbor-sync/main.js"(exports, module) {
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       (function(global2, factory) {
         if (typeof define === "function" && define.amd) {
           define([], factory);
@@ -5456,6 +5555,7 @@ var nugap = (() => {
   var require_cbor = __commonJS({
     "node_modules/@ngraveio/bc-ur/dist/cbor.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.cborDecode = exports.cborEncode = void 0;
       var cbor = require_main();
@@ -5474,6 +5574,7 @@ var nugap = (() => {
   var require_ur = __commonJS({
     "node_modules/@ngraveio/bc-ur/dist/ur.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       Object.defineProperty(exports, "__esModule", { value: true });
       var errors_1 = require_errors();
       var utils_1 = require_utils();
@@ -5513,6 +5614,7 @@ var nugap = (() => {
   var require_is_arguments = __commonJS({
     "node_modules/is-arguments/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var hasToStringTag = require_shams2()();
       var callBound = require_call_bound();
       var $toString = callBound("Object.prototype.toString");
@@ -5540,6 +5642,7 @@ var nugap = (() => {
   var require_is_regex = __commonJS({
     "node_modules/is-regex/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var callBound = require_call_bound();
       var hasToStringTag = require_shams2()();
       var hasOwn = require_hasown();
@@ -5609,6 +5712,7 @@ var nugap = (() => {
   var require_safe_regex_test = __commonJS({
     "node_modules/safe-regex-test/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var callBound = require_call_bound();
       var isRegex = require_is_regex();
       var $exec = callBound("RegExp.prototype.exec");
@@ -5628,6 +5732,7 @@ var nugap = (() => {
   var require_generator_function = __commonJS({
     "node_modules/generator-function/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var cached = (
         /** @type {GeneratorFunctionConstructor} */
         function* () {
@@ -5641,6 +5746,7 @@ var nugap = (() => {
   var require_is_generator_function = __commonJS({
     "node_modules/is-generator-function/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var callBound = require_call_bound();
       var safeRegexTest = require_safe_regex_test();
       var isFnRegex = safeRegexTest(/^\s*(?:function)?\*/);
@@ -5673,6 +5779,7 @@ var nugap = (() => {
   var require_types = __commonJS({
     "node_modules/util/support/types.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var isArgumentsObject = require_is_arguments();
       var isGeneratorFunction = require_is_generator_function();
       var whichTypedArray = require_which_typed_array();
@@ -5902,6 +6009,7 @@ var nugap = (() => {
   // node_modules/util/support/isBufferBrowser.js
   var require_isBufferBrowser = __commonJS({
     "node_modules/util/support/isBufferBrowser.js"(exports, module) {
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = function isBuffer(arg) {
         return arg && typeof arg === "object" && typeof arg.copy === "function" && typeof arg.fill === "function" && typeof arg.readUInt8 === "function";
       };
@@ -5911,6 +6019,7 @@ var nugap = (() => {
   // node_modules/util/util.js
   var require_util = __commonJS({
     "node_modules/util/util.js"(exports) {
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var getOwnPropertyDescriptors = Object.getOwnPropertyDescriptors || function getOwnPropertyDescriptors2(obj) {
         var keys = Object.keys(obj);
         var descriptors = {};
@@ -6471,6 +6580,7 @@ var nugap = (() => {
   var require_errors2 = __commonJS({
     "node_modules/assert/build/internal/errors.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       function _typeof(o) {
         "@babel/helpers - typeof";
         return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function(o2) {
@@ -6709,6 +6819,7 @@ var nugap = (() => {
   var require_assertion_error = __commonJS({
     "node_modules/assert/build/internal/assert/assertion_error.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       function ownKeys(e, r) {
         var t = Object.keys(e);
         if (Object.getOwnPropertySymbols) {
@@ -7211,6 +7322,7 @@ var nugap = (() => {
   var require_isArguments = __commonJS({
     "node_modules/object-keys/isArguments.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var toStr = Object.prototype.toString;
       module.exports = function isArguments(value) {
         var str = toStr.call(value);
@@ -7227,6 +7339,7 @@ var nugap = (() => {
   var require_implementation2 = __commonJS({
     "node_modules/object-keys/implementation.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var keysShim;
       if (!Object.keys) {
         has = Object.prototype.hasOwnProperty;
@@ -7359,6 +7472,7 @@ var nugap = (() => {
   var require_object_keys = __commonJS({
     "node_modules/object-keys/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var slice = Array.prototype.slice;
       var isArgs = require_isArguments();
       var origKeys = Object.keys;
@@ -7393,6 +7507,7 @@ var nugap = (() => {
   var require_implementation3 = __commonJS({
     "node_modules/object.assign/implementation.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var objectKeys = require_object_keys();
       var hasSymbols = require_shams()();
       var callBound = require_call_bound();
@@ -7438,6 +7553,7 @@ var nugap = (() => {
   var require_polyfill = __commonJS({
     "node_modules/object.assign/polyfill.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var implementation = require_implementation3();
       var lacksProperEnumerationOrder = function() {
         if (!Object.assign) {
@@ -7487,6 +7603,7 @@ var nugap = (() => {
   var require_implementation4 = __commonJS({
     "node_modules/object-is/implementation.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var numberIsNaN = function(value) {
         return value !== value;
       };
@@ -7509,6 +7626,7 @@ var nugap = (() => {
   var require_polyfill2 = __commonJS({
     "node_modules/object-is/polyfill.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var implementation = require_implementation4();
       module.exports = function getPolyfill() {
         return typeof Object.is === "function" ? Object.is : implementation;
@@ -7520,6 +7638,7 @@ var nugap = (() => {
   var require_callBound = __commonJS({
     "node_modules/call-bind/callBound.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var GetIntrinsic = require_get_intrinsic();
       var callBind = require_call_bind();
       var $indexOf = callBind(GetIntrinsic("String.prototype.indexOf"));
@@ -7537,6 +7656,7 @@ var nugap = (() => {
   var require_define_properties = __commonJS({
     "node_modules/define-properties/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var keys = require_object_keys();
       var hasSymbols = typeof Symbol === "function" && typeof /* @__PURE__ */ Symbol("foo") === "symbol";
       var toStr = Object.prototype.toString;
@@ -7581,6 +7701,7 @@ var nugap = (() => {
   var require_shim = __commonJS({
     "node_modules/object-is/shim.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var getPolyfill = require_polyfill2();
       var define2 = require_define_properties();
       module.exports = function shimObjectIs() {
@@ -7599,6 +7720,7 @@ var nugap = (() => {
   var require_object_is = __commonJS({
     "node_modules/object-is/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var define2 = require_define_properties();
       var callBind = require_call_bind();
       var implementation = require_implementation4();
@@ -7618,6 +7740,7 @@ var nugap = (() => {
   var require_implementation5 = __commonJS({
     "node_modules/is-nan/implementation.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       module.exports = function isNaN2(value) {
         return value !== value;
       };
@@ -7628,6 +7751,7 @@ var nugap = (() => {
   var require_polyfill3 = __commonJS({
     "node_modules/is-nan/polyfill.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var implementation = require_implementation5();
       module.exports = function getPolyfill() {
         if (Number.isNaN && Number.isNaN(NaN) && !Number.isNaN("a")) {
@@ -7642,6 +7766,7 @@ var nugap = (() => {
   var require_shim2 = __commonJS({
     "node_modules/is-nan/shim.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var define2 = require_define_properties();
       var getPolyfill = require_polyfill3();
       module.exports = function shimNumberIsNaN() {
@@ -7660,6 +7785,7 @@ var nugap = (() => {
   var require_is_nan = __commonJS({
     "node_modules/is-nan/index.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var callBind = require_call_bind();
       var define2 = require_define_properties();
       var implementation = require_implementation5();
@@ -7679,6 +7805,7 @@ var nugap = (() => {
   var require_comparisons = __commonJS({
     "node_modules/assert/build/internal/util/comparisons.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       function _slicedToArray(arr, i) {
         return _arrayWithHoles(arr) || _iterableToArrayLimit(arr, i) || _unsupportedIterableToArray(arr, i) || _nonIterableRest();
       }
@@ -8200,6 +8327,7 @@ var nugap = (() => {
   var require_assert = __commonJS({
     "node_modules/assert/build/assert.js"(exports, module) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       function _typeof(o) {
         "@babel/helpers - typeof";
         return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function(o2) {
@@ -8731,6 +8859,7 @@ var nugap = (() => {
   // node_modules/bignumber.js/bignumber.js
   var require_bignumber = __commonJS({
     "node_modules/bignumber.js/bignumber.js"(exports, module) {
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       (function(globalObject) {
         "use strict";
         var BigNumber, isNumeric = /^-?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i, mathceil = Math.ceil, mathfloor = Math.floor, bignumberError = "[BigNumber Error] ", tooManyDigits = bignumberError + "Number primitive has more than 15 significant digits: ", BASE = 1e14, LOG_BASE = 14, MAX_SAFE_INTEGER = 9007199254740991, POWS_TEN = [1, 10, 100, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13], SQRT_BASE = 1e7, MAX = 1e9;
@@ -10082,6 +10211,7 @@ var nugap = (() => {
   // node_modules/jsbi/dist/jsbi-umd.js
   var require_jsbi_umd = __commonJS({
     "node_modules/jsbi/dist/jsbi-umd.js"(exports, module) {
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       (function(i, _) {
         "object" == typeof exports && "undefined" != typeof module ? module.exports = _() : "function" == typeof define && define.amd ? define(_) : (i = i || self, i.JSBI = _());
       })(exports, function() {
@@ -11117,6 +11247,7 @@ var nugap = (() => {
   var require_xoshiro = __commonJS({
     "node_modules/@ngraveio/bc-ur/dist/xoshiro.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var __importDefault = exports && exports.__importDefault || function(mod4) {
         return mod4 && mod4.__esModule ? mod4 : { "default": mod4 };
       };
@@ -11174,6 +11305,7 @@ var nugap = (() => {
   var require_cjs = __commonJS({
     "node_modules/@keystonehq/alias-sampling/dist/cjs/index.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       Object.defineProperty(exports, "__esModule", { value: true });
       var precomputeAlias = function(p, n) {
         var sum = p.reduce(function(acc, val) {
@@ -11267,6 +11399,7 @@ var nugap = (() => {
   var require_fountainUtils = __commonJS({
     "node_modules/@ngraveio/bc-ur/dist/fountainUtils.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var __importDefault = exports && exports.__importDefault || function(mod4) {
         return mod4 && mod4.__esModule ? mod4 : { "default": mod4 };
       };
@@ -11313,6 +11446,7 @@ var nugap = (() => {
   var require_fountainEncoder = __commonJS({
     "node_modules/@ngraveio/bc-ur/dist/fountainEncoder.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var __importDefault = exports && exports.__importDefault || function(mod4) {
         return mod4 && mod4.__esModule ? mod4 : { "default": mod4 };
       };
@@ -11439,6 +11573,7 @@ var nugap = (() => {
   var require_bytewords = __commonJS({
     "node_modules/@ngraveio/bc-ur/dist/bytewords.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var __importDefault = exports && exports.__importDefault || function(mod4) {
         return mod4 && mod4.__esModule ? mod4 : { "default": mod4 };
       };
@@ -11552,6 +11687,7 @@ var nugap = (() => {
   var require_urEncoder = __commonJS({
     "node_modules/@ngraveio/bc-ur/dist/urEncoder.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var __importDefault = exports && exports.__importDefault || function(mod4) {
         return mod4 && mod4.__esModule ? mod4 : { "default": mod4 };
       };
@@ -11611,6 +11747,7 @@ var nugap = (() => {
   var require_fountainDecoder = __commonJS({
     "node_modules/@ngraveio/bc-ur/dist/fountainDecoder.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       Object.defineProperty(exports, "__esModule", { value: true });
       exports.FountainDecoderPart = void 0;
       var utils_1 = require_utils();
@@ -11813,6 +11950,7 @@ var nugap = (() => {
   var require_urDecoder = __commonJS({
     "node_modules/@ngraveio/bc-ur/dist/urDecoder.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var __importDefault = exports && exports.__importDefault || function(mod4) {
         return mod4 && mod4.__esModule ? mod4 : { "default": mod4 };
       };
@@ -11955,6 +12093,7 @@ var nugap = (() => {
   var require_dist = __commonJS({
     "node_modules/@ngraveio/bc-ur/dist/index.js"(exports) {
       "use strict";
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       var __importDefault = exports && exports.__importDefault || function(mod4) {
         return mod4 && mod4.__esModule ? mod4 : { "default": mod4 };
       };
@@ -11972,6 +12111,7 @@ var nugap = (() => {
   // node_modules/html5-qrcode/third_party/zxing-js.umd.js
   var require_zxing_js_umd = __commonJS({
     "node_modules/html5-qrcode/third_party/zxing-js.umd.js"(exports, module) {
+      var import_buffer_shim67 = __toESM(require_buffer_shim());
       (function(global2, factory) {
         typeof exports === "object" && typeof module !== "undefined" ? factory(exports) : typeof define === "function" && define.amd ? define(["exports"], factory) : (global2 = typeof globalThis !== "undefined" ? globalThis : global2 || self, factory(global2.ZXing = {}));
       })(exports, (function(exports2) {
@@ -37426,7 +37566,7 @@ var nugap = (() => {
     secp256k1: () => secp256k13,
     sha256: () => sha2563
   });
-  var import_buffer = __toESM(require_buffer());
+  var import_buffer_shim66 = __toESM(require_buffer_shim());
 
   // node_modules/@scure/btc-signer/index.js
   var btc_signer_exports = {};
@@ -37474,8 +37614,22 @@ var nugap = (() => {
     taprootListToTree: () => taprootListToTree,
     utils: () => utils2
   });
+  var import_buffer_shim19 = __toESM(require_buffer_shim(), 1);
+
+  // node_modules/@scure/btc-signer/utils.js
+  var import_buffer_shim13 = __toESM(require_buffer_shim(), 1);
+
+  // node_modules/@scure/btc-signer/node_modules/@noble/curves/secp256k1.js
+  var import_buffer_shim9 = __toESM(require_buffer_shim(), 1);
+
+  // node_modules/@scure/btc-signer/node_modules/@noble/hashes/sha2.js
+  var import_buffer_shim3 = __toESM(require_buffer_shim(), 1);
+
+  // node_modules/@scure/btc-signer/node_modules/@noble/hashes/_md.js
+  var import_buffer_shim2 = __toESM(require_buffer_shim(), 1);
 
   // node_modules/@scure/btc-signer/node_modules/@noble/hashes/utils.js
+  var import_buffer_shim = __toESM(require_buffer_shim(), 1);
   function isBytes(a) {
     return a instanceof Uint8Array || ArrayBuffer.isView(a) && a.constructor.name === "Uint8Array";
   }
@@ -37873,7 +38027,11 @@ var nugap = (() => {
     /* @__PURE__ */ oidNist(1)
   );
 
+  // node_modules/@scure/btc-signer/node_modules/@noble/curves/abstract/curve.js
+  var import_buffer_shim6 = __toESM(require_buffer_shim(), 1);
+
   // node_modules/@scure/btc-signer/node_modules/@noble/curves/utils.js
+  var import_buffer_shim4 = __toESM(require_buffer_shim(), 1);
   var _0n = /* @__PURE__ */ BigInt(0);
   var _1n = /* @__PURE__ */ BigInt(1);
   function abool(value, title = "") {
@@ -38023,6 +38181,7 @@ var nugap = (() => {
   }
 
   // node_modules/@scure/btc-signer/node_modules/@noble/curves/abstract/modular.js
+  var import_buffer_shim5 = __toESM(require_buffer_shim(), 1);
   var _0n2 = /* @__PURE__ */ BigInt(0);
   var _1n2 = /* @__PURE__ */ BigInt(1);
   var _2n = /* @__PURE__ */ BigInt(2);
@@ -38641,7 +38800,11 @@ var nugap = (() => {
     };
   }
 
+  // node_modules/@scure/btc-signer/node_modules/@noble/curves/abstract/weierstrass.js
+  var import_buffer_shim8 = __toESM(require_buffer_shim(), 1);
+
   // node_modules/@scure/btc-signer/node_modules/@noble/hashes/hmac.js
+  var import_buffer_shim7 = __toESM(require_buffer_shim(), 1);
   var _HMAC = class {
     constructor(hash, key) {
       __publicField(this, "oHash");
@@ -39739,6 +39902,7 @@ var nugap = (() => {
   })();
 
   // node_modules/@scure/btc-signer/node_modules/@noble/hashes/legacy.js
+  var import_buffer_shim10 = __toESM(require_buffer_shim(), 1);
   var Rho160 = /* @__PURE__ */ Uint8Array.from([
     7,
     4,
@@ -39856,7 +40020,11 @@ var nugap = (() => {
   };
   var ripemd160 = /* @__PURE__ */ createHasher(() => new _RIPEMD160());
 
+  // node_modules/micro-packed/index.js
+  var import_buffer_shim12 = __toESM(require_buffer_shim(), 1);
+
   // node_modules/@scure/base/index.js
+  var import_buffer_shim11 = __toESM(require_buffer_shim(), 1);
   function isBytes2(a) {
     return a instanceof Uint8Array || ArrayBuffer.isView(a) && a.constructor.name === "Uint8Array";
   }
@@ -41442,7 +41610,14 @@ var nugap = (() => {
     return res;
   }
 
+  // node_modules/@scure/btc-signer/payment.js
+  var import_buffer_shim16 = __toESM(require_buffer_shim(), 1);
+
+  // node_modules/@scure/btc-signer/psbt.js
+  var import_buffer_shim15 = __toESM(require_buffer_shim(), 1);
+
   // node_modules/@scure/btc-signer/script.js
+  var import_buffer_shim14 = __toESM(require_buffer_shim(), 1);
   var MAX_SCRIPT_BYTE_LENGTH = 520;
   var OP = {
     OP_0: 0,
@@ -42769,6 +42944,7 @@ var nugap = (() => {
   }
 
   // node_modules/@scure/btc-signer/transaction.js
+  var import_buffer_shim17 = __toESM(require_buffer_shim(), 1);
   var EMPTY32 = new Uint8Array(32);
   var EMPTY_OUTPUT = {
     amount: 0xffffffffffffffffn,
@@ -43808,6 +43984,7 @@ var nugap = (() => {
   }
 
   // node_modules/@scure/btc-signer/utxo.js
+  var import_buffer_shim18 = __toESM(require_buffer_shim(), 1);
   var encodeTapBlock = (item) => TaprootControlBlock.encode(item);
   function iterLeafs(tapLeafScript, sigSize, customScripts) {
     if (!tapLeafScript || !tapLeafScript.length)
@@ -44219,7 +44396,20 @@ var nugap = (() => {
     taprootTweakPubkey
   };
 
+  // node_modules/@scure/bip32/index.js
+  var import_buffer_shim31 = __toESM(require_buffer_shim(), 1);
+
+  // node_modules/@scure/bip32/node_modules/@noble/curves/secp256k1.js
+  var import_buffer_shim29 = __toESM(require_buffer_shim(), 1);
+
+  // node_modules/@scure/bip32/node_modules/@noble/hashes/sha2.js
+  var import_buffer_shim23 = __toESM(require_buffer_shim(), 1);
+
+  // node_modules/@scure/bip32/node_modules/@noble/hashes/_md.js
+  var import_buffer_shim21 = __toESM(require_buffer_shim(), 1);
+
   // node_modules/@scure/bip32/node_modules/@noble/hashes/utils.js
+  var import_buffer_shim20 = __toESM(require_buffer_shim(), 1);
   function isBytes5(a) {
     return a instanceof Uint8Array || ArrayBuffer.isView(a) && a.constructor.name === "Uint8Array";
   }
@@ -44486,6 +44676,7 @@ var nugap = (() => {
   ]);
 
   // node_modules/@scure/bip32/node_modules/@noble/hashes/_u64.js
+  var import_buffer_shim22 = __toESM(require_buffer_shim(), 1);
   var U32_MASK64 = /* @__PURE__ */ BigInt(2 ** 32 - 1);
   var _32n = /* @__PURE__ */ BigInt(32);
   function fromBig(n, le = false) {
@@ -44876,7 +45067,11 @@ var nugap = (() => {
     /* @__PURE__ */ oidNist2(3)
   );
 
+  // node_modules/@scure/bip32/node_modules/@noble/curves/abstract/curve.js
+  var import_buffer_shim26 = __toESM(require_buffer_shim(), 1);
+
   // node_modules/@scure/bip32/node_modules/@noble/curves/utils.js
+  var import_buffer_shim24 = __toESM(require_buffer_shim(), 1);
   var _0n6 = /* @__PURE__ */ BigInt(0);
   var _1n5 = /* @__PURE__ */ BigInt(1);
   function abool2(value, title = "") {
@@ -45017,6 +45212,7 @@ var nugap = (() => {
   }
 
   // node_modules/@scure/bip32/node_modules/@noble/curves/abstract/modular.js
+  var import_buffer_shim25 = __toESM(require_buffer_shim(), 1);
   var _0n7 = /* @__PURE__ */ BigInt(0);
   var _1n6 = /* @__PURE__ */ BigInt(1);
   var _2n4 = /* @__PURE__ */ BigInt(2);
@@ -45635,7 +45831,11 @@ var nugap = (() => {
     };
   }
 
+  // node_modules/@scure/bip32/node_modules/@noble/curves/abstract/weierstrass.js
+  var import_buffer_shim28 = __toESM(require_buffer_shim(), 1);
+
   // node_modules/@scure/bip32/node_modules/@noble/hashes/hmac.js
+  var import_buffer_shim27 = __toESM(require_buffer_shim(), 1);
   var _HMAC2 = class {
     constructor(hash, key) {
       __publicField(this, "oHash");
@@ -46627,6 +46827,7 @@ var nugap = (() => {
   var secp256k12 = /* @__PURE__ */ ecdsa2(Pointk12, sha2562);
 
   // node_modules/@scure/bip32/node_modules/@noble/hashes/legacy.js
+  var import_buffer_shim30 = __toESM(require_buffer_shim(), 1);
   var Rho1602 = /* @__PURE__ */ Uint8Array.from([
     7,
     4,
@@ -46977,7 +47178,14 @@ var nugap = (() => {
     }
   };
 
+  // node_modules/@noble/hashes/sha2.js
+  var import_buffer_shim34 = __toESM(require_buffer_shim(), 1);
+
+  // node_modules/@noble/hashes/_md.js
+  var import_buffer_shim33 = __toESM(require_buffer_shim(), 1);
+
   // node_modules/@noble/hashes/utils.js
+  var import_buffer_shim32 = __toESM(require_buffer_shim(), 1);
   function isBytes6(a) {
     return a instanceof Uint8Array || ArrayBuffer.isView(a) && a.constructor.name === "Uint8Array" && "BYTES_PER_ELEMENT" in a && a.BYTES_PER_ELEMENT === 1;
   }
@@ -47402,6 +47610,7 @@ var nugap = (() => {
   );
 
   // node_modules/@noble/hashes/legacy.js
+  var import_buffer_shim35 = __toESM(require_buffer_shim(), 1);
   var Rho1603 = /* @__PURE__ */ Uint8Array.from([
     7,
     4,
@@ -47519,7 +47728,14 @@ var nugap = (() => {
   };
   var ripemd1603 = /* @__PURE__ */ createHasher3(() => new _RIPEMD1603());
 
+  // node_modules/@noble/curves/secp256k1.js
+  var import_buffer_shim41 = __toESM(require_buffer_shim(), 1);
+
+  // node_modules/@noble/curves/abstract/curve.js
+  var import_buffer_shim38 = __toESM(require_buffer_shim(), 1);
+
   // node_modules/@noble/curves/utils.js
+  var import_buffer_shim36 = __toESM(require_buffer_shim(), 1);
   var abytes5 = (value, length, title) => abytes4(value, length, title);
   var anumber5 = anumber4;
   var bytesToHex4 = bytesToHex3;
@@ -47672,6 +47888,7 @@ var nugap = (() => {
   }
 
   // node_modules/@noble/curves/abstract/modular.js
+  var import_buffer_shim37 = __toESM(require_buffer_shim(), 1);
   var _0n11 = /* @__PURE__ */ BigInt(0);
   var _1n10 = /* @__PURE__ */ BigInt(1);
   var _2n7 = /* @__PURE__ */ BigInt(2);
@@ -48319,7 +48536,11 @@ var nugap = (() => {
     };
   }
 
+  // node_modules/@noble/curves/abstract/weierstrass.js
+  var import_buffer_shim40 = __toESM(require_buffer_shim(), 1);
+
   // node_modules/@noble/hashes/hmac.js
+  var import_buffer_shim39 = __toESM(require_buffer_shim(), 1);
   var _HMAC3 = class {
     constructor(hash, key) {
       __publicField(this, "oHash");
@@ -49355,6 +49576,7 @@ var nugap = (() => {
   var import_bc_ur = __toESM(require_dist());
 
   // node_modules/qrcode-generator/dist/qrcode.mjs
+  var import_buffer_shim42 = __toESM(require_buffer_shim(), 1);
   var qrcode = function(typeNumber, errorCorrectionLevel) {
     const PAD0 = 236;
     const PAD1 = 17;
@@ -50988,7 +51210,14 @@ var nugap = (() => {
   var qrcode_default = qrcode;
   var stringToBytes = qrcode.stringToBytes;
 
+  // node_modules/html5-qrcode/esm/index.js
+  var import_buffer_shim65 = __toESM(require_buffer_shim());
+
+  // node_modules/html5-qrcode/esm/html5-qrcode.js
+  var import_buffer_shim53 = __toESM(require_buffer_shim());
+
   // node_modules/html5-qrcode/esm/core.js
+  var import_buffer_shim43 = __toESM(require_buffer_shim());
   var Html5QrcodeSupportedFormats;
   (function(Html5QrcodeSupportedFormats2) {
     Html5QrcodeSupportedFormats2[Html5QrcodeSupportedFormats2["QR_CODE"] = 0] = "QR_CODE";
@@ -51150,6 +51379,7 @@ var nugap = (() => {
   }
 
   // node_modules/html5-qrcode/esm/strings.js
+  var import_buffer_shim44 = __toESM(require_buffer_shim());
   var Html5QrcodeStrings = (function() {
     function Html5QrcodeStrings2() {
     }
@@ -51284,6 +51514,7 @@ var nugap = (() => {
   })();
 
   // node_modules/html5-qrcode/esm/utils.js
+  var import_buffer_shim45 = __toESM(require_buffer_shim());
   var VideoConstraintsUtil = (function() {
     function VideoConstraintsUtil2() {
     }
@@ -51317,7 +51548,11 @@ var nugap = (() => {
     return VideoConstraintsUtil2;
   })();
 
+  // node_modules/html5-qrcode/esm/code-decoder.js
+  var import_buffer_shim48 = __toESM(require_buffer_shim());
+
   // node_modules/html5-qrcode/esm/zxing-html5-qrcode-decoder.js
+  var import_buffer_shim46 = __toESM(require_buffer_shim());
   var ZXing = __toESM(require_zxing_js_umd());
   var ZXingHtml5QrcodeDecoder = (function() {
     function ZXingHtml5QrcodeDecoder2(requestedFormats, verbose, logger) {
@@ -51420,6 +51655,7 @@ var nugap = (() => {
   })();
 
   // node_modules/html5-qrcode/esm/native-bar-code-detector.js
+  var import_buffer_shim47 = __toESM(require_buffer_shim());
   var __awaiter = function(thisArg, _arguments, P, generator) {
     function adopt(value) {
       return value instanceof P ? value : new P(function(resolve) {
@@ -51819,7 +52055,11 @@ var nugap = (() => {
     return Html5QrcodeShim2;
   })();
 
+  // node_modules/html5-qrcode/esm/camera/factories.js
+  var import_buffer_shim50 = __toESM(require_buffer_shim());
+
   // node_modules/html5-qrcode/esm/camera/core-impl.js
+  var import_buffer_shim49 = __toESM(require_buffer_shim());
   var __extends = /* @__PURE__ */ (function() {
     var extendStatics = function(d, b) {
       extendStatics = Object.setPrototypeOf || { __proto__: [] } instanceof Array && function(d2, b2) {
@@ -52315,6 +52555,7 @@ var nugap = (() => {
   })();
 
   // node_modules/html5-qrcode/esm/camera/retriever.js
+  var import_buffer_shim51 = __toESM(require_buffer_shim());
   var __awaiter5 = function(thisArg, _arguments, P, generator) {
     function adopt(value) {
       return value instanceof P ? value : new P(function(resolve) {
@@ -52498,6 +52739,7 @@ var nugap = (() => {
   })();
 
   // node_modules/html5-qrcode/esm/state-manager.js
+  var import_buffer_shim52 = __toESM(require_buffer_shim());
   var Html5QrcodeScannerState;
   (function(Html5QrcodeScannerState2) {
     Html5QrcodeScannerState2[Html5QrcodeScannerState2["UNKNOWN"] = 0] = "UNKNOWN";
@@ -53371,7 +53613,11 @@ var nugap = (() => {
     return Html5Qrcode2;
   })();
 
+  // node_modules/html5-qrcode/esm/html5-qrcode-scanner.js
+  var import_buffer_shim64 = __toESM(require_buffer_shim());
+
   // node_modules/html5-qrcode/esm/image-assets.js
+  var import_buffer_shim54 = __toESM(require_buffer_shim());
   var SVG_XML_PREFIX = "data:image/svg+xml;base64,";
   var ASSET_CAMERA_SCAN = SVG_XML_PREFIX + "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAzNzEuNjQzIDM3MS42NDMiIHN0eWxlPSJlbmFibGUtYmFja2dyb3VuZDpuZXcgMCAwIDM3MS42NDMgMzcxLjY0MyIgeG1sOnNwYWNlPSJwcmVzZXJ2ZSI+PHBhdGggZD0iTTEwNS4wODQgMzguMjcxaDE2My43Njh2MjBIMTA1LjA4NHoiLz48cGF0aCBkPSJNMzExLjU5NiAxOTAuMTg5Yy03LjQ0MS05LjM0Ny0xOC40MDMtMTYuMjA2LTMyLjc0My0yMC41MjJWMzBjMC0xNi41NDItMTMuNDU4LTMwLTMwLTMwSDEyNS4wODRjLTE2LjU0MiAwLTMwIDEzLjQ1OC0zMCAzMHYxMjAuMTQzaC04LjI5NmMtMTYuNTQyIDAtMzAgMTMuNDU4LTMwIDMwdjEuMzMzYTI5LjgwNCAyOS44MDQgMCAwIDAgNC42MDMgMTUuOTM5Yy03LjM0IDUuNDc0LTEyLjEwMyAxNC4yMjEtMTIuMTAzIDI0LjA2MXYxLjMzM2MwIDkuODQgNC43NjMgMTguNTg3IDEyLjEwMyAyNC4wNjJhMjkuODEgMjkuODEgMCAwIDAtNC42MDMgMTUuOTM4djEuMzMzYzAgMTYuNTQyIDEzLjQ1OCAzMCAzMCAzMGg4LjMyNGMuNDI3IDExLjYzMSA3LjUwMyAyMS41ODcgMTcuNTM0IDI2LjE3Ny45MzEgMTAuNTAzIDQuMDg0IDMwLjE4NyAxNC43NjggNDUuNTM3YTkuOTg4IDkuOTg4IDAgMCAwIDguMjE2IDQuMjg4IDkuOTU4IDkuOTU4IDAgMCAwIDUuNzA0LTEuNzkzYzQuNTMzLTMuMTU1IDUuNjUtOS4zODggMi40OTUtMTMuOTIxLTYuNzk4LTkuNzY3LTkuNjAyLTIyLjYwOC0xMC43Ni0zMS40aDgyLjY4NWMuMjcyLjQxNC41NDUuODE4LjgxNSAxLjIxIDMuMTQyIDQuNTQxIDkuMzcyIDUuNjc5IDEzLjkxMyAyLjUzNCA0LjU0Mi0zLjE0MiA1LjY3Ny05LjM3MSAyLjUzNS0xMy45MTMtMTEuOTE5LTE3LjIyOS04Ljc4Ny0zNS44ODQgOS41ODEtNTcuMDEyIDMuMDY3LTIuNjUyIDEyLjMwNy0xMS43MzIgMTEuMjE3LTI0LjAzMy0uODI4LTkuMzQzLTcuMTA5LTE3LjE5NC0xOC42NjktMjMuMzM3YTkuODU3IDkuODU3IDAgMCAwLTEuMDYxLS40ODZjLS40NjYtLjE4Mi0xMS40MDMtNC41NzktOS43NDEtMTUuNzA2IDEuMDA3LTYuNzM3IDE0Ljc2OC04LjI3MyAyMy43NjYtNy42NjYgMjMuMTU2IDEuNTY5IDM5LjY5OCA3LjgwMyA0Ny44MzYgMTguMDI2IDUuNzUyIDcuMjI1IDcuNjA3IDE2LjYyMyA1LjY3MyAyOC43MzMtLjQxMyAyLjU4NS0uODI0IDUuMjQxLTEuMjQ1IDcuOTU5LTUuNzU2IDM3LjE5NC0xMi45MTkgODMuNDgzLTQ5Ljg3IDExNC42NjEtNC4yMjEgMy41NjEtNC43NTYgOS44Ny0xLjE5NCAxNC4wOTJhOS45OCA5Ljk4IDAgMCAwIDcuNjQ4IDMuNTUxIDkuOTU1IDkuOTU1IDAgMCAwIDYuNDQ0LTIuMzU4YzQyLjY3Mi0zNi4wMDUgNTAuODAyLTg4LjUzMyA1Ni43MzctMTI2Ljg4OC40MTUtMi42ODQuODIxLTUuMzA5IDEuMjI5LTcuODYzIDIuODM0LTE3LjcyMS0uNDU1LTMyLjY0MS05Ljc3Mi00NC4zNDV6bS0yMzIuMzA4IDQyLjYyYy01LjUxNCAwLTEwLTQuNDg2LTEwLTEwdi0xLjMzM2MwLTUuNTE0IDQuNDg2LTEwIDEwLTEwaDE1djIxLjMzM2gtMTV6bS0yLjUtNTIuNjY2YzAtNS41MTQgNC40ODYtMTAgMTAtMTBoNy41djIxLjMzM2gtNy41Yy01LjUxNCAwLTEwLTQuNDg2LTEwLTEwdi0xLjMzM3ptMTcuNSA5My45OTloLTcuNWMtNS41MTQgMC0xMC00LjQ4Ni0xMC0xMHYtMS4zMzNjMC01LjUxNCA0LjQ4Ni0xMCAxMC0xMGg3LjV2MjEuMzMzem0zMC43OTYgMjguODg3Yy01LjUxNCAwLTEwLTQuNDg2LTEwLTEwdi04LjI3MWg5MS40NTdjLS44NTEgNi42NjgtLjQzNyAxMi43ODcuNzMxIDE4LjI3MWgtODIuMTg4em03OS40ODItMTEzLjY5OGMtMy4xMjQgMjAuOTA2IDEyLjQyNyAzMy4xODQgMjEuNjI1IDM3LjA0IDUuNDQxIDIuOTY4IDcuNTUxIDUuNjQ3IDcuNzAxIDcuMTg4LjIxIDIuMTUtMi41NTMgNS42ODQtNC40NzcgNy4yNTEtLjQ4Mi4zNzgtLjkyOS44LTEuMzM1IDEuMjYxLTYuOTg3IDcuOTM2LTExLjk4MiAxNS41Mi0xNS40MzIgMjIuNjg4aC05Ny41NjRWMzBjMC01LjUxNCA0LjQ4Ni0xMCAxMC0xMGgxMjMuNzY5YzUuNTE0IDAgMTAgNC40ODYgMTAgMTB2MTM1LjU3OWMtMy4wMzItLjM4MS02LjE1LS42OTQtOS4zODktLjkxNC0yNS4xNTktMS42OTQtNDIuMzcgNy43NDgtNDQuODk4IDI0LjY2NnoiLz48cGF0aCBkPSJNMTc5LjEyOSA4My4xNjdoLTI0LjA2YTUgNSAwIDAgMC01IDV2MjQuMDYxYTUgNSAwIDAgMCA1IDVoMjQuMDZhNSA1IDAgMCAwIDUtNVY4OC4xNjdhNSA1IDAgMCAwLTUtNXpNMTcyLjYyOSAxNDIuODZoLTEyLjU2VjEzMC44YTUgNSAwIDEgMC0xMCAwdjE3LjA2MWE1IDUgMCAwIDAgNSA1aDE3LjU2YTUgNSAwIDEgMCAwLTEwLjAwMXpNMjE2LjU2OCA4My4xNjdoLTI0LjA2YTUgNSAwIDAgMC01IDV2MjQuMDYxYTUgNSAwIDAgMCA1IDVoMjQuMDZhNSA1IDAgMCAwIDUtNVY4OC4xNjdhNSA1IDAgMCAwLTUtNXptLTUgMjQuMDYxaC0xNC4wNlY5My4xNjdoMTQuMDZ2MTQuMDYxek0yMTEuNjY5IDEyNS45MzZIMTk3LjQxYTUgNSAwIDAgMC01IDV2MTQuMjU3YTUgNSAwIDAgMCA1IDVoMTQuMjU5YTUgNSAwIDAgMCA1LTV2LTE0LjI1N2E1IDUgMCAwIDAtNS01eiIvPjwvc3ZnPg==";
   var ASSET_FILE_SCAN = SVG_XML_PREFIX + "PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1OS4wMTggNTkuMDE4IiBzdHlsZT0iZW5hYmxlLWJhY2tncm91bmQ6bmV3IDAgMCA1OS4wMTggNTkuMDE4IiB4bWw6c3BhY2U9InByZXNlcnZlIj48cGF0aCBkPSJtNTguNzQxIDU0LjgwOS01Ljk2OS02LjI0NGExMC43NCAxMC43NCAwIDAgMCAyLjgyLTcuMjVjMC01Ljk1My00Ljg0My0xMC43OTYtMTAuNzk2LTEwLjc5NlMzNCAzNS4zNjEgMzQgNDEuMzE0IDM4Ljg0MyA1Mi4xMSA0NC43OTYgNTIuMTFjMi40NDEgMCA0LjY4OC0uODI0IDYuNDk5LTIuMTk2bDYuMDAxIDYuMjc3YS45OTguOTk4IDAgMCAwIDEuNDE0LjAzMiAxIDEgMCAwIDAgLjAzMS0xLjQxNHpNMzYgNDEuMzE0YzAtNC44NSAzLjk0Ni04Ljc5NiA4Ljc5Ni04Ljc5NnM4Ljc5NiAzLjk0NiA4Ljc5NiA4Ljc5Ni0zLjk0NiA4Ljc5Ni04Ljc5NiA4Ljc5NlMzNiA0Ni4xNjQgMzYgNDEuMzE0ek0xMC40MzEgMTYuMDg4YzAgMy4wNyAyLjQ5OCA1LjU2OCA1LjU2OSA1LjU2OHM1LjU2OS0yLjQ5OCA1LjU2OS01LjU2OGMwLTMuMDcxLTIuNDk4LTUuNTY5LTUuNTY5LTUuNTY5cy01LjU2OSAyLjQ5OC01LjU2OSA1LjU2OXptOS4xMzggMGMwIDEuOTY4LTEuNjAyIDMuNTY4LTMuNTY5IDMuNTY4cy0zLjU2OS0xLjYwMS0zLjU2OS0zLjU2OCAxLjYwMi0zLjU2OSAzLjU2OS0zLjU2OSAzLjU2OSAxLjYwMSAzLjU2OSAzLjU2OXoiLz48cGF0aCBkPSJtMzAuODgyIDI4Ljk4NyA5LjE4LTEwLjA1NCAxMS4yNjIgMTAuMzIzYTEgMSAwIDAgMCAxLjM1MS0xLjQ3NWwtMTItMTFhMSAxIDAgMCAwLTEuNDE0LjA2M2wtOS43OTQgMTAuNzI3LTQuNzQzLTQuNzQzYTEuMDAzIDEuMDAzIDAgMCAwLTEuMzY4LS4wNDRMNi4zMzkgMzcuNzY4YTEgMSAwIDEgMCAxLjMyMiAxLjUwMWwxNi4zMTMtMTQuMzYyIDcuMzE5IDcuMzE4YS45OTkuOTk5IDAgMSAwIDEuNDE0LTEuNDE0bC0xLjgyNS0xLjgyNHoiLz48cGF0aCBkPSJNMzAgNDYuNTE4SDJ2LTQyaDU0djI4YTEgMSAwIDEgMCAyIDB2LTI5YTEgMSAwIDAgMC0xLTFIMWExIDEgMCAwIDAtMSAxdjQ0YTEgMSAwIDAgMCAxIDFoMjlhMSAxIDAgMSAwIDAtMnoiLz48L3N2Zz4=";
@@ -53379,6 +53625,7 @@ var nugap = (() => {
   var ASSET_CLOSE_ICON_16PX = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABHNCSVQICAgIfAhkiAAAAAlwSFlzAAAAQgAAAEIBarqQRAAAABl0RVh0U29mdHdhcmUAd3d3Lmlua3NjYXBlLm9yZ5vuPBoAAAE1SURBVDiNfdI7S0NBEAXgLya1otFgpbYSbISAgpXYi6CmiH9KCAiChaVga6OiWPgfRDQ+0itaGVNosXtluWwcuMzePfM4M3sq8lbHBubwg1dc4m1E/J/N4ghDPOIsfk/4xiEao5KX0McFljN4C9d4QTPXuY99jP3DsIoDPGM6BY5i5yI5R7O4q+ImFkJY2DCh3cAH2klyB+9J1xUMMAG7eCh1a+Mr+k48b5diXrFVwwLuS+BJ9MfR7+G0FHOHhTHhnXNWS87VDF4pcnfQK4Ep7XScNLmPTZgURNKKYENYWDpzW1BhscS1WHS8CDgURFJQrWcoF3c13KKbgg1BYQfy8xZWEzTTw1QZbAoKu8FqJnktdu5hcVSHmchiILzzuaDQvjBzV2m8yohCE1jHfPx/xhU+y4G/D75ELlRJsSYAAAAASUVORK5CYII=";
 
   // node_modules/html5-qrcode/esm/storage.js
+  var import_buffer_shim55 = __toESM(require_buffer_shim());
   var PersistedDataFactory = (function() {
     function PersistedDataFactory2() {
     }
@@ -53430,6 +53677,7 @@ var nugap = (() => {
   })();
 
   // node_modules/html5-qrcode/esm/ui.js
+  var import_buffer_shim56 = __toESM(require_buffer_shim());
   var LibraryInfoDiv = (function() {
     function LibraryInfoDiv2() {
       this.infoDiv = document.createElement("div");
@@ -53548,6 +53796,7 @@ var nugap = (() => {
   })();
 
   // node_modules/html5-qrcode/esm/camera/permissions.js
+  var import_buffer_shim57 = __toESM(require_buffer_shim());
   var __awaiter6 = function(thisArg, _arguments, P, generator) {
     function adopt(value) {
       return value instanceof P ? value : new P(function(resolve) {
@@ -53671,6 +53920,7 @@ var nugap = (() => {
   })();
 
   // node_modules/html5-qrcode/esm/ui/scanner/scan-type-selector.js
+  var import_buffer_shim58 = __toESM(require_buffer_shim());
   var ScanTypeSelector = (function() {
     function ScanTypeSelector2(supportedScanTypes) {
       this.supportedScanTypes = this.validateAndReturnScanTypes(supportedScanTypes);
@@ -53715,7 +53965,11 @@ var nugap = (() => {
     return ScanTypeSelector2;
   })();
 
+  // node_modules/html5-qrcode/esm/ui/scanner/torch-button.js
+  var import_buffer_shim60 = __toESM(require_buffer_shim());
+
   // node_modules/html5-qrcode/esm/ui/scanner/base.js
+  var import_buffer_shim59 = __toESM(require_buffer_shim());
   var PublicUiElementIdAndClasses = (function() {
     function PublicUiElementIdAndClasses2() {
     }
@@ -53970,6 +54224,7 @@ var nugap = (() => {
   })();
 
   // node_modules/html5-qrcode/esm/ui/scanner/file-selection-ui.js
+  var import_buffer_shim61 = __toESM(require_buffer_shim());
   var FileSelectionUi = (function() {
     function FileSelectionUi2(parentElement, showOnRender, onFileSelected) {
       this.fileBasedScanRegion = this.createFileBasedScanRegion();
@@ -54119,6 +54374,7 @@ var nugap = (() => {
   })();
 
   // node_modules/html5-qrcode/esm/ui/scanner/camera-selection-ui.js
+  var import_buffer_shim62 = __toESM(require_buffer_shim());
   var CameraSelectionUi = (function() {
     function CameraSelectionUi2(cameras) {
       this.selectElement = BaseUiElementFactory.createElement("select", PublicUiElementIdAndClasses.CAMERA_SELECTION_SELECT_ID);
@@ -54200,6 +54456,7 @@ var nugap = (() => {
   })();
 
   // node_modules/html5-qrcode/esm/ui/scanner/camera-zoom-ui.js
+  var import_buffer_shim63 = __toESM(require_buffer_shim());
   var CameraZoomUi = (function() {
     function CameraZoomUi2() {
       this.onChangeCallback = null;
@@ -54882,9 +55139,6 @@ var nugap = (() => {
     };
     return Html5QrcodeScanner2;
   })();
-
-  // entry.js
-  if (typeof globalThis.Buffer === "undefined") globalThis.Buffer = import_buffer.Buffer;
   return __toCommonJS(entry_exports);
 })();
 /*! Bundled license information:
