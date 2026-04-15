@@ -413,6 +413,13 @@ function xpubToTpub(xpubStr) {
   buf[0] = 0x04; buf[1] = 0x35; buf[2] = 0x87; buf[3] = 0xCF;
   return base58c.encode(buf);
 }
+function xpubToVpub(xpubStr) {
+  // xpub (0x0488B21E) → vpub (0x045F1CF6)
+  const decoded = base58c.decode(xpubStr);
+  const buf = new Uint8Array(decoded);
+  buf[0] = 0x04; buf[1] = 0x5F; buf[2] = 0x1C; buf[3] = 0xF6;
+  return base58c.encode(buf);
+}
 function getNetwork() {
   return state.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
 }
@@ -421,10 +428,10 @@ function getNetwork() {
 function deriveAccounts() {
   const mk = state.masterKey;
   const isTestnet = state.network === 'testnet4';
-  // BIP-84 Native SegWit
-  const coinType = isTestnet ? "1'" : "0'";
+  // Always use coin type 0 (compatible with Unisat and most wallets on testnet)
+  const coinType = "0'";
   const acc84 = mk.derive("m/84'/" + coinType + "/0'");
-  const pubkey84 = isTestnet ? tpubToVpub(acc84.publicExtendedKey) : xpubToZpub(acc84.publicExtendedKey);
+  const pubkey84 = isTestnet ? xpubToVpub(acc84.publicExtendedKey) : xpubToZpub(acc84.publicExtendedKey);
   state.accounts.bip84 = { path: "m/84'/" + coinType + "/0'", accountKey: acc84, pubkey: pubkey84 };
 
   // BIP-86 Taproot
