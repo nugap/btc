@@ -76,8 +76,8 @@
 
 <div id="sec-scan" class="sec">
 <b>Import Unsigned PSBT</b><br><hr>
-<span>Paste UR text from yolo.html:</span><br>
-<textarea id="inp-psbt" rows="6" placeholder="ur:crypto-psbt/..."></textarea><br>
+<span>Paste PSBT from yolo.html (base64):</span><br>
+<textarea id="inp-psbt" rows="6" placeholder="cHNidP8..."></textarea><br>
 <button id="btn-import-psbt">Import</button>
 <button id="btn-back-dash2">Back</button>
 </div>
@@ -119,7 +119,8 @@
 
 var { generateMnemonic, mnemonicToSeedSync, validateMnemonic, wordlist,
       btcSigner, HDKey, sha256, ripemd160, secp256k1,
-      UR, UREncoder, URDecoder, base58c, hex } = nugap;
+      btcSigner, HDKey, sha256, ripemd160, secp256k1,
+      base58c, hex } = nugap;
 
 var $ = function(id) { return document.getElementById(id) }
 var $v = function(id, v) { return v === void 0 ? $(id).value : ($(id).value = v) }
@@ -154,29 +155,6 @@ checkOnline();
 window.addEventListener('online', function() { checkOnline(); notify('Internet detected! Disconnect!') });
 window.addEventListener('offline', checkOnline);
 
-function extractURBytes(ur) {
-  var raw = ur.cbor;
-  var buf = raw instanceof Uint8Array ? raw : new Uint8Array(raw);
-  var f = buf[0];
-  if (f >= 0x40 && f <= 0x57) return buf.slice(1, 1 + (f - 0x40));
-  if (f === 0x58) return buf.slice(2, 2 + buf[1]);
-  if (f === 0x59) return buf.slice(3, 3 + ((buf[1] << 8) | buf[2]));
-  if (f === 0x5a) return buf.slice(5, 5 + ((buf[1] << 24) | (buf[2] << 16) | (buf[3] << 8) | buf[4]));
-  try { return new Uint8Array(ur.decodeCBOR()) } catch(e) { return buf }
-}
-
-function cborEncodeBytes(buf) {
-  var len = buf.length;
-  if (len < 24) {
-    var out = new Uint8Array(1 + len); out[0] = 0x40 + len; out.set(buf, 1); return out;
-  } else if (len < 256) {
-    var out = new Uint8Array(2 + len); out[0] = 0x58; out[1] = len; out.set(buf, 2); return out;
-  } else if (len < 65536) {
-    var out = new Uint8Array(3 + len); out[0] = 0x59; out[1] = (len >> 8) & 0xff; out[2] = len & 0xff; out.set(buf, 3); return out;
-  } else {
-    var out = new Uint8Array(5 + len); out[0] = 0x5a; out[1]=(len>>24)&0xff; out[2]=(len>>16)&0xff; out[3]=(len>>8)&0xff; out[4]=len&0xff; out.set(buf, 5); return out;
-  }
-}
 
 function xpubToZpub(s) {
   var b = new Uint8Array(base58c.decode(s));
@@ -334,20 +312,13 @@ $on('btn-scan', function() { go('sec-scan') });
 
 $on('btn-import-psbt', function() {
   var text = $v('inp-psbt').trim();
-  if (!text) { notify('Paste UR text'); return }
+  if (!text) { notify('Paste PSBT base64'); return }
   try {
-    var lines = text.split('\n').map(function(l) { return l.trim() }).filter(function(l) { return l });
-    var decoder = new URDecoder();
-    for (var i = 0; i < lines.length; i++) {
-      decoder.receivePart(lines[i].toLowerCase());
-      if (decoder.isComplete()) break;
-    }
-    if (!decoder.isComplete() || !decoder.isSuccess()) { notify('Incomplete UR data'); return }
-    var ur = decoder.resultUR();
-    if (ur.type !== 'crypto-psbt') { notify('Expected crypto-psbt, got: ' + ur.type); return }
-    var psbtBytes = extractURBytes(ur);
-    processPSBT(psbtBytes);
-  } catch(e) { notify('Import failed: ' + e.message) }
+    var bin = atob(text);
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    processPSBT(bytes);
+  } catch(e) { notify('Invalid base64: ' + e.message) }
 });
 
 function formatBTC(sats) { return (Number(sats) / 1e8).toFixed(8) }
@@ -431,13 +402,9 @@ function doSign() {
       $t('sign-status', 'Signed ' + (i + 1) + '/' + total);
     }
     var signedPSBT = tx.toPSBT();
-    var cbor = cborEncodeBytes(signedPSBT);
-    var ur = new UR(Buffer.from(cbor), 'crypto-psbt');
-    var enc = new UREncoder(ur, 500);
-    var parts = [];
-    var seqLen = enc.fragmentsLength;
-    for (var i = 0; i < seqLen; i++) parts.push(enc.nextPart());
-    $v('signed-ur', parts.join('\n'));
+    var bin = '';
+    for (var i = 0; i < signedPSBT.length; i++) bin += String.fromCharCode(signedPSBT[i]);
+    $v('signed-ur', btoa(bin));
     go('sec-signed');
     notify('Signed!', 'ok');
   } catch(e) {

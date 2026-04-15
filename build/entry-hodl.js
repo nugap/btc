@@ -5,7 +5,6 @@ import { HDKey } from '@scure/bip32';
 import { sha256 } from '@noble/hashes/sha2.js';
 import { ripemd160 } from '@noble/hashes/legacy.js';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
-import { UR, UREncoder, URDecoder } from '@ngraveio/bc-ur';
 import { base58check as _base58check, hex } from '@scure/base';
 import { sha256 as _sha256hash } from '@noble/hashes/sha2.js';
 const base58c = _base58check(_sha256hash);
@@ -20,9 +19,6 @@ export {
   sha256,
   ripemd160,
   secp256k1,
-  UR,
-  UREncoder,
-  URDecoder,
   base58c,
   hex,
 };

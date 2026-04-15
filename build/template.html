@@ -68,8 +68,8 @@
 
 <div id="sec-import-signed" class="sec">
 <b>Import Signed Transaction</b><br><hr>
-<span>Paste signed UR text from hodl.html:</span><br>
-<textarea id="inp-signed" rows="6" placeholder="ur:crypto-psbt/..."></textarea><br>
+<span>Paste signed PSBT from hodl.html (base64):</span><br>
+<textarea id="inp-signed" rows="6" placeholder="cHNidP8..."></textarea><br>
 <button id="btn-do-import-signed">Import & Finalize</button>
 <button id="btn-back-dash2">Back</button>
 </div>
@@ -95,7 +95,7 @@
 <script>
 'use strict';
 
-var { btcSigner, HDKey, sha256, ripemd160, secp256k1, UR, UREncoder, URDecoder } = nugap;
+var { btcSigner, HDKey, sha256, ripemd160, secp256k1 } = nugap;
 
 var $ = function(id) { return document.getElementById(id) }
 var $v = function(id, v) { return v === void 0 ? $(id).value : ($(id).value = v) }
@@ -147,29 +147,6 @@ function bytesToHex(bytes) {
   return Array.from(bytes).map(function(b) { return b.toString(16).padStart(2, '0') }).join('');
 }
 
-function extractURBytes(ur) {
-  var raw = ur.cbor;
-  var buf = raw instanceof Uint8Array ? raw : new Uint8Array(raw);
-  var f = buf[0];
-  if (f >= 0x40 && f <= 0x57) return buf.slice(1, 1 + (f - 0x40));
-  if (f === 0x58) return buf.slice(2, 2 + buf[1]);
-  if (f === 0x59) return buf.slice(3, 3 + ((buf[1] << 8) | buf[2]));
-  if (f === 0x5a) return buf.slice(5, 5 + ((buf[1] << 24) | (buf[2] << 16) | (buf[3] << 8) | buf[4]));
-  try { return new Uint8Array(ur.decodeCBOR()) } catch(e) { return buf }
-}
-
-function cborEncodeBytes(buf) {
-  var len = buf.length;
-  if (len < 24) {
-    var out = new Uint8Array(1 + len); out[0] = 0x40 + len; out.set(buf, 1); return out;
-  } else if (len < 256) {
-    var out = new Uint8Array(2 + len); out[0] = 0x58; out[1] = len; out.set(buf, 2); return out;
-  } else if (len < 65536) {
-    var out = new Uint8Array(3 + len); out[0] = 0x59; out[1] = (len >> 8) & 0xff; out[2] = len & 0xff; out.set(buf, 3); return out;
-  } else {
-    var out = new Uint8Array(5 + len); out[0] = 0x5a; out[1]=(len>>24)&0xff; out[2]=(len>>16)&0xff; out[3]=(len>>8)&0xff; out[4]=len&0xff; out.set(buf, 5); return out;
-  }
-}
 
 var BECH32_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
 function bech32Decode(str) {
@@ -380,24 +357,19 @@ function getChangeAddr() {
   return unused ? unused.address : ch[0].address;
 }
 
-function psbtToUR(psbtBytes) {
-  var cbor = cborEncodeBytes(psbtBytes);
-  var ur = new UR(Buffer.from(cbor), 'crypto-psbt');
-  var enc = new UREncoder(ur, 500);
-  var parts = [];
-  var total = enc.fragmentsLength;
-  for (var i = 0; i < total; i++) parts.push(enc.nextPart());
-  return parts.join('\n');
+function psbtToB64(psbtBytes) {
+  var bin = '';
+  for (var i = 0; i < psbtBytes.length; i++) bin += String.fromCharCode(psbtBytes[i]);
+  return btoa(bin);
 }
 
-function urToPsbt(text) {
-  var lines = text.trim().split('\n').map(function(l) { return l.trim() }).filter(function(l) { return l });
-  var decoder = new URDecoder();
-  for (var i = 0; i < lines.length; i++) {
-    decoder.receivePart(lines[i].toLowerCase());
-    if (decoder.isComplete()) break;
-  }
-  if (decoder.isComplete() && decoder.isSuccess()) return extractURBytes(decoder.resultUR());
+function b64ToPsbt(text) {
+  try {
+    var bin = atob(text.trim());
+    var bytes = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return bytes;
+  } catch(e) {}
   try { return hexToBytes(text.trim()) } catch(e) {}
   return null;
 }
@@ -518,7 +490,7 @@ $on('btn-create-tx', async function() {
 });
 
 $on('btn-show-psbt', function() {
-  $v('psbt-ur', psbtToUR(APP.currentPsbt));
+  $v('psbt-ur', psbtToB64(APP.currentPsbt));
   go('sec-psbt');
 });
 
@@ -528,9 +500,9 @@ $on('btn-copy-psbt', function() {
 
 $on('btn-do-import-signed', function() {
   var text = $v('inp-signed').trim();
-  if (!text) { notify('Paste signed UR text'); return }
-  var psbt = urToPsbt(text);
-  if (!psbt) { notify('Invalid UR data'); return }
+  if (!text) { notify('Paste signed PSBT'); return }
+  var psbt = b64ToPsbt(text);
+  if (!psbt) { notify('Invalid base64 data'); return }
   try {
     var tx = btcSigner.Transaction.fromPSBT(psbt);
     tx.finalize();
