@@ -81,16 +81,10 @@
 <button id="btn-back-dash2">Back</button>
 </div>
 
-<div id="sec-review" class="sec">
-<b>Review Transaction</b><br><hr>
-<pre id="review-body"></pre>
-<div class="warn">Verify the recipient address!</div>
-<button id="btn-sign">Sign Transaction</button>
-<button id="btn-cancel-tx">Cancel</button>
-</div>
-
 <div id="sec-signed" class="sec">
-<b>Transaction Signed</b><br><hr>
+<b>Signed Transaction</b><br><hr>
+<pre id="review-body"></pre>
+<div class="warn">Verify the recipient address before pasting to yolo!</div>
 <span>Copy this to yolo:</span><br>
 <textarea id="signed-out" rows="6" readonly></textarea><br>
 <button data-copy="signed-out">Copy</button>
@@ -15001,7 +14995,7 @@ const $t = (id, t) => t === void 0 ? $(id).innerText : ($(id).innerText = t);
 const $show = id => $(id).style.display = 'block';
 const $hide = id => $(id).style.display = 'none';
 
-const SECS = ['sec-landing','sec-create','sec-mnemonic','sec-verify','sec-import','sec-dash','sec-export','sec-scan','sec-review','sec-signed','sec-show-mn'];
+const SECS = ['sec-landing','sec-create','sec-mnemonic','sec-verify','sec-import','sec-dash','sec-export','sec-scan','sec-signed','sec-show-mn'];
 const go = id => { SECS.forEach($hide); $show(id) };
 
 document.addEventListener('click', e => {
@@ -15014,8 +15008,7 @@ $t('net-label', IS_TEST ? '[Testnet4]' : '[Mainnet]');
 
 const S = {
   mnemonic: null, passphrase: '', seed: null, masterKey: null,
-  accounts: { bip84: null, bip86: null }, activeAccount: 'bip84',
-  pendingPSBT: null
+  accounts: { bip84: null, bip86: null }, activeAccount: 'bip84'
 };
 
 let notifyTimer;
@@ -15168,7 +15161,6 @@ const getChangeAddresses = () => {
 };
 
 const processPSBT = psbtBytes => {
-  S.pendingPSBT = psbtBytes;
   const tx = btcSigner.Transaction.fromPSBT(psbtBytes);
   let totalIn = 0n, totalOut = 0n;
   const outputs = [];
@@ -15189,38 +15181,21 @@ const processPSBT = psbtBytes => {
   ).join('\n');
   info += '\n\nFee: ' + formatBTC(Number(totalIn - totalOut)) + ' BTC (' + Number(totalIn - totalOut) + ' sats)\nInputs: ' + tx.inputsLength;
   $t('review-body', info);
-  go('sec-review');
+
+  const paths = ["m/84'/0'/0'", "m/86'/0'/0'"];
+  for (let i = 0; i < tx.inputsLength; i++) {
+    let signed = false;
+    for (let p = 0; p < paths.length && !signed; p++)
+      for (let ch = 0; ch <= 1 && !signed; ch++)
+        for (let idx = 0; idx < 20 && !signed; idx++)
+          try { tx.signIdx(S.masterKey.derive(paths[p] + '/' + ch + '/' + idx).privateKey, i); signed = true } catch(e) {}
+  }
+  $v('signed-out', toB64(tx.toPSBT()));
+  go('sec-signed');
+  notify('Signed!', 'ok');
 };
 
-$('btn-cancel-tx').onclick = goToDash;
-
-$('btn-sign').onclick = () => {
-  $('btn-sign').disabled = true;
-  $('btn-sign').innerText = 'Signing...';
-  setTimeout(() => {
-    try {
-      const tx = btcSigner.Transaction.fromPSBT(S.pendingPSBT);
-      const paths = ["m/84'/0'/0'", "m/86'/0'/0'"];
-      for (let i = 0; i < tx.inputsLength; i++) {
-        let signed = false;
-        for (let p = 0; p < paths.length && !signed; p++)
-          for (let ch = 0; ch <= 1 && !signed; ch++)
-            for (let idx = 0; idx < 20 && !signed; idx++)
-              try { tx.signIdx(S.masterKey.derive(paths[p] + '/' + ch + '/' + idx).privateKey, i); signed = true } catch(e) {}
-      }
-      $v('signed-out', toB64(tx.toPSBT()));
-      go('sec-signed');
-      notify('Signed!', 'ok');
-    } catch(e) {
-      notify('Signing failed: ' + e.message);
-      goToDash();
-    }
-    $('btn-sign').disabled = false;
-    $('btn-sign').innerText = 'Sign Transaction';
-  }, 50);
-};
-
-$('btn-done').onclick = () => { S.pendingPSBT = null; goToDash() };
+$('btn-done').onclick = goToDash;
 
 $('btn-show-mn').onclick = () => {
   if (!confirm('Show sensitive data?')) return;
@@ -15235,7 +15210,7 @@ $('btn-wipe').onclick = () => {
   if (!confirm('Are you sure?')) return;
   try { if (S.seed) S.seed.fill(0) } catch(e) {}
   S.mnemonic = null; S.passphrase = ''; S.seed = null; S.masterKey = null;
-  S.accounts = { bip84: null, bip86: null }; S.pendingPSBT = null;
+  S.accounts = { bip84: null, bip86: null };
   notify('Wiped', 'warn');
   go('sec-landing');
 };
