@@ -1,280 +1,91 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src https://*; img-src data: blob:; media-src 'none'; frame-src 'none'">
-<title>nugap — BTC 🔓</title>
-<style>
-/* === Reset & Base === */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html { font-size: 16px; }
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  background: #0d1117; color: #e6edf3; min-height: 100vh;
-  display: flex; flex-direction: column; align-items: center;
-}
-.mono { font-family: 'SF Mono', Monaco, 'Consolas', monospace; }
-a { color: #58a6ff; text-decoration: none; }
-a:hover { text-decoration: underline; }
-button {
-  font-family: inherit; cursor: pointer; border: none; border-radius: 6px;
-  padding: 10px 20px; font-size: 0.95rem; min-height: 44px;
-  background: #58a6ff; color: #0d1117; font-weight: 600;
-  transition: opacity 0.15s;
-}
-button:hover { opacity: 0.85; }
-button:disabled { opacity: 0.4; cursor: not-allowed; }
-button.secondary { background: #30363d; color: #e6edf3; }
-button.danger { background: #f85149; color: #fff; }
-input, textarea {
-  font-family: inherit; background: #0d1117; color: #e6edf3;
-  border: 1px solid #30363d; border-radius: 6px; padding: 10px 12px;
-  font-size: 0.95rem; width: 100%; min-height: 44px;
-}
-input:focus, textarea:focus { outline: none; border-color: #58a6ff; }
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src https://*">
+<title>nugap yolo</title>
+<style>body{font-family:monospace;padding:8px;max-width:560px;margin:0 auto}input,textarea,select{width:100%;margin:3px 0;padding:6px;font-family:monospace;box-sizing:border-box}button{margin:3px 0;padding:8px 16px;cursor:pointer}pre{white-space:pre-wrap;word-break:break-all;background:#f0f0f0;padding:8px;margin:3px 0}.sec{display:none}hr{margin:8px 0}.mono{font-family:monospace;word-break:break-all}</style>
 
-/* === Layout === */
-.container { max-width: 560px; width: 100%; padding: 16px; }
-header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 16px 0; border-bottom: 1px solid #30363d; margin-bottom: 16px;
-}
-header h1 { font-size: 1.2rem; font-weight: 700; }
-.card {
-  background: #161b22; border: 1px solid #30363d; border-radius: 8px;
-  padding: 16px; margin-bottom: 12px;
-}
-.section { display: none; }
-.section.active { display: block; }
+<div id="notify" style="position:fixed;top:0;left:0;right:0;padding:8px;text-align:center;display:none"></div>
 
-/* === Notification Bar === */
-#notify {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 999;
-  padding: 12px 16px; text-align: center; font-size: 0.9rem;
-  transform: translateY(-100%); transition: transform 0.3s;
-}
-#notify.show { transform: translateY(0); }
-#notify.error { background: #f85149; color: #fff; }
-#notify.success { background: #3fb950; color: #0d1117; }
-#notify.warn { background: #d29922; color: #0d1117; }
-
-/* === HTTPS Warning === */
-#https-warn {
-  background: #d29922; color: #0d1117; padding: 10px 16px;
-  text-align: center; font-size: 0.85rem; width: 100%; display: none;
-}
-
-/* === Balance === */
-.balance-big { font-size: 1.8rem; font-weight: 700; text-align: center; margin: 8px 0; }
-.balance-sub { text-align: center; color: #8b949e; font-size: 0.85rem; margin-bottom: 12px; }
-
-/* === Address list === */
-.addr-item { border-bottom: 1px solid #30363d; padding: 10px 0; cursor: pointer; }
-.addr-item:last-child { border-bottom: none; }
-.addr-row { display: flex; justify-content: space-between; align-items: center; }
-.addr-label { font-size: 0.85rem; color: #8b949e; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%; }
-.addr-bal { font-size: 0.85rem; font-weight: 600; }
-.utxo-list { display: none; padding: 6px 0 0 12px; font-size: 0.8rem; color: #8b949e; }
-.utxo-list.open { display: block; }
-.utxo-row { padding: 3px 0; display: flex; justify-content: space-between; }
-
-/* === Fee slider === */
-.fee-group { margin: 12px 0; }
-.fee-labels { display: flex; justify-content: space-between; font-size: 0.75rem; color: #8b949e; }
-input[type=range] { width: 100%; accent-color: #58a6ff; }
-
-/* === QR === */
-.qr-container { display: flex; flex-direction: column; align-items: center; margin: 16px 0; }
-.qr-container canvas, .qr-container img { max-width: 100%; border-radius: 8px; }
-#qr-frame-info { color: #8b949e; font-size: 0.85rem; margin-top: 8px; }
-
-/* === Scanner === */
-#reader { width: 100%; max-width: 500px; margin: 0 auto; }
-.scan-progress { margin: 8px 0; }
-.scan-progress-bar { height: 4px; background: #30363d; border-radius: 2px; overflow: hidden; }
-.scan-progress-fill { height: 100%; background: #58a6ff; transition: width 0.3s; }
-
-/* === Spinner === */
-.spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #30363d; border-top-color: #58a6ff; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 6px; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* === Settings modal === */
-.modal-overlay {
-  display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6);
-  z-index: 998; justify-content: center; align-items: center;
-}
-.modal-overlay.open { display: flex; }
-.modal { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 20px; width: 90%; max-width: 440px; }
-
-/* === Responsive === */
-@media (max-width: 640px) {
-  .balance-big { font-size: 1.4rem; }
-  .container { padding: 10px; }
-}
-</style>
-</head>
-<body>
-
-<!-- HTTPS Warning -->
-<div id="https-warn">⚠️ You are not using HTTPS. Your data may be intercepted. <button onclick="this.parentElement.style.display='none'" style="background:none;color:#0d1117;text-decoration:underline;padding:0;min-height:auto;font-size:0.85rem">Dismiss</button></div>
-
-<!-- Notification Bar -->
-<div id="notify"></div>
-
-<div class="container">
-  <header>
-    <h1>nugap — BTC 🔓</h1>
-    <button class="secondary" style="padding:6px 10px;min-height:auto;font-size:1.1rem" onclick="openSettings()">⚙️</button>
-  </header>
-
-  <!-- Section: Import -->
-  <div id="sec-import" class="section active">
-    <div class="card">
-      <h3 style="margin-bottom:12px">Import Watch-Only Wallet</h3>
-      <div style="margin-bottom:12px">
-        <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer">
-          <input type="radio" name="import-type" value="xpub" checked onchange="toggleImportType()"> Extended Public Key (xpub / zpub / tpub / vpub)
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
-          <input type="radio" name="import-type" value="address" onchange="toggleImportType()"> Single Address
-        </label>
-      </div>
-      <div id="input-xpub">
-        <input type="text" id="inp-xpub" placeholder="zpub... / xpub... / vpub... / tpub..." spellcheck="false">
-        <p style="font-size:0.75rem;color:#8b949e;margin-top:4px">zpub/vpub → BIP-84 (Native SegWit) · xpub/tpub → BIP-86 (Taproot)</p>
-      </div>
-      <div id="input-addr" style="display:none">
-        <input type="text" id="inp-addr" placeholder="bc1q... / bc1p... / tb1q... / tb1p..." spellcheck="false">
-      </div>
-      <button style="margin-top:12px;width:100%" onclick="doImport()" id="btn-import">Import Wallet</button>
-    </div>
-  </div>
-
-  <!-- Section: Dashboard -->
-  <div id="sec-dashboard" class="section">
-    <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:0.85rem;color:#8b949e" id="wallet-type-label"></span>
-        <button class="secondary" style="padding:4px 10px;min-height:auto;font-size:0.85rem" onclick="refreshWallet()" id="btn-refresh">↻ Refresh</button>
-      </div>
-      <div class="balance-big" id="total-balance">0.00000000 BTC</div>
-      <div class="balance-sub" id="last-updated"></div>
-      <div id="wallet-address" style="margin:8px 0;padding:10px;background:#0d1117;border:1px solid #30363d;border-radius:6px;display:none">
-        <div style="font-size:0.75rem;color:#8b949e;margin-bottom:4px" id="wallet-path"></div>
-        <div class="mono" style="font-size:0.85rem;word-break:break-all" id="wallet-addr-full"></div>
-      </div>
-      <div id="address-list"></div>
-    </div>
-    <button style="width:100%;margin-top:4px" onclick="showSend()" id="btn-send">Send Transaction</button>
-    <button class="secondary" style="width:100%;margin-top:8px" onclick="showScan()">Scan Signed Transaction</button>
-    <button class="secondary" style="width:100%;margin-top:8px" onclick="resetWallet()">← Import Different Wallet</button>
-  </div>
-
-  <!-- Section: Send -->
-  <div id="sec-send" class="section">
-    <div class="card">
-      <h3 style="margin-bottom:12px">New Transaction</h3>
-      <label style="font-size:0.85rem;color:#8b949e">Recipient Address</label>
-      <input type="text" id="inp-recipient" placeholder="bc1q... or bc1p..." spellcheck="false" style="margin-bottom:10px">
-      <label style="font-size:0.85rem;color:#8b949e">Amount (BTC)</label>
-      <div style="display:flex;gap:8px;margin-bottom:10px">
-        <input type="text" id="inp-amount" placeholder="0.00000000" inputmode="decimal">
-        <button class="secondary" style="white-space:nowrap" onclick="setMaxAmount()">MAX</button>
-      </div>
-      <label style="font-size:0.85rem;color:#8b949e">Fee Rate (sat/vB)</label>
-      <div class="fee-group">
-        <input type="range" id="inp-feerate" min="1" max="200" value="4" oninput="updateFeeDisplay()">
-        <div class="fee-labels"><span>Economy</span><span id="feerate-val">4 sat/vB</span><span>Priority</span></div>
-      </div>
-      <div id="fee-estimate" style="text-align:center;font-size:0.85rem;color:#8b949e;margin-bottom:4px"></div>
-      <div id="fee-warn" style="text-align:center;font-size:0.8rem;color:#d29922;display:none"></div>
-    </div>
-    <button style="width:100%" onclick="createTransaction()" id="btn-create-tx">Create Transaction</button>
-    <button class="secondary" style="width:100%;margin-top:8px" onclick="showDashboard()">← Back</button>
-  </div>
-
-  <!-- Section: Preview -->
-  <div id="sec-preview" class="section">
-    <div class="card" id="tx-preview-card"></div>
-    <button style="width:100%" onclick="showPsbtQR()">Sign with QR →</button>
-    <button class="secondary" style="width:100%;margin-top:8px" onclick="showSend()">← Back</button>
-  </div>
-
-  <!-- Section: QR Display (PSBT) -->
-  <div id="sec-qr" class="section">
-    <div class="card">
-      <h3 style="margin-bottom:8px;text-align:center">Scan with Offline Signer</h3>
-      <div class="qr-container" id="qr-display"></div>
-      <div id="qr-frame-info" style="text-align:center"></div>
-      <div style="display:flex;gap:8px;justify-content:center;margin-top:8px">
-        <button class="secondary" style="padding:6px 12px;min-height:auto" onclick="qrSlower()">⏪ Slower</button>
-        <button class="secondary" style="padding:6px 12px;min-height:auto" onclick="qrFaster()">Faster ⏩</button>
-      </div>
-      <details style="margin-top:12px">
-        <summary style="cursor:pointer;font-size:0.8rem;color:#8b949e">Show raw UR text</summary>
-        <textarea id="qr-raw-text" readonly rows="4" style="margin-top:8px;font-size:0.75rem;word-break:break-all"></textarea>
-      </details>
-    </div>
-    <button class="secondary" style="width:100%;margin-top:8px" onclick="stopQrDisplay();showPreview()">← Cancel</button>
-  </div>
-
-  <!-- Section: QR Scan (Signed PSBT) -->
-  <div id="sec-scan" class="section">
-    <div class="card">
-      <h3 style="margin-bottom:8px;text-align:center">Scan Signed Transaction</h3>
-      <div id="reader"></div>
-      <div class="scan-progress" id="scan-progress" style="display:none">
-        <div class="scan-progress-bar"><div class="scan-progress-fill" id="scan-fill" style="width:0%"></div></div>
-        <div style="text-align:center;font-size:0.8rem;color:#8b949e;margin-top:4px" id="scan-pct">0%</div>
-      </div>
-      <details style="margin-top:12px" open>
-        <summary style="cursor:pointer;font-size:0.85rem;color:#8b949e">Paste UR text instead</summary>
-        <textarea id="scan-paste-input" rows="4" placeholder="Paste ur:crypto-psbt/... here" style="margin-top:8px;font-size:0.75rem"></textarea>
-        <button class="secondary" style="width:100%;margin-top:8px" onclick="importFromPaste()">Import from text</button>
-      </details>
-    </div>
-    <button class="secondary" style="width:100%;margin-top:8px" onclick="stopScanner();showDashboard()">← Cancel</button>
-  </div>
-
-  <!-- Section: Broadcast -->
-  <div id="sec-broadcast" class="section">
-    <div class="card" id="broadcast-preview"></div>
-    <div style="background:#d29922;color:#0d1117;border-radius:6px;padding:10px;text-align:center;font-size:0.85rem;margin-bottom:8px">⚠️ This will send real BTC. This action cannot be undone.</div>
-    <button class="danger" style="width:100%" onclick="broadcastTx()" id="btn-broadcast">Broadcast Transaction</button>
-    <button class="secondary" style="width:100%;margin-top:8px" onclick="showDashboard()">← Cancel</button>
-  </div>
-
-  <!-- Section: Result -->
-  <div id="sec-result" class="section">
-    <div class="card" id="result-card"></div>
-    <button style="width:100%" onclick="showSend()">New Transaction</button>
-    <button class="secondary" style="width:100%;margin-top:8px" onclick="showDashboard()">Home</button>
-  </div>
+<div id="sec-import" class="sec" style="display:block">
+<b>nugap yolo</b><br><br>
+<span>Network</span><br>
+<select id="sel-network">
+<option value="mainnet">Mainnet</option>
+<option value="testnet4">Testnet4</option>
+</select><br>
+<span>Import Type</span><br>
+<select id="sel-import-type">
+<option value="xpub">Extended Public Key</option>
+<option value="address">Single Address</option>
+</select><br>
+<span>Key / Address</span><br>
+<input id="inp-key" placeholder="zpub / vpub / xpub / tpub / bc1... / tb1..."><br>
+<button id="btn-import">Import</button>
 </div>
 
-<!-- Settings Modal -->
-<div class="modal-overlay" id="settings-modal">
-  <div class="modal">
-    <h3 style="margin-bottom:12px">Settings</h3>
-    <label style="font-size:0.85rem;color:#8b949e">API Endpoint</label>
-    <label style="font-size:0.85rem;color:#8b949e">Network</label>
-    <div style="display:flex;gap:8px;margin-bottom:10px">
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.9rem">
-        <input type="radio" name="network" value="mainnet" checked onchange="switchNetwork(this.value)"> Mainnet
-      </label>
-      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:0.9rem">
-        <input type="radio" name="network" value="testnet4" onchange="switchNetwork(this.value)"> Testnet4
-      </label>
-    </div>
-    <label style="font-size:0.85rem;color:#8b949e">API Endpoint</label>
-    <input type="text" id="inp-api" value="https://mempool.space/api" style="margin-bottom:8px">
-    <p style="font-size:0.75rem;color:#8b949e;margin-bottom:12px" id="network-label">Network: Mainnet</p>
-    <div style="display:flex;gap:8px">
-      <button onclick="saveSettings()" style="flex:1">Save</button>
-      <button class="secondary" onclick="closeSettings()" style="flex:1">Cancel</button>
-    </div>
-  </div>
+<div id="sec-dash" class="sec">
+<b>Dashboard</b> <span id="dash-type"></span><br><hr>
+<div id="dash-addr" class="mono"></div>
+<div id="dash-path"></div>
+<b id="dash-balance">0.00000000 BTC</b><br>
+<span id="dash-updated"></span><br><hr>
+<div id="dash-utxos"></div>
+<button id="btn-refresh">Refresh</button>
+<button id="btn-send">Send</button>
+<button id="btn-import-signed">Import Signed TX</button>
+<button id="btn-reset">Reset</button>
+</div>
+
+<div id="sec-send" class="sec">
+<b>Send Transaction</b><br><hr>
+<span>Recipient</span><br>
+<input id="inp-recipient" placeholder="bc1... / tb1..."><br>
+<span>Amount (BTC)</span><br>
+<input id="inp-amount" placeholder="0.00000000" inputmode="decimal">
+<button id="btn-max">MAX</button><br>
+<span>Fee Rate (sat/vB)</span><br>
+<input id="inp-fee" type="number" value="4" min="1"><br>
+<span id="fee-info"></span><br>
+<button id="btn-create-tx">Create Transaction</button>
+<button id="btn-back-dash">Back</button>
+</div>
+
+<div id="sec-preview" class="sec">
+<b>Transaction Preview</b><br><hr>
+<pre id="tx-preview"></pre>
+<button id="btn-show-psbt">Show PSBT for Signing</button>
+<button id="btn-back-send">Back</button>
+</div>
+
+<div id="sec-psbt" class="sec">
+<b>Unsigned PSBT</b><br><hr>
+<span>Copy this to hodl.html for signing:</span><br>
+<textarea id="psbt-ur" rows="6" readonly></textarea><br>
+<button id="btn-copy-psbt">Copy</button>
+<button id="btn-back-preview">Back</button>
+</div>
+
+<div id="sec-import-signed" class="sec">
+<b>Import Signed Transaction</b><br><hr>
+<span>Paste signed UR text from hodl.html:</span><br>
+<textarea id="inp-signed" rows="6" placeholder="ur:crypto-psbt/..."></textarea><br>
+<button id="btn-do-import-signed">Import & Finalize</button>
+<button id="btn-back-dash2">Back</button>
+</div>
+
+<div id="sec-broadcast" class="sec">
+<b>Broadcast Transaction</b><br><hr>
+<pre id="broadcast-info"></pre>
+<b style="color:red">This will send real BTC. Cannot be undone.</b><br>
+<button id="btn-broadcast">Broadcast</button>
+<button id="btn-back-dash3">Back</button>
+</div>
+
+<div id="sec-result" class="sec">
+<b style="color:green">Transaction Broadcast!</b><br><hr>
+<pre id="result-info"></pre>
+<button id="btn-new-tx">New Transaction</button>
+<button id="btn-home">Home</button>
 </div>
 
 <script>
@@ -55198,983 +55009,462 @@ assert/build/internal/util/comparisons.js:
 
 </script>
 <script>
-// ============================================================
-// nugap yolo.html — Application Logic
-// ============================================================
 'use strict';
 
-// --- Globals ---
-const { btcSigner, HDKey, sha256, ripemd160, secp256k1, UR, UREncoder, URDecoder, qrcode, Html5Qrcode } = nugap;
+var { btcSigner, HDKey, sha256, ripemd160, secp256k1, UR, UREncoder, URDecoder } = nugap;
 
-let APP = {
-  walletType: null,       // 'xpub' | 'address'
-  extendedKey: null,
-  keyType: null,          // 'bip84' | 'bip86'
-  addresses: [],
-  totalBalance: 0,
-  network: 'mainnet',          // 'mainnet' | 'testnet4'
-  apiBaseUrl: 'https://mempool.space/api',
-  currentPsbt: null,      // Uint8Array
-  signedPsbt: null,       // Uint8Array
-  signedTxHex: null,
-  qrInterval: null,
-  qrSpeed: 250,
-  scanner: null,
-  urDecoder: null,
+var $ = function(id) { return document.getElementById(id) }
+var $v = function(id, v) { return v === void 0 ? $(id).value : ($(id).value = v) }
+var $t = function(id, t) { return t === void 0 ? $(id).innerText : ($(id).innerText = t) }
+var $on = function(id, f) { $(id).onclick = f }
+var $show = function(id) { $(id).style.display = '' }
+var $hide = function(id) { $(id).style.display = 'none' }
+
+var sections = ['sec-import','sec-dash','sec-send','sec-preview','sec-psbt','sec-import-signed','sec-broadcast','sec-result'];
+function go(id) { sections.forEach(function(s) { $hide(s) }); $show(id) }
+
+var APP = {
+  walletType: null, extendedKey: null, keyType: null,
+  addresses: [], totalBalance: 0,
+  network: 'mainnet', apiBaseUrl: 'https://mempool.space/api',
+  currentPsbt: null, signedTxHex: null
 };
 
-// --- Helpers ---
-function satsToBtc(s) { return (Number(s) / 1e8).toFixed(8); }
-function btcToSats(b) {
-  // Parse without parseFloat to avoid floating-point precision loss (spec 6.5)
-  const str = String(b).trim();
-  const neg = str.startsWith('-');
-  const abs = neg ? str.slice(1) : str;
-  const parts = abs.split('.');
-  const intPart = parts[0] || '0';
-  const decPart = (parts[1] || '').padEnd(8, '0').slice(0, 8);
-  const sats = parseInt(intPart, 10) * 100000000 + parseInt(decPart, 10);
+function notify(msg, type) {
+  var el = $('notify');
+  el.innerText = msg;
+  el.style.display = '';
+  el.style.background = type === 'ok' ? '#cfc' : type === 'warn' ? '#ffc' : '#fcc';
+  setTimeout(function() { el.style.display = 'none' }, 4000);
+}
+
+function satsBtc(s) { return (Number(s) / 1e8).toFixed(8) }
+
+function btcSats(b) {
+  var str = String(b).trim();
+  var neg = str.startsWith('-');
+  var abs = neg ? str.slice(1) : str;
+  var parts = abs.split('.');
+  var i = parts[0] || '0';
+  var d = (parts[1] || '').padEnd(8, '0').slice(0, 8);
+  var sats = parseInt(i, 10) * 100000000 + parseInt(d, 10);
   return neg ? -sats : sats;
 }
-function truncAddr(a) { return a.length > 20 ? a.slice(0,10) + '…' + a.slice(-8) : a; }
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-// --- Notification ---
-let notifyTimer = null;
-function notify(msg, type='error', ms=4000) {
-  const el = document.getElementById('notify');
-  el.textContent = msg; el.className = type + ' show';
-  clearTimeout(notifyTimer);
-  notifyTimer = setTimeout(() => el.classList.remove('show'), ms);
+function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms) }) }
+
+function hexToBytes(hex) {
+  var b = new Uint8Array(hex.length / 2);
+  for (var i = 0; i < hex.length; i += 2) b[i/2] = parseInt(hex.slice(i, i+2), 16);
+  return b;
 }
 
-// --- Section navigation ---
-function showSection(id) {
-  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-  document.getElementById('sec-' + id).classList.add('active');
+function bytesToHex(bytes) {
+  return Array.from(bytes).map(function(b) { return b.toString(16).padStart(2, '0') }).join('');
 }
-function showDashboard() { showSection('dashboard'); }
-function showSend() { showSection('send'); updateFeeDisplay(); }
-function showPreview() { showSection('preview'); }
-function showScan() { showSection('scan'); startScanner(); }
 
-// --- Settings ---
-function openSettings() {
-  document.getElementById('settings-modal').classList.add('open');
-  document.getElementById('inp-api').value = APP.apiBaseUrl;
-  const radios = document.querySelectorAll('input[name="network"]');
-  radios.forEach(r => r.checked = (r.value === APP.network));
+function extractURBytes(ur) {
+  var raw = ur.cbor;
+  var buf = raw instanceof Uint8Array ? raw : new Uint8Array(raw);
+  var f = buf[0];
+  if (f >= 0x40 && f <= 0x57) return buf.slice(1, 1 + (f - 0x40));
+  if (f === 0x58) return buf.slice(2, 2 + buf[1]);
+  if (f === 0x59) return buf.slice(3, 3 + ((buf[1] << 8) | buf[2]));
+  if (f === 0x5a) return buf.slice(5, 5 + ((buf[1] << 24) | (buf[2] << 16) | (buf[3] << 8) | buf[4]));
+  try { return new Uint8Array(ur.decodeCBOR()) } catch(e) { return buf }
 }
-function closeSettings() { document.getElementById('settings-modal').classList.remove('open'); }
-function switchNetwork(net) {
-  if (net === 'testnet4') {
-    document.getElementById('inp-api').value = 'https://mempool.space/testnet4/api';
-    document.getElementById('network-label').textContent = 'Network: Testnet4';
+
+function cborEncodeBytes(buf) {
+  var len = buf.length;
+  if (len < 24) {
+    var out = new Uint8Array(1 + len); out[0] = 0x40 + len; out.set(buf, 1); return out;
+  } else if (len < 256) {
+    var out = new Uint8Array(2 + len); out[0] = 0x58; out[1] = len; out.set(buf, 2); return out;
+  } else if (len < 65536) {
+    var out = new Uint8Array(3 + len); out[0] = 0x59; out[1] = (len >> 8) & 0xff; out[2] = len & 0xff; out.set(buf, 3); return out;
   } else {
-    document.getElementById('inp-api').value = 'https://mempool.space/api';
-    document.getElementById('network-label').textContent = 'Network: Mainnet';
-  }
-}
-function saveSettings() {
-  let v = document.getElementById('inp-api').value.trim().replace(/\/+$/, '');
-  if (!v) { notify('API endpoint cannot be empty'); return; }
-  const net = document.querySelector('input[name="network"]:checked').value;
-  APP.network = net;
-  APP.apiBaseUrl = v; closeSettings(); notify('Settings saved', 'success');
-}
-
-// --- Import type toggle ---
-function toggleImportType() {
-  const isXpub = document.querySelector('input[name="import-type"]:checked').value === 'xpub';
-  document.getElementById('input-xpub').style.display = isXpub ? '' : 'none';
-  document.getElementById('input-addr').style.display = isXpub ? 'none' : '';
-}
-
-// --- Reset ---
-function resetWallet() {
-  APP.walletType = null; APP.extendedKey = null; APP.keyType = null;
-  APP.addresses = []; APP.totalBalance = 0;
-  APP.currentPsbt = null; APP.signedPsbt = null; APP.signedTxHex = null;
-  showSection('import');
-}
-
-// --- API helper ---
-async function api(path, opts={}) {
-  const url = APP.apiBaseUrl + path;
-  try {
-    const res = await fetch(url, opts);
-    if (res.status === 429) {
-      const retries = (opts._retries || 0) + 1;
-      if (retries > 3) throw new Error('Rate limited by API (429) — try again later');
-      await sleep(5000);
-      return api(path, { ...opts, _retries: retries });
-    }
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(txt || `HTTP ${res.status}`);
-    }
-    const ct = res.headers.get('content-type') || '';
-    return ct.includes('json') ? res.json() : res.text();
-  } catch(e) {
-    if (e.message.includes('fetch')) throw new Error('Network error — check your connection');
-    throw e;
+    var out = new Uint8Array(5 + len); out[0] = 0x5a; out[1]=(len>>24)&0xff; out[2]=(len>>16)&0xff; out[3]=(len>>8)&0xff; out[4]=len&0xff; out.set(buf, 5); return out;
   }
 }
 
-// ============================================================
-// Address Validation
-// ============================================================
-
-// Bech32 / Bech32m decoder
-const BECH32_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+var BECH32_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
 function bech32Decode(str) {
   str = str.toLowerCase();
-  const pos = str.lastIndexOf('1');
+  var pos = str.lastIndexOf('1');
   if (pos < 1 || pos + 7 > str.length) return null;
-  const hrp = str.slice(0, pos);
-  const data = [];
-  for (let i = pos + 1; i < str.length; i++) {
-    const c = BECH32_CHARSET.indexOf(str[i]);
+  var hrp = str.slice(0, pos);
+  var data = [];
+  for (var i = pos + 1; i < str.length; i++) {
+    var c = BECH32_CHARSET.indexOf(str[i]);
     if (c === -1) return null;
     data.push(c);
   }
-  // verify checksum
-  const ENC_BECH32 = 1, ENC_BECH32M = 0x2bc830a3;
+  var GEN = [0x3b6a57b2,0x26508e6d,0x1ea119fa,0x3d4233dd,0x2a1462b3];
   function polymod(values) {
-    const GEN = [0x3b6a57b2,0x26508e6d,0x1ea119fa,0x3d4233dd,0x2a1462b3];
-    let chk = 1;
-    for (const v of values) { const b = chk >> 25; chk = ((chk & 0x1ffffff) << 5) ^ v; for (let i=0;i<5;i++) if ((b>>i)&1) chk ^= GEN[i]; }
+    var chk = 1;
+    for (var i = 0; i < values.length; i++) { var b = chk >> 25; chk = ((chk & 0x1ffffff) << 5) ^ values[i]; for (var j=0;j<5;j++) if ((b>>j)&1) chk ^= GEN[j]; }
     return chk;
   }
-  function hrpExpand(h) { const r=[]; for(const c of h) r.push(c.charCodeAt(0)>>5); r.push(0); for(const c of h) r.push(c.charCodeAt(0)&31); return r; }
-  const chk = polymod(hrpExpand(hrp).concat(data));
-  let encoding = null;
-  if (chk === ENC_BECH32) encoding = 'bech32';
-  else if (chk === ENC_BECH32M) encoding = 'bech32m';
+  function hrpExpand(h) { var r=[]; for(var i=0;i<h.length;i++) r.push(h.charCodeAt(i)>>5); r.push(0); for(var i=0;i<h.length;i++) r.push(h.charCodeAt(i)&31); return r; }
+  var chk = polymod(hrpExpand(hrp).concat(data));
+  var enc = null;
+  if (chk === 1) enc = 'bech32';
+  else if (chk === 0x2bc830a3) enc = 'bech32m';
   else return null;
-  // convert 5-bit to 8-bit
-  const dp = data.slice(0, -6);
-  const witnessVer = dp[0];
-  const payload = [];
-  let acc = 0, bits = 0;
-  for (let i = 1; i < dp.length; i++) {
+  var dp = data.slice(0, -6);
+  var wv = dp[0];
+  var payload = [];
+  var acc = 0, bits = 0;
+  for (var i = 1; i < dp.length; i++) {
     acc = (acc << 5) | dp[i]; bits += 5;
     if (bits >= 8) { bits -= 8; payload.push((acc >> bits) & 0xff); }
   }
-  if (bits >= 5 || (acc << (8-bits)) & ((1<<8)-1)) return null; // padding check
-  return { hrp, witnessVer, program: new Uint8Array(payload), encoding };
+  if (bits >= 5 || (acc << (8-bits)) & ((1<<8)-1)) return null;
+  return { hrp: hrp, witnessVer: wv, program: new Uint8Array(payload), encoding: enc };
 }
 
-function validateAddress(addr) {
-  // Reject legacy
-  if (/^[13]/.test(addr)) return { valid: false, error: 'Only SegWit (bc1q/tb1q) and Taproot (bc1p/tb1p) addresses supported' };
-  // Network-aware validation
-  const isTestnet = APP.network === 'testnet4';
-  const expectedHrp = isTestnet ? 'tb' : 'bc';
-  if (isTestnet && /^bc1/i.test(addr)) return { valid: false, error: 'Mainnet address — switch to Mainnet or use a tb1 address' };
-  if (!isTestnet && /^tb1/i.test(addr)) return { valid: false, error: 'Testnet address — switch to Testnet4 or use a bc1 address' };
-  const dec = bech32Decode(addr);
-  if (!dec || dec.hrp !== expectedHrp) return { valid: false, error: 'Invalid address format or checksum' };
-  if (dec.witnessVer === 0 && dec.encoding !== 'bech32') return { valid: false, error: 'v0 address must use bech32 encoding' };
-  if (dec.witnessVer > 0 && dec.encoding !== 'bech32m') return { valid: false, error: 'v1+ address must use bech32m encoding' };
-  if (dec.witnessVer === 0 && dec.program.length !== 20 && dec.program.length !== 32) return { valid: false, error: 'Invalid witness program length' };
-  if (dec.witnessVer === 1 && dec.program.length !== 32) return { valid: false, error: 'Invalid taproot program length' };
-  const type = dec.witnessVer === 0 ? 'p2wpkh' : (dec.witnessVer === 1 ? 'p2tr' : 'unknown');
-  return { valid: true, type, witnessVer: dec.witnessVer };
+function validateAddr(addr) {
+  if (/^[13]/.test(addr)) return { valid: false, error: 'Legacy not supported' };
+  var isTest = APP.network === 'testnet4';
+  var hrp = isTest ? 'tb' : 'bc';
+  if (isTest && /^bc1/i.test(addr)) return { valid: false, error: 'Mainnet address on testnet' };
+  if (!isTest && /^tb1/i.test(addr)) return { valid: false, error: 'Testnet address on mainnet' };
+  var dec = bech32Decode(addr);
+  if (!dec || dec.hrp !== hrp) return { valid: false, error: 'Invalid address' };
+  if (dec.witnessVer === 0 && dec.encoding !== 'bech32') return { valid: false, error: 'v0 needs bech32' };
+  if (dec.witnessVer > 0 && dec.encoding !== 'bech32m') return { valid: false, error: 'v1+ needs bech32m' };
+  if (dec.witnessVer === 1 && dec.program.length !== 32) return { valid: false, error: 'Bad taproot length' };
+  return { valid: true, type: dec.witnessVer === 0 ? 'p2wpkh' : 'p2tr' };
 }
 
-// ============================================================
-// Xpub / Zpub handling
-// ============================================================
-
-// base58check decode
+var B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 function b58decode(str) {
-  const ALPHA = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-  let n = 0n;
-  for (const c of str) { const i = ALPHA.indexOf(c); if (i < 0) return null; n = n * 58n + BigInt(i); }
-  const hex = n.toString(16).padStart(164, '0'); // 82 bytes = 164 hex
-  // Actually variable length, let's just convert properly
-  const bytes = [];
-  let h = n.toString(16); if (h.length % 2) h = '0' + h;
-  for (let i = 0; i < h.length; i += 2) bytes.push(parseInt(h.slice(i,i+2), 16));
-  // leading zeros
-  for (const c of str) { if (c === '1') bytes.unshift(0); else break; }
-  const arr = new Uint8Array(bytes);
-  // verify checksum (last 4 bytes)
-  const payload = arr.slice(0, -4);
-  const checksum = arr.slice(-4);
-  const hash1 = sha256(payload);
-  const hash2 = sha256(hash1);
-  for (let i = 0; i < 4; i++) { if (hash2[i] !== checksum[i]) return null; }
+  var n = 0n;
+  for (var i = 0; i < str.length; i++) { var c = B58.indexOf(str[i]); if (c < 0) return null; n = n * 58n + BigInt(c); }
+  var bytes = [];
+  var h = n.toString(16); if (h.length % 2) h = '0' + h;
+  for (var i = 0; i < h.length; i += 2) bytes.push(parseInt(h.slice(i,i+2), 16));
+  for (var i = 0; i < str.length; i++) { if (str[i] === '1') bytes.unshift(0); else break; }
+  var arr = new Uint8Array(bytes);
+  var payload = arr.slice(0, -4);
+  var checksum = arr.slice(-4);
+  var hash = sha256(sha256(payload));
+  for (var i = 0; i < 4; i++) { if (hash[i] !== checksum[i]) return null; }
   return payload;
 }
 
+function b58encode(bytes) {
+  var n = 0n;
+  for (var i = 0; i < bytes.length; i++) n = n * 256n + BigInt(bytes[i]);
+  var str = '';
+  while (n > 0n) { str = B58[Number(n % 58n)] + str; n /= 58n; }
+  for (var i = 0; i < bytes.length; i++) { if (bytes[i] === 0) str = '1' + str; else break; }
+  return str;
+}
+
 function detectKeyType(key) {
-  // Mainnet: zpub → BIP84, xpub → BIP86
-  // Testnet: vpub → BIP84, tpub → BIP86
   if (key.startsWith('zpub') || key.startsWith('vpub')) return 'bip84';
   if (key.startsWith('xpub') || key.startsWith('tpub')) return 'bip86';
   return null;
 }
 
 function convertToXpub(keyStr) {
-  // Convert zpub/vpub to xpub/tpub by replacing version bytes
-  const data = b58decode(keyStr);
+  var data = b58decode(keyStr);
   if (!data || data.length !== 78) return null;
-  const isTestnet = keyStr.startsWith('vpub') || keyStr.startsWith('tpub');
-  // Target: xpub (0x0488B21E) or tpub (0x043587CF)
-  const xpubData = new Uint8Array(data);
-  if (isTestnet) {
-    xpubData[0]=0x04; xpubData[1]=0x35; xpubData[2]=0x87; xpubData[3]=0xCF;
-  } else {
-    xpubData[0]=0x04; xpubData[1]=0x88; xpubData[2]=0xB2; xpubData[3]=0x1E;
-  }
-  // Re-encode with base58check
-  const hash1 = sha256(xpubData);
-  const hash2 = sha256(hash1);
-  const full = new Uint8Array(82);
-  full.set(xpubData); full.set(hash2.slice(0,4), 78);
+  var isTest = keyStr.startsWith('vpub') || keyStr.startsWith('tpub');
+  var out = new Uint8Array(data);
+  if (isTest) { out[0]=0x04; out[1]=0x35; out[2]=0x87; out[3]=0xCF; }
+  else { out[0]=0x04; out[1]=0x88; out[2]=0xB2; out[3]=0x1E; }
+  var h = sha256(sha256(out));
+  var full = new Uint8Array(82);
+  full.set(out); full.set(h.slice(0,4), 78);
   return b58encode(full);
 }
 
-function b58encode(bytes) {
-  const ALPHA = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-  let n = 0n;
-  for (const b of bytes) n = n * 256n + BigInt(b);
-  let str = '';
-  while (n > 0n) { str = ALPHA[Number(n % 58n)] + str; n /= 58n; }
-  for (const b of bytes) { if (b === 0) str = '1' + str; else break; }
-  return str;
-}
-
-function deriveAddresses(extKey, keyType, startIdx, count, change) {
-  // Parse xpub using HDKey
-  let xpubStr = extKey;
-  if (keyType === 'bip84' && (extKey.startsWith('zpub') || extKey.startsWith('vpub'))) {
-    xpubStr = convertToXpub(extKey);
-    if (!xpubStr) throw new Error('Invalid zpub/vpub');
+function deriveAddresses(extKey, keyType, start, count, change) {
+  var xpub = extKey;
+  if (keyType === 'bip84' && (extKey.startsWith('zpub') || extKey.startsWith('vpub')))
+    xpub = convertToXpub(extKey);
+  if (!xpub) throw new Error('Invalid key');
+  var isTest = APP.network === 'testnet4';
+  var vers = isTest ? { public: 0x043587CF, private: 0x04358394 } : undefined;
+  var root = HDKey.fromExtendedKey(xpub, vers);
+  var net = isTest ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
+  var ch = change ? 1 : 0;
+  var branch = root.deriveChild(ch);
+  var addrs = [];
+  for (var i = start; i < start + count; i++) {
+    var child = branch.deriveChild(i);
+    var pub = child.publicKey;
+    var addr = keyType === 'bip84'
+      ? btcSigner.p2wpkh(pub, net).address
+      : btcSigner.p2tr(pub.slice(1), undefined, net).address;
+    var base = keyType === 'bip84' ? "m/84'/0'/0'" : "m/86'/0'/0'";
+    addrs.push({ path: base + '/' + ch + '/' + i, address: addr, isChange: change, balance: 0, utxos: [], pubkey: pub });
   }
-  const isTestnet = APP.network === 'testnet4';
-  const versions = isTestnet ? { public: 0x043587CF, private: 0x04358394 } : undefined;
-  const root = HDKey.fromExtendedKey(xpubStr, versions);
-  const addresses = [];
-  const changeVal = change ? 1 : 0;
-  const branch = root.deriveChild(changeVal);
-  const network = isTestnet ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
+  return addrs;
+}
 
-  for (let i = startIdx; i < startIdx + count; i++) {
-    const child = branch.deriveChild(i);
-    const pubkey = child.publicKey;
-    let address;
-    if (keyType === 'bip84') {
-      address = btcSigner.p2wpkh(pubkey, network).address;
-    } else {
-      address = btcSigner.p2tr(pubkey.slice(1), undefined, network).address;
-    }
-    const pathBase = keyType === 'bip84' ? "m/84'/0'/0'" : "m/86'/0'/0'";
-    addresses.push({
-      path: `${pathBase}/${changeVal}/${i}`,
-      address,
-      isChange: change,
-      balance: 0,
-      utxos: [],
-      pubkey: pubkey,
-    });
+async function api(path, opts) {
+  opts = opts || {};
+  var url = APP.apiBaseUrl + path;
+  var res = await fetch(url, opts);
+  if (res.status === 429) {
+    var retries = (opts._retries || 0) + 1;
+    if (retries > 3) throw new Error('Rate limited (429)');
+    await sleep(5000);
+    return api(path, Object.assign({}, opts, { _retries: retries }));
   }
-  return addresses;
+  if (!res.ok) throw new Error(await res.text() || 'HTTP ' + res.status);
+  var ct = res.headers.get('content-type') || '';
+  return ct.includes('json') ? res.json() : res.text();
 }
 
-function deriveInitialAddresses(extKey, keyType) {
-  // Derive first address only (testing mode)
-  return [
-    ...deriveAddresses(extKey, keyType, 0, 1, false),
-  ];
-}
-
-// ============================================================
-// Import wallet
-// ============================================================
-async function doImport() {
-  const importType = document.querySelector('input[name="import-type"]:checked').value;
-  const btn = document.getElementById('btn-import');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Importing...';
-
-  try {
-    if (importType === 'xpub') {
-      const key = document.getElementById('inp-xpub').value.trim();
-      if (!key) { notify('Please enter an xpub or zpub'); return; }
-      const kt = detectKeyType(key);
-      if (!kt) { notify('Unsupported key format. Use zpub/vpub (BIP-84) or xpub/tpub (BIP-86)'); return; }
-      // Validate base58check
-      if (!b58decode(key)) { notify('Invalid key — checksum failed'); return; }
-      // Check network consistency
-      const isTestnetKey = key.startsWith('tpub') || key.startsWith('vpub');
-      if (APP.network === 'testnet4' && !isTestnetKey) { notify('Mainnet key — switch to Mainnet in Settings or use tpub/vpub'); return; }
-      if (APP.network === 'mainnet' && isTestnetKey) { notify('Testnet key — switch to Testnet4 in Settings or use xpub/zpub'); return; }
-
-      APP.walletType = 'xpub'; APP.extendedKey = key; APP.keyType = kt;
-      APP.addresses = deriveInitialAddresses(key, kt);
-    } else {
-      const addr = document.getElementById('inp-addr').value.trim();
-      if (!addr) { notify('Please enter an address'); return; }
-      const v = validateAddress(addr);
-      if (!v.valid) { notify(v.error); return; }
-      APP.walletType = 'address'; APP.keyType = v.type === 'p2tr' ? 'bip86' : 'bip84';
-      APP.addresses = [{ path: '-', address: addr, isChange: false, balance: 0, utxos: [], pubkey: null }];
-    }
-
-    await fetchAllBalances();
-    renderDashboard();
-    showDashboard();
-    notify('Wallet imported', 'success');
-  } catch(e) {
-    notify('Import failed: ' + e.message);
-  } finally {
-    btn.disabled = false; btn.textContent = 'Import Wallet';
-  }
-}
-
-// ============================================================
-// Fetch balances & UTXOs
-// ============================================================
-async function fetchAllBalances() {
-  let total = 0;
-
-  // Simple scan: fetch balances for all addresses we have
-  for (let i = 0; i < APP.addresses.length; i++) {
-    const a = APP.addresses[i];
+async function fetchBalances() {
+  var total = 0;
+  for (var i = 0; i < APP.addresses.length; i++) {
+    var a = APP.addresses[i];
     try {
-      const info = await api('/address/' + a.address);
-      const cs = info.chain_stats || {};
-      const ms = info.mempool_stats || {};
+      var info = await api('/address/' + a.address);
+      var cs = info.chain_stats || {};
+      var ms = info.mempool_stats || {};
       a.balance = (cs.funded_txo_sum - cs.spent_txo_sum) + (ms.funded_txo_sum - ms.spent_txo_sum);
-      const txCount = (cs.tx_count || 0) + (ms.tx_count || 0);
-
-      if (a.balance > 0 || txCount > 0) {
-        const utxos = await api('/address/' + a.address + '/utxo');
-        a.utxos = (utxos || []).map(u => ({
-          txid: u.txid, vout: u.vout, value: u.value,
-          confirmed: u.status && u.status.confirmed,
-          blockHeight: u.status && u.status.block_height,
-        }));
-      } else {
-        a.utxos = [];
-      }
+      if (a.balance > 0 || (cs.tx_count || 0) + (ms.tx_count || 0) > 0) {
+        var utxos = await api('/address/' + a.address + '/utxo');
+        a.utxos = (utxos || []).map(function(u) {
+          return { txid: u.txid, vout: u.vout, value: u.value, confirmed: u.status && u.status.confirmed };
+        });
+      } else { a.utxos = []; }
       total += a.balance;
-    } catch(e) {
-      console.warn('Error fetching', a.address, e);
-    }
+    } catch(e) {}
     if (i < APP.addresses.length - 1) await sleep(300);
   }
-
   APP.totalBalance = total;
 }
 
-async function refreshWallet() {
-  const btn = document.getElementById('btn-refresh');
-  const sendBtn = document.getElementById('btn-send');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
-  sendBtn && (sendBtn.disabled = true);
-  try {
-    await fetchAllBalances();
-    renderDashboard();
-    notify('Balances updated', 'success');
-  } catch(e) {
-    notify('Refresh failed: ' + e.message);
-  } finally {
-    btn.disabled = false; btn.textContent = '↻ Refresh';
-    sendBtn && (sendBtn.disabled = false);
-  }
-}
-
-// ============================================================
-// Dashboard rendering
-// ============================================================
-function renderDashboard() {
-  document.getElementById('total-balance').textContent = satsToBtc(APP.totalBalance) + ' BTC';
-  document.getElementById('last-updated').textContent = 'Updated: ' + new Date().toLocaleTimeString();
-  const typeLabel = APP.walletType === 'xpub'
-    ? (APP.keyType === 'bip84' ? 'BIP-84 (SegWit)' : 'BIP-86 (Taproot)')
-    : 'Single Address';
-  document.getElementById('wallet-type-label').textContent = typeLabel;
-
-  // Show address and derivation path
-  const addrBox = document.getElementById('wallet-address');
-  if (APP.addresses.length > 0) {
-    const first = APP.addresses[0];
-    document.getElementById('wallet-path').textContent = first.path !== '-' ? 'Derivation: ' + first.path : 'Single Address';
-    document.getElementById('wallet-addr-full').textContent = first.address;
-    addrBox.style.display = '';
-  } else {
-    addrBox.style.display = 'none';
-  }
-
-  const list = document.getElementById('address-list');
-  list.replaceChildren();
-  const active = APP.addresses.filter(a => a.balance > 0 || a.utxos.length > 0);
-  const empty = APP.addresses.filter(a => a.balance === 0 && a.utxos.length === 0);
-
-  if (active.length === 0 && APP.walletType === 'xpub') {
-    const p = document.createElement('p');
-    p.style.cssText = 'color:#8b949e;text-align:center;padding:16px;font-size:0.85rem';
-    p.textContent = 'No activity found. Is this the right key?';
-    list.appendChild(p);
-    return;
-  }
-
-  active.forEach((a, idx) => {
-    const div = document.createElement('div');
-    div.className = 'addr-item';
-    const row = document.createElement('div');
-    row.className = 'addr-row';
-    const label = document.createElement('span');
-    label.className = 'addr-label mono';
-    label.textContent = (a.isChange ? '(change) ' : '') + truncAddr(a.address);
-    label.title = a.address;
-    const bal = document.createElement('span');
-    bal.className = 'addr-bal';
-    bal.textContent = satsToBtc(a.balance) + ' BTC';
-    row.appendChild(label); row.appendChild(bal);
-    div.appendChild(row);
-
-    // UTXO sub-list
-    if (a.utxos.length > 0) {
-      const ul = document.createElement('div');
-      ul.className = 'utxo-list';
-      ul.id = 'utxo-' + idx;
-      a.utxos.forEach(u => {
-        const r = document.createElement('div');
-        r.className = 'utxo-row';
-        const left = document.createElement('span');
-        left.className = 'mono';
-        left.textContent = u.txid.slice(0,8) + '…:' + u.vout;
-        const right = document.createElement('span');
-        right.textContent = u.value + ' sats ' + (u.confirmed ? '✓' : '⏳');
-        r.appendChild(left); r.appendChild(right);
-
-        // Link to mempool
-        left.style.cursor = 'pointer';
-        left.onclick = (e) => { e.stopPropagation(); window.open(APP.apiBaseUrl.replace('/api','') + '/tx/' + u.txid, '_blank'); };
-        ul.appendChild(r);
+function renderDash() {
+  var first = APP.addresses[0];
+  $t('dash-type', APP.keyType === 'bip84' ? '[BIP-84 SegWit]' : '[BIP-86 Taproot]');
+  $t('dash-addr', first ? first.address : '');
+  $t('dash-path', first && first.path !== '-' ? first.path : '');
+  $t('dash-balance', satsBtc(APP.totalBalance) + ' BTC');
+  $t('dash-updated', 'Updated: ' + new Date().toLocaleTimeString());
+  var html = '';
+  APP.addresses.forEach(function(a) {
+    if (a.balance > 0 || a.utxos.length > 0) {
+      html += '<b>' + satsBtc(a.balance) + ' BTC</b> ' + a.address.slice(0,12) + '...<br>';
+      a.utxos.forEach(function(u) {
+        html += '  ' + u.txid.slice(0,8) + ':' + u.vout + ' = ' + u.value + ' sats ' + (u.confirmed ? '✓' : '⏳') + '<br>';
       });
-      div.appendChild(ul);
-      row.style.cursor = 'pointer';
-      row.onclick = () => ul.classList.toggle('open');
-      // indicator
-      const arrow = document.createElement('span');
-      arrow.textContent = '▶ ';
-      arrow.style.fontSize = '0.7rem';
-      label.prepend(arrow);
-      row.addEventListener('click', () => { arrow.textContent = ul.classList.contains('open') ? '▼ ' : '▶ '; });
     }
-    list.appendChild(div);
   });
-}
-
-// ============================================================
-// Transaction Construction
-// ============================================================
-
-function getRecommendedFees() {
-  return api('/v1/fees/recommended').catch(() => ({ fastestFee:10, halfHourFee:5, hourFee:2, economyFee:1, minimumFee:1 }));
-}
-
-function updateFeeDisplay() {
-  const rate = parseInt(document.getElementById('inp-feerate').value);
-  document.getElementById('feerate-val').textContent = rate + ' sat/vB';
-  const warn = document.getElementById('fee-warn');
-  if (rate > 100) { warn.style.display=''; warn.textContent='Unusually high fee rate!'; }
-  else { warn.style.display='none'; }
-
-  // Estimate fee
-  const allUtxos = APP.addresses.flatMap(a => a.utxos);
-  const inputVB = APP.keyType === 'bip86' ? 57.5 : 68;
-  const estInputs = Math.max(1, allUtxos.length);
-  const estVsize = Math.ceil(estInputs * inputVB + 2 * 31 + 10.5);
-  const estFee = estVsize * rate;
-  document.getElementById('fee-estimate').textContent = 'Est. fee: ' + estFee + ' sats (~' + satsToBtc(estFee) + ' BTC) for ~' + estVsize + ' vB';
-}
-
-function setMaxAmount() {
-  const rate = parseInt(document.getElementById('inp-feerate').value);
-  const allUtxos = APP.addresses.flatMap(a => a.utxos);
-  const inputVB = APP.keyType === 'bip86' ? 57.5 : 68;
-  // Max = sweep: all inputs, 1 output
-  const estVsize = Math.ceil(allUtxos.length * inputVB + 31 + 10.5);
-  const estFee = estVsize * rate;
-  const maxSats = APP.totalBalance - estFee;
-  if (maxSats <= 0) { notify('Insufficient funds for fee'); return; }
-  document.getElementById('inp-amount').value = satsToBtc(maxSats);
+  $('dash-utxos').innerHTML = html || '<span>No UTXOs</span>';
 }
 
 function selectUtxos(targetSats, feeRate) {
-  const allUtxos = [];
-  APP.addresses.forEach(a => {
-    a.utxos.forEach(u => {
-      allUtxos.push({ ...u, address: a.address, pubkey: a.pubkey, path: a.path, keyType: APP.keyType });
+  var all = [];
+  APP.addresses.forEach(function(a) {
+    a.utxos.forEach(function(u) {
+      all.push(Object.assign({}, u, { address: a.address, pubkey: a.pubkey, path: a.path, keyType: APP.keyType }));
     });
   });
-  // Sort by value descending
-  allUtxos.sort((a,b) => b.value - a.value);
-
-  const inputVB = APP.keyType === 'bip86' ? 57.5 : 68;
-  const selected = [];
-  let total = 0;
-  for (const u of allUtxos) {
-    selected.push(u);
-    total += u.value;
-    // 2 outputs (recipient + change)
-    const estVsize = Math.ceil(selected.length * inputVB + 2 * 31 + 10.5);
-    const estFee = estVsize * feeRate;
-    if (total >= targetSats + estFee) {
-      // Check if change is dust
-      const change = total - targetSats - estFee;
+  all.sort(function(a, b) { return b.value - a.value });
+  var ivb = APP.keyType === 'bip86' ? 57.5 : 68;
+  var sel = [];
+  var total = 0;
+  for (var i = 0; i < all.length; i++) {
+    sel.push(all[i]);
+    total += all[i].value;
+    var vs = Math.ceil(sel.length * ivb + 2 * 31 + 10.5);
+    var fee = vs * feeRate;
+    if (total >= targetSats + fee) {
+      var change = total - targetSats - fee;
       if (change > 0 && change < 546) {
-        // Absorb dust into fee - recalculate with 1 output
-        const vsizeNoChange = Math.ceil(selected.length * inputVB + 31 + 10.5);
-        const feeNoChange = vsizeNoChange * feeRate;
-        return { selected, fee: total - targetSats, change: 0, vsize: vsizeNoChange };
+        var vs2 = Math.ceil(sel.length * ivb + 31 + 10.5);
+        return { selected: sel, fee: total - targetSats, change: 0, vsize: vs2 };
       }
-      return { selected, fee: estFee, change, vsize: estVsize };
+      return { selected: sel, fee: fee, change: change, vsize: vs };
     }
   }
-  return null; // insufficient
+  return null;
 }
 
-function getChangeAddress() {
-  if (APP.walletType === 'address') return APP.addresses[0].address;
-  // First unused change address
-  const changeAddrs = APP.addresses.filter(a => a.isChange);
-  if (changeAddrs.length === 0) {
-    // No change addresses derived — fall back to first receive address
-    return APP.addresses[0].address;
-  }
-  const unused = changeAddrs.find(a => a.balance === 0 && a.utxos.length === 0);
-  return unused ? unused.address : changeAddrs[0].address;
+function getChangeAddr() {
+  var ch = APP.addresses.filter(function(a) { return a.isChange });
+  if (ch.length === 0) return APP.addresses[0] ? APP.addresses[0].address : null;
+  var unused = ch.find(function(a) { return a.balance === 0 && a.utxos.length === 0 });
+  return unused ? unused.address : ch[0].address;
 }
 
-let pendingTxInfo = null;
+function psbtToUR(psbtBytes) {
+  var cbor = cborEncodeBytes(psbtBytes);
+  var ur = new UR(Buffer.from(cbor), 'crypto-psbt');
+  var enc = new UREncoder(ur, 500);
+  var parts = [];
+  var total = enc.fragmentsLength;
+  for (var i = 0; i < total; i++) parts.push(enc.nextPart());
+  return parts.join('\n');
+}
 
-async function createTransaction() {
-  const btn = document.getElementById('btn-create-tx');
-  const recipientAddr = document.getElementById('inp-recipient').value.trim();
-  const amountStr = document.getElementById('inp-amount').value.trim();
-  const feeRate = parseInt(document.getElementById('inp-feerate').value);
-
-  // Validate recipient
-  const v = validateAddress(recipientAddr);
-  if (!v.valid) { notify(v.error); return; }
-
-  // Validate amount
-  const amountSats = btcToSats(amountStr);
-  if (isNaN(amountSats) || amountSats <= 0) { notify('Invalid amount'); return; }
-  if (amountSats < 546) { notify('Amount below dust limit (546 sats)'); return; }
-
-  // Validate fee
-  if (feeRate < 1) { notify('Fee rate must be at least 1 sat/vB'); return; }
-
-  // Check self-send
-  const ownAddrs = new Set(APP.addresses.map(a => a.address));
-  if (ownAddrs.has(recipientAddr)) {
-    if (!confirm('Warning: you are sending to one of your own addresses. Continue?')) return;
+function urToPsbt(text) {
+  var lines = text.trim().split('\n').map(function(l) { return l.trim() }).filter(function(l) { return l });
+  var decoder = new URDecoder();
+  for (var i = 0; i < lines.length; i++) {
+    decoder.receivePart(lines[i].toLowerCase());
+    if (decoder.isComplete()) break;
   }
+  if (decoder.isComplete() && decoder.isSuccess()) return extractURBytes(decoder.resultUR());
+  try { return hexToBytes(text.trim()) } catch(e) {}
+  return null;
+}
 
-  // Select UTXOs
-  const sel = selectUtxos(amountSats, feeRate);
-  if (!sel) { notify('Insufficient funds'); return; }
+$on('sel-network', function() {
+  APP.network = $v('sel-network');
+  APP.apiBaseUrl = APP.network === 'testnet4' ? 'https://mempool.space/testnet4/api' : 'https://mempool.space/api';
+});
 
-  // Build PSBT
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Building...';
+$on('btn-import', async function() {
+  var key = $v('inp-key').trim();
+  var type = $v('sel-import-type');
+  APP.network = $v('sel-network');
+  APP.apiBaseUrl = APP.network === 'testnet4' ? 'https://mempool.space/testnet4/api' : 'https://mempool.space/api';
+  if (!key) { notify('Enter a key or address'); return }
   try {
-    // Need to fetch raw tx hex for each input (non-witness UTXO)
-    const txData = {};
-    for (const u of sel.selected) {
+    if (type === 'xpub') {
+      var kt = detectKeyType(key);
+      if (!kt) { notify('Unsupported key format'); return }
+      if (!b58decode(key)) { notify('Invalid key checksum'); return }
+      var isTestKey = key.startsWith('tpub') || key.startsWith('vpub');
+      if (APP.network === 'testnet4' && !isTestKey) { notify('Mainnet key on testnet'); return }
+      if (APP.network === 'mainnet' && isTestKey) { notify('Testnet key on mainnet'); return }
+      APP.walletType = 'xpub'; APP.extendedKey = key; APP.keyType = kt;
+      APP.addresses = deriveAddresses(key, kt, 0, 1, false);
+    } else {
+      var v = validateAddr(key);
+      if (!v.valid) { notify(v.error); return }
+      APP.walletType = 'address'; APP.keyType = v.type === 'p2tr' ? 'bip86' : 'bip84';
+      APP.addresses = [{ path: '-', address: key, isChange: false, balance: 0, utxos: [], pubkey: null }];
+    }
+    await fetchBalances();
+    renderDash();
+    go('sec-dash');
+    notify('Imported', 'ok');
+  } catch(e) { notify('Import failed: ' + e.message) }
+});
+
+$on('btn-refresh', async function() {
+  try { await fetchBalances(); renderDash(); notify('Updated', 'ok') }
+  catch(e) { notify('Refresh failed: ' + e.message) }
+});
+
+$on('btn-send', function() { go('sec-send') });
+$on('btn-import-signed', function() { go('sec-import-signed') });
+$on('btn-reset', function() {
+  APP.walletType = null; APP.extendedKey = null; APP.keyType = null;
+  APP.addresses = []; APP.totalBalance = 0;
+  go('sec-import');
+});
+
+$on('btn-back-dash', function() { go('sec-dash') });
+$on('btn-back-dash2', function() { go('sec-dash') });
+$on('btn-back-dash3', function() { go('sec-dash') });
+$on('btn-back-send', function() { go('sec-send') });
+$on('btn-back-preview', function() { go('sec-preview') });
+
+$on('btn-max', function() {
+  var rate = parseInt($v('inp-fee')) || 4;
+  var all = APP.addresses.flatMap(function(a) { return a.utxos });
+  var ivb = APP.keyType === 'bip86' ? 57.5 : 68;
+  var vs = Math.ceil(all.length * ivb + 31 + 10.5);
+  var fee = vs * rate;
+  var max = APP.totalBalance - fee;
+  if (max <= 0) { notify('Insufficient funds for fee'); return }
+  $v('inp-amount', satsBtc(max));
+});
+
+$on('btn-create-tx', async function() {
+  var recipient = $v('inp-recipient').trim();
+  var v = validateAddr(recipient);
+  if (!v.valid) { notify(v.error); return }
+  var amountSats = btcSats($v('inp-amount'));
+  if (amountSats <= 0) { notify('Invalid amount'); return }
+  var feeRate = parseInt($v('inp-fee')) || 4;
+  var sel = selectUtxos(amountSats, feeRate);
+  if (!sel) { notify('Insufficient funds'); return }
+  var changeAddr = getChangeAddr();
+  var txNetwork = APP.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
+
+  try {
+    var txData = {};
+    for (var i = 0; i < sel.selected.length; i++) {
+      var u = sel.selected[i];
       if (!txData[u.txid]) {
-        const hex = await api('/tx/' + u.txid + '/hex');
-        txData[u.txid] = hex;
-        await sleep(200);
+        try { txData[u.txid] = await api('/tx/' + u.txid + '/hex') } catch(e) {}
       }
+      await sleep(300);
     }
 
-    // Determine payment type for outputs (addOutputAddress handles this)
-    const changeAddr = sel.change > 0 ? getChangeAddress() : null;
-
-    // Create transaction
-    const txNetwork = APP.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
-    const tx = new btcSigner.Transaction();
-
-    for (const u of sel.selected) {
-      const inputOpts = {
-        txid: u.txid,
-        index: u.vout,
+    var tx = new btcSigner.Transaction();
+    for (var i = 0; i < sel.selected.length; i++) {
+      var u = sel.selected[i];
+      var inputOpts = {
+        txid: u.txid, index: u.vout,
         witnessUtxo: {
           script: btcSigner.OutScript.encode(btcSigner.Address(txNetwork).decode(u.address)),
-          amount: BigInt(u.value),
-        },
+          amount: BigInt(u.value)
+        }
       };
-      // Add non-witness UTXO for safety
-      if (txData[u.txid]) {
-        const rawBytes = hexToBytes(txData[u.txid]);
-        inputOpts.nonWitnessUtxo = rawBytes;
-      }
-      // Taproot inputs need tapInternalKey
+      if (txData[u.txid]) inputOpts.nonWitnessUtxo = hexToBytes(txData[u.txid]);
       if (u.keyType === 'bip86' && u.pubkey) {
-        const pub = typeof u.pubkey === 'string' ? hexToBytes(u.pubkey) : u.pubkey;
+        var pub = typeof u.pubkey === 'string' ? hexToBytes(u.pubkey) : u.pubkey;
         inputOpts.tapInternalKey = pub.length === 33 ? pub.slice(1) : pub;
       }
       tx.addInput(inputOpts);
     }
+    tx.addOutputAddress(recipient, BigInt(amountSats), txNetwork);
+    if (sel.change > 0 && changeAddr) tx.addOutputAddress(changeAddr, BigInt(sel.change), txNetwork);
 
-    // Add recipient output
-    tx.addOutputAddress(recipientAddr, BigInt(amountSats), txNetwork);
+    APP.currentPsbt = tx.toPSBT();
+    var info = 'To: ' + recipient + '\nAmount: ' + satsBtc(amountSats) + ' BTC\nFee: ' + sel.fee + ' sats\nInputs: ' + sel.selected.length;
+    if (sel.change > 0) info += '\nChange: ' + satsBtc(sel.change) + ' BTC → ' + changeAddr;
+    $t('tx-preview', info);
+    go('sec-preview');
+  } catch(e) { notify('TX error: ' + e.message) }
+});
 
-    // Add change output
-    if (sel.change > 0 && changeAddr) {
-      tx.addOutputAddress(changeAddr, BigInt(sel.change), txNetwork);
-    }
+$on('btn-show-psbt', function() {
+  $v('psbt-ur', psbtToUR(APP.currentPsbt));
+  go('sec-psbt');
+});
 
-    const psbtBytes = tx.toPSBT();
-    APP.currentPsbt = psbtBytes;
+$on('btn-copy-psbt', function() {
+  navigator.clipboard.writeText($v('psbt-ur')).then(function() { notify('Copied', 'ok') });
+});
 
-    pendingTxInfo = {
-      inputs: sel.selected,
-      recipient: recipientAddr,
-      amount: amountSats,
-      change: sel.change,
-      changeAddr,
-      fee: sel.fee,
-      feeRate,
-      vsize: sel.vsize,
-    };
-
-    renderPreview();
-    showPreview();
-  } catch(e) {
-    notify('Failed to create transaction: ' + e.message);
-    console.error(e);
-  } finally {
-    btn.disabled = false; btn.textContent = 'Create Transaction';
-  }
-}
-
-function hexToBytes(hex) {
-  const bytes = new Uint8Array(hex.length / 2);
-  for (let i = 0; i < hex.length; i += 2) bytes[i/2] = parseInt(hex.slice(i,i+2), 16);
-  return bytes;
-}
-function bytesToHex(bytes) {
-  return Array.from(bytes).map(b => b.toString(16).padStart(2,'0')).join('');
-}
-
-// Extract raw bytes from a UR's CBOR payload (strips CBOR byte-string header)
-function extractURBytes(ur) {
-  const raw = ur.cbor;
-  const buf = raw instanceof Uint8Array ? raw : new Uint8Array(raw);
-  // CBOR major type 2 (byte string): 0x40-0x57 = len 0-23, 0x58 XX = 1-byte len, 0x59 XX XX = 2-byte len
-  const first = buf[0];
-  if (first >= 0x40 && first <= 0x57) return buf.slice(1, 1 + (first - 0x40));
-  if (first === 0x58) return buf.slice(2, 2 + buf[1]);
-  if (first === 0x59) return buf.slice(3, 3 + ((buf[1] << 8) | buf[2]));
-  if (first === 0x5a) return buf.slice(5, 5 + ((buf[1] << 24) | (buf[2] << 16) | (buf[3] << 8) | buf[4]));
-  // Fallback: try decodeCBOR
-  try { return new Uint8Array(ur.decodeCBOR()); } catch(e) { return buf; }
-}
-
-
-function renderPreview() {
-  const info = pendingTxInfo;
-  const card = document.getElementById('tx-preview-card');
-  card.replaceChildren();
-  const h = document.createElement('h3');
-  h.style.marginBottom = '12px'; h.textContent = 'Transaction Preview';
-  card.appendChild(h);
-
-  const lines = [
-    ['From', info.inputs.length + ' UTXO(s) (' + satsToBtc(info.inputs.reduce((s,u)=>s+u.value,0)) + ' BTC)'],
-    ['To', truncAddr(info.recipient)],
-    ['Amount', satsToBtc(info.amount) + ' BTC'],
-  ];
-  if (info.change > 0) lines.push(['Change', satsToBtc(info.change) + ' BTC']);
-  lines.push(['Fee', satsToBtc(info.fee) + ' BTC (' + info.feeRate + ' sat/vB)']);
-  lines.push(['Size', '~' + info.vsize + ' vB']);
-
-  lines.forEach(([k,v]) => {
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;justify-content:space-between;padding:4px 0;font-size:0.9rem';
-    const kk = document.createElement('span'); kk.style.color='#8b949e'; kk.textContent=k;
-    const vv = document.createElement('span'); vv.className='mono'; vv.textContent=v;
-    row.appendChild(kk); row.appendChild(vv);
-    card.appendChild(row);
-  });
-}
-
-// ============================================================
-// QR Display (animated BC-UR)
-// ============================================================
-function showPsbtQR() {
-  showSection('qr');
-  const container = document.getElementById('qr-display');
-  container.replaceChildren();
-
-  const psbtHex = bytesToHex(APP.currentPsbt);
-  const cborBuf = APP.currentPsbt; // raw PSBT bytes
-  // CBOR-encode the PSBT bytes (major type 2 = byte string)
-  function cborEncodeBytes(buf) {
-    const len = buf.length;
-    if (len < 24) {
-      const out = new Uint8Array(1 + len); out[0] = 0x40 + len; out.set(buf, 1); return out;
-    } else if (len < 256) {
-      const out = new Uint8Array(2 + len); out[0] = 0x58; out[1] = len; out.set(buf, 2); return out;
-    } else if (len < 65536) {
-      const out = new Uint8Array(3 + len); out[0] = 0x59; out[1] = (len >> 8) & 0xff; out[2] = len & 0xff; out.set(buf, 3); return out;
-    } else {
-      const out = new Uint8Array(5 + len); out[0] = 0x5a; out[1]=(len>>24)&0xff; out[2]=(len>>16)&0xff; out[3]=(len>>8)&0xff; out[4]=len&0xff; out.set(buf, 5); return out;
-    }
-  }
-  // Create UR with correct crypto-psbt type
-  const cborPayload = cborEncodeBytes(cborBuf);
-  const bufPayload = (typeof Buffer !== 'undefined' && Buffer.from) ? Buffer.from(cborPayload) : cborPayload;
-  const ur = new UR(bufPayload, 'crypto-psbt');
-
-  // Check if it fits in single QR
-  const MAX_SINGLE = 500; // bytes for single QR
-  if (cborBuf.length <= MAX_SINGLE) {
-    // Static QR
-    const qr = qrcode(0, 'L');
-    const urStr = new UREncoder(ur, MAX_SINGLE).nextPart();
-    qr.addData(urStr.toUpperCase());
-    qr.make();
-    const svgHtml = qr.createSvgTag(6, 0);
-    const tmp = document.createElement('div'); tmp.innerHTML = svgHtml;
-    container.replaceChildren(tmp.firstChild);
-    document.getElementById('qr-frame-info').textContent = 'Static QR (single frame)';
-    document.getElementById('qr-raw-text').value = urStr;
-    return;
-  }
-
-  // Animated QR — collect all parts for raw text
-  const encoder = new UREncoder(ur, 200);
-  const allParts = [];
-  const seqLen = encoder.fragmentsLength;
-  for (let i = 0; i < seqLen; i++) allParts.push(encoder.nextPart());
-  document.getElementById('qr-raw-text').value = allParts.join('\n');
-  // Reset encoder for animation
-  let partIdx = 0;
-  const frameInfo = document.getElementById('qr-frame-info');
-  function renderFrame() {
-    const part = encoder.nextPart();
-    container.replaceChildren();
-    const qr = qrcode(0, 'L');
-    qr.addData(part.toUpperCase());
-    qr.make();
-    const svgHtml = qr.createSvgTag(6, 0);
-    const tmp = document.createElement('div'); tmp.innerHTML = svgHtml;
-    container.replaceChildren(tmp.firstChild);
-    frameInfo.textContent = 'Animated QR — hold steady for scanner';
-  }
-  renderFrame();
-  APP.qrInterval = setInterval(renderFrame, APP.qrSpeed);
-}
-
-function stopQrDisplay() {
-  if (APP.qrInterval) { clearInterval(APP.qrInterval); APP.qrInterval = null; }
-}
-function qrSlower() { APP.qrSpeed = Math.min(1000, APP.qrSpeed + 50); if (APP.qrInterval) { stopQrDisplay(); showPsbtQR(); } }
-function qrFaster() { APP.qrSpeed = Math.max(50, APP.qrSpeed - 50); if (APP.qrInterval) { stopQrDisplay(); showPsbtQR(); } }
-
-// ============================================================
-// QR Scanner (signed PSBT)
-// ============================================================
-async function startScanner() {
-  const readerEl = document.getElementById('reader');
-  const progressEl = document.getElementById('scan-progress');
-  const fillEl = document.getElementById('scan-fill');
-  const pctEl = document.getElementById('scan-pct');
-
-  APP.urDecoder = new URDecoder();
-  let isUR = false;
-
+$on('btn-do-import-signed', function() {
+  var text = $v('inp-signed').trim();
+  if (!text) { notify('Paste signed UR text'); return }
+  var psbt = urToPsbt(text);
+  if (!psbt) { notify('Invalid UR data'); return }
   try {
-    APP.scanner = new Html5Qrcode('reader');
-    await APP.scanner.start(
-      { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 280, height: 280 } },
-      (decoded) => {
-        // Check if BC-UR
-        if (decoded.toLowerCase().startsWith('ur:')) {
-          isUR = true;
-          progressEl.style.display = '';
-          APP.urDecoder.receivePart(decoded);
-          const pct = Math.round(APP.urDecoder.estimatedPercentComplete() * 100);
-          fillEl.style.width = pct + '%';
-          pctEl.textContent = pct + '% complete';
-
-          if (APP.urDecoder.isComplete()) {
-            if (APP.urDecoder.isSuccess()) {
-              const ur = APP.urDecoder.resultUR();
-              const buf = extractURBytes(ur);
-              APP.signedPsbt = new Uint8Array(buf);
-              stopScanner();
-              processSignedPsbt();
-            } else {
-              notify('Failed to decode QR');
-              stopScanner(); showDashboard();
-            }
-          }
-        } else {
-          // Maybe raw hex PSBT
-          try {
-            APP.signedPsbt = hexToBytes(decoded);
-            stopScanner();
-            processSignedPsbt();
-          } catch(e) {
-            notify('Not a valid signed transaction QR');
-          }
-        }
-      },
-      () => {} // ignore errors
-    );
-  } catch(e) {
-    const msg = (typeof e === 'string') ? e : (e && e.message) ? e.message : String(e);
-    if (msg.includes('permission') || msg.includes('Permission')) {
-      notify('Camera permission denied. Please allow camera access.');
-    } else if (msg.includes('No camera') || msg.includes('NotFound')) {
-      notify('No camera found. Use paste option below.');
-    } else {
-      notify('Scanner error: ' + msg + '. Use paste option below.');
-    }
-    // Don't navigate away — leave scan section so user can paste
-  }
-}
-
-async function stopScanner() {
-  if (APP.scanner) {
-    try { await APP.scanner.stop(); } catch(e) {}
-    APP.scanner = null;
-  }
-}
-
-function importFromPaste() {
-  const text = document.getElementById('scan-paste-input').value.trim();
-  if (!text) { notify('Please paste UR text'); return; }
-  try {
-    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
-    const decoder = new URDecoder();
-    for (const line of lines) {
-      decoder.receivePart(line.toLowerCase());
-      if (decoder.isComplete()) break;
-    }
-    if (decoder.isComplete() && decoder.isSuccess()) {
-      const ur = decoder.resultUR();
-      const buf = extractURBytes(ur);
-      APP.signedPsbt = new Uint8Array(buf);
-      stopScanner();
-      processSignedPsbt();
-    } else if (decoder.isComplete()) {
-      notify('Failed to decode UR data');
-    } else {
-      // Try as raw hex PSBT
-      try {
-        APP.signedPsbt = hexToBytes(text);
-        stopScanner();
-        processSignedPsbt();
-      } catch(e) {
-        notify('Incomplete UR data or invalid format');
-      }
-    }
-  } catch(e) {
-    notify('Import failed: ' + e.message);
-  }
-}
-
-function processSignedPsbt() {
-  try {
-    const tx = btcSigner.Transaction.fromPSBT(APP.signedPsbt);
+    var tx = btcSigner.Transaction.fromPSBT(psbt);
     tx.finalize();
     APP.signedTxHex = bytesToHex(tx.extract());
+    $t('broadcast-info', 'TX: ' + APP.signedTxHex.slice(0, 60) + '... (' + APP.signedTxHex.length / 2 + ' bytes)');
+    go('sec-broadcast');
+    notify('Signed TX decoded', 'ok');
+  } catch(e) { notify('Failed: ' + e.message) }
+});
 
-    // Render broadcast preview
-    const card = document.getElementById('broadcast-preview');
-    card.replaceChildren();
-    const h = document.createElement('h3');
-    h.style.marginBottom='12px'; h.textContent='Signed Transaction';
-    card.appendChild(h);
-
-    const info = document.createElement('div');
-    info.style.cssText='font-size:0.85rem;color:#8b949e;word-break:break-all';
-    info.textContent = 'TX Hex: ' + APP.signedTxHex.slice(0,40) + '\u2026 (' + APP.signedTxHex.length/2 + ' bytes)';
-    card.appendChild(info);
-
-    showSection('broadcast');
-    notify('Signed transaction decoded!', 'success');
-  } catch(e) {
-    notify('Failed to process signed PSBT: ' + e.message);
-    showDashboard();
-  }
-}
-
-// ============================================================
-// Broadcast
-// ============================================================
-async function broadcastTx() {
-  const btn = document.getElementById('btn-broadcast');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Broadcasting...';
-
+$on('btn-broadcast', async function() {
   try {
-    const txid = await api('/tx', {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: APP.signedTxHex,
-    });
+    var txid = await api('/tx', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: APP.signedTxHex });
+    var link = APP.apiBaseUrl.replace('/api', '') + '/tx/' + txid;
+    $t('result-info', 'TXID: ' + txid + '\n\n' + link);
+    go('sec-result');
+  } catch(e) { notify('Broadcast failed: ' + e.message) }
+});
 
-    // Success!
-    const card = document.getElementById('result-card');
-    card.replaceChildren();
-    const h = document.createElement('h3');
-    h.style.cssText='margin-bottom:12px;color:#3fb950'; h.textContent='\u2705 Transaction Broadcast!';
-    card.appendChild(h);
-
-    const txidDiv = document.createElement('div');
-    txidDiv.className='mono'; txidDiv.style.cssText='word-break:break-all;font-size:0.85rem;margin-bottom:8px';
-    txidDiv.textContent = 'TXID: ' + txid;
-    card.appendChild(txidDiv);
-
-    const copyBtn = document.createElement('button');
-    copyBtn.className='secondary'; copyBtn.style.cssText='width:100%;margin-bottom:8px';
-    copyBtn.textContent='Copy TXID';
-    copyBtn.onclick = () => { navigator.clipboard.writeText(txid).then(() => notify('Copied!','success')); };
-    card.appendChild(copyBtn);
-
-    const link = document.createElement('a');
-    link.href = APP.apiBaseUrl.replace('/api','') + '/tx/' + txid;
-    link.target='_blank'; link.textContent='View on mempool.space \u2192';
-    link.style.display='block'; link.style.textAlign='center';
-    card.appendChild(link);
-
-    showSection('result');
-  } catch(e) {
-    notify('Broadcast failed: ' + e.message);
-  } finally {
-    btn.disabled = false; btn.textContent='Broadcast Transaction';
-  }
-}
-
-// ============================================================
-// Init
-// ============================================================
-(function init() {
-  // HTTPS warning
-  if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.protocol !== 'file:') {
-    document.getElementById('https-warn').style.display = '';
-  }
-  // Load recommended fees
-  getRecommendedFees().then(fees => {
-    const slider = document.getElementById('inp-feerate');
-    slider.value = fees.halfHourFee || 4;
-    slider.max = Math.max(200, (fees.fastestFee || 10) * 3);
-    updateFeeDisplay();
-  });
-})();
+$on('btn-new-tx', function() { go('sec-send') });
+$on('btn-home', function() { go('sec-dash') });
 </script>
-</body>
-</html>
