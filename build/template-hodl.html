@@ -8,12 +8,7 @@
 <div id="notify" style="position:fixed;top:0;left:0;right:0;padding:8px;text-align:center;display:none"></div>
 
 <div id="sec-landing" class="sec" style="display:block">
-<b>nugap hodl</b> — air-gapped signer<br><br>
-<span>Network</span><br>
-<select id="sel-network">
-<option value="mainnet">Mainnet</option>
-<option value="testnet4">Testnet4</option>
-</select><br><br>
+<b>nugap hodl</b> <span id="net-label"></span><br><br>
 <button data-go="sec-create">Create New Wallet</button><br>
 <button data-go="sec-import">Import Existing Wallet</button>
 </div>
@@ -72,7 +67,7 @@
 
 <div id="sec-export" class="sec">
 <b>Public Key</b><br><hr>
-<span>Copy this to yolo.html:</span><br>
+<span>Copy this to yolo:</span><br>
 <textarea id="export-key" rows="3" readonly></textarea><br>
 <button data-copy="export-key">Copy</button>
 <button id="btn-back-dash">Back</button>
@@ -80,7 +75,7 @@
 
 <div id="sec-scan" class="sec">
 <b>Import Unsigned PSBT</b><br><hr>
-<span>Paste PSBT from yolo.html (base64):</span><br>
+<span>Paste PSBT from yolo (base64):</span><br>
 <textarea id="inp-psbt" rows="6" placeholder="cHNidP8..."></textarea><br>
 <button id="btn-import-psbt">Import</button>
 <button id="btn-back-dash2">Back</button>
@@ -101,7 +96,7 @@
 
 <div id="sec-signed" class="sec">
 <b>Transaction Signed</b><br><hr>
-<span>Copy this to yolo.html:</span><br>
+<span>Copy this to yolo:</span><br>
 <textarea id="signed-out" rows="6" readonly></textarea><br>
 <button data-copy="signed-out">Copy</button>
 <button id="btn-done">Done</button>
@@ -125,6 +120,10 @@ var { generateMnemonic, mnemonicToSeedSync, validateMnemonic, wordlist,
       btcSigner, HDKey, sha256, ripemd160, secp256k1,
       base58c, hex } = nugap;
 
+var NETWORK = '/* __NETWORK__ */';
+var IS_TEST = NETWORK === 'testnet4';
+var NET = IS_TEST ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
+
 var $ = function(id) { return document.getElementById(id) }
 var $v = function(id, v) { return v === void 0 ? $(id).value : ($(id).value = v) }
 var $t = function(id, t) { return t === void 0 ? $(id).innerText : ($(id).innerText = t) }
@@ -140,10 +139,12 @@ document.addEventListener('click', function(e) {
   if (t.dataset.copy) navigator.clipboard.writeText($v(t.dataset.copy)).then(function() { notify('Copied', 'ok') });
 });
 
+$t('net-label', IS_TEST ? '[Testnet4]' : '[Mainnet]');
+
 var S = {
   mnemonic: null, passphrase: '', seed: null, masterKey: null,
   accounts: { bip84: null, bip86: null }, activeAccount: 'bip84',
-  network: 'mainnet', pendingPSBT: null
+  pendingPSBT: null
 };
 
 var notifyTimer;
@@ -179,26 +180,23 @@ function convertXpub(xpub, v0, v1, v2, v3) {
   return base58c.encode(b);
 }
 
-function getNet() { return S.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK }
-
 function deriveAccounts() {
-  var mk = S.masterKey, isTest = S.network === 'testnet4';
+  var mk = S.masterKey;
   var acc84 = mk.derive("m/84'/0'/0'");
   S.accounts.bip84 = {
     path: "m/84'/0'/0'", accountKey: acc84,
-    pubkey: convertXpub(acc84.publicExtendedKey, ...(isTest ? [0x04,0x5F,0x1C,0xF6] : [0x04,0xB2,0x47,0x46]))
+    pubkey: convertXpub(acc84.publicExtendedKey, ...(IS_TEST ? [0x04,0x5F,0x1C,0xF6] : [0x04,0xB2,0x47,0x46]))
   };
   var acc86 = mk.derive("m/86'/0'/0'");
   S.accounts.bip86 = {
     path: "m/86'/0'/0'", accountKey: acc86,
-    pubkey: isTest ? convertXpub(acc86.publicExtendedKey, 0x04,0x35,0x87,0xCF) : acc86.publicExtendedKey
+    pubkey: IS_TEST ? convertXpub(acc86.publicExtendedKey, 0x04,0x35,0x87,0xCF) : acc86.publicExtendedKey
   };
 }
 
 function goToDash() {
   $t('dash-fp', S.masterKey.fingerprint.toString(16).padStart(8, '0'));
-  var net = S.network === 'testnet4' ? ' [Testnet4]' : '';
-  $t('dash-info', (S.activeAccount === 'bip84' ? 'BIP-84 SegWit' : 'BIP-86 Taproot') + net);
+  $t('dash-info', (S.activeAccount === 'bip84' ? 'BIP-84 SegWit' : 'BIP-86 Taproot'));
   $v('sel-account', S.activeAccount);
   go('sec-dash');
 }
@@ -220,7 +218,6 @@ function activateWallet() {
 function formatBTC(sats) { return (Number(sats) / 1e8).toFixed(8) }
 
 $('btn-generate').onclick = function() {
-  S.network = $v('sel-network');
   S.passphrase = $v('inp-pass-create') || '';
   var wc = parseInt($v('sel-wc'));
   S.mnemonic = generateMnemonic(wordlist, wc === 24 ? 256 : 128);
@@ -259,7 +256,6 @@ $('btn-verify').onclick = function() {
 };
 
 $('btn-import-go').onclick = function() {
-  S.network = $v('sel-network');
   var raw = $v('inp-mnemonic').trim().toLowerCase().replace(/\s+/g, ' ');
   var words = raw.split(' ');
   if (words.length !== 12 && words.length !== 24) { notify('Need 12 or 24 words, got ' + words.length); return }
@@ -286,15 +282,15 @@ $('btn-import-psbt').onclick = function() {
 };
 
 function getChangeAddresses() {
-  var addrs = {}, net = getNet();
+  var addrs = {};
   ['bip84', 'bip86'].forEach(function(type) {
     var acc = S.accounts[type];
     if (!acc) return;
     for (var i = 0; i < 20; i++) {
       var child = acc.accountKey.deriveChild(1).deriveChild(i), pub = child.publicKey;
       addrs[type === 'bip84'
-        ? btcSigner.p2wpkh(pub, net).address
-        : btcSigner.p2tr(pub.length === 33 ? pub.slice(1) : pub, undefined, net).address
+        ? btcSigner.p2wpkh(pub, NET).address
+        : btcSigner.p2tr(pub.length === 33 ? pub.slice(1) : pub, undefined, NET).address
       ] = true;
     }
   });
@@ -304,7 +300,7 @@ function getChangeAddresses() {
 function processPSBT(psbtBytes) {
   S.pendingPSBT = psbtBytes;
   var tx = btcSigner.Transaction.fromPSBT(psbtBytes);
-  var totalIn = 0n, totalOut = 0n, outputs = [], net = getNet();
+  var totalIn = 0n, totalOut = 0n, outputs = [];
   for (var i = 0; i < tx.inputsLength; i++) {
     var inp = tx.getInput(i);
     if (inp.witnessUtxo) totalIn += BigInt(inp.witnessUtxo.amount);
@@ -313,7 +309,7 @@ function processPSBT(psbtBytes) {
     var out = tx.getOutput(i);
     totalOut += BigInt(out.amount);
     var addr;
-    try { addr = btcSigner.Address(net).encode(btcSigner.OutScript.decode(out.script)) } catch(e) { addr = '(unknown)' }
+    try { addr = btcSigner.Address(NET).encode(btcSigner.OutScript.decode(out.script)) } catch(e) { addr = '(unknown)' }
     outputs.push({ addr: addr, amount: out.amount });
   }
   var changeAddrs = getChangeAddresses();

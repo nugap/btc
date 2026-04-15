@@ -7,19 +7,14 @@
 <div id="notify" style="position:fixed;top:0;left:0;right:0;padding:8px;text-align:center;display:none"></div>
 
 <div id="sec-import" class="sec" style="display:block">
-<b>nugap yolo</b><br><br>
-<span>Network</span><br>
-<select id="sel-network">
-<option value="mainnet">Mainnet</option>
-<option value="testnet4">Testnet4</option>
-</select><br>
+<b>nugap yolo</b> <span id="net-label"></span><br><br>
 <span>Import Type</span><br>
 <select id="sel-import-type">
 <option value="xpub">Extended Public Key</option>
 <option value="address">Single Address</option>
 </select><br>
 <span>Key / Address</span><br>
-<input id="inp-key" placeholder="zpub / vpub / xpub / tpub / bc1... / tb1..."><br>
+<input id="inp-key"><br>
 <button id="btn-import">Import</button>
 </div>
 
@@ -39,7 +34,7 @@
 <div id="sec-send" class="sec">
 <b>Send Transaction</b><br><hr>
 <span>Recipient</span><br>
-<input id="inp-recipient" placeholder="bc1... / tb1..."><br>
+<input id="inp-recipient"><br>
 <span>Amount (BTC)</span><br>
 <input id="inp-amount" placeholder="0.00000000" inputmode="decimal">
 <button id="btn-max">MAX</button><br>
@@ -58,7 +53,7 @@
 
 <div id="sec-psbt" class="sec">
 <b>Unsigned PSBT</b><br><hr>
-<span>Copy this to hodl.html for signing:</span><br>
+<span>Copy this to hodl for signing:</span><br>
 <textarea id="psbt-out" rows="6" readonly></textarea><br>
 <button data-copy="psbt-out">Copy</button>
 <button data-go="sec-import-signed">Import Signed TX</button>
@@ -67,7 +62,7 @@
 
 <div id="sec-import-signed" class="sec">
 <b>Import Signed Transaction</b><br><hr>
-<span>Paste signed PSBT from hodl.html (base64):</span><br>
+<span>Paste signed PSBT from hodl (base64):</span><br>
 <textarea id="inp-signed" rows="6" placeholder="cHNidP8..."></textarea><br>
 <button id="btn-do-import-signed">Import & Finalize</button>
 <button data-go="sec-dash">Back</button>
@@ -12084,6 +12079,11 @@ var nugap = (() => {
 
 var { btcSigner, HDKey, sha256, ripemd160, secp256k1 } = nugap;
 
+var NETWORK = 'mainnet';
+var IS_TEST = NETWORK === 'testnet4';
+var NET = IS_TEST ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
+var API_BASE = IS_TEST ? 'https://mempool.space/testnet4/api' : 'https://mempool.space/api';
+
 var $ = function(id) { return document.getElementById(id) }
 var $v = function(id, v) { return v === void 0 ? $(id).value : ($(id).value = v) }
 var $t = function(id, t) { return t === void 0 ? $(id).innerText : ($(id).innerText = t) }
@@ -12099,10 +12099,13 @@ document.addEventListener('click', function(e) {
   if (t.dataset.copy) navigator.clipboard.writeText($v(t.dataset.copy)).then(function() { notify('Copied', 'ok') });
 });
 
+$t('net-label', IS_TEST ? '[Testnet4]' : '[Mainnet]');
+$('inp-key').placeholder = IS_TEST ? 'vpub / tpub / tb1...' : 'zpub / xpub / bc1...';
+$('inp-recipient').placeholder = IS_TEST ? 'tb1...' : 'bc1...';
+
 var APP = {
   walletType: null, extendedKey: null, keyType: null,
   addresses: [], totalBalance: 0,
-  network: 'mainnet', apiBaseUrl: 'https://mempool.space/api',
   currentPsbt: null, signedTxHex: null
 };
 
@@ -12192,9 +12195,9 @@ function bech32Decode(str) {
 
 function validateAddr(addr) {
   if (/^[13]/.test(addr)) return { valid: false, error: 'Legacy not supported' };
-  var isTest = APP.network === 'testnet4', hrp = isTest ? 'tb' : 'bc';
-  if (isTest && /^bc1/i.test(addr)) return { valid: false, error: 'Mainnet address on testnet' };
-  if (!isTest && /^tb1/i.test(addr)) return { valid: false, error: 'Testnet address on mainnet' };
+  var hrp = IS_TEST ? 'tb' : 'bc';
+  if (IS_TEST && /^bc1/i.test(addr)) return { valid: false, error: 'Mainnet address on testnet' };
+  if (!IS_TEST && /^tb1/i.test(addr)) return { valid: false, error: 'Testnet address on mainnet' };
   var d = bech32Decode(addr);
   if (!d || d.hrp !== hrp) return { valid: false, error: 'Invalid address' };
   if (d.witnessVer === 0 && d.encoding !== 'bech32') return { valid: false, error: 'v0 needs bech32' };
@@ -12242,9 +12245,8 @@ function convertToXpub(keyStr) {
   var data = b58decode(keyStr);
   if (!data || data.length !== 78) return null;
   var out = new Uint8Array(data);
-  var isTest = keyStr[0] === 'v' || keyStr[0] === 't';
-  out[0] = 0x04; out[1] = isTest ? 0x35 : 0x88;
-  out[2] = isTest ? 0x87 : 0xB2; out[3] = isTest ? 0xCF : 0x1E;
+  out[0] = 0x04; out[1] = IS_TEST ? 0x35 : 0x88;
+  out[2] = IS_TEST ? 0x87 : 0xB2; out[3] = IS_TEST ? 0xCF : 0x1E;
   var h = sha256(sha256(out));
   var full = new Uint8Array(82);
   full.set(out); full.set(h.slice(0, 4), 78);
@@ -12256,17 +12258,15 @@ function deriveAddresses(extKey, keyType, start, count, change) {
   if (keyType === 'bip84' && (extKey[0] === 'z' || extKey[0] === 'v'))
     xpub = convertToXpub(extKey);
   if (!xpub) throw new Error('Invalid key');
-  var isTest = APP.network === 'testnet4';
-  var vers = isTest ? { public: 0x043587CF, private: 0x04358394 } : undefined;
+  var vers = IS_TEST ? { public: 0x043587CF, private: 0x04358394 } : undefined;
   var root = HDKey.fromExtendedKey(xpub, vers);
-  var net = isTest ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
   var ch = change ? 1 : 0, branch = root.deriveChild(ch), addrs = [];
   var base = keyType === 'bip84' ? "m/84'/0'/0'" : "m/86'/0'/0'";
   for (var i = start; i < start + count; i++) {
     var pub = branch.deriveChild(i).publicKey;
     var addr = keyType === 'bip84'
-      ? btcSigner.p2wpkh(pub, net).address
-      : btcSigner.p2tr(pub.slice(1), undefined, net).address;
+      ? btcSigner.p2wpkh(pub, NET).address
+      : btcSigner.p2tr(pub.slice(1), undefined, NET).address;
     addrs.push({ path: base + '/' + ch + '/' + i, address: addr, isChange: !!change, balance: 0, utxos: [], pubkey: pub });
   }
   return addrs;
@@ -12274,7 +12274,7 @@ function deriveAddresses(extKey, keyType, start, count, change) {
 
 async function api(path, opts) {
   opts = opts || {};
-  var res = await fetch(APP.apiBaseUrl + path, opts);
+  var res = await fetch(API_BASE + path, opts);
   if (res.status === 429) {
     if ((opts._retries || 0) >= 3) throw new Error('Rate limited');
     await sleep(5000);
@@ -12355,15 +12355,8 @@ function getChangeAddr() {
   return (unused || ch[0]).address;
 }
 
-$('sel-network').onchange = function() {
-  APP.network = $v('sel-network');
-  APP.apiBaseUrl = APP.network === 'testnet4' ? 'https://mempool.space/testnet4/api' : 'https://mempool.space/api';
-};
-
 $('btn-import').onclick = async function() {
   var key = $v('inp-key').trim(), type = $v('sel-import-type');
-  APP.network = $v('sel-network');
-  APP.apiBaseUrl = APP.network === 'testnet4' ? 'https://mempool.space/testnet4/api' : 'https://mempool.space/api';
   if (!key) { notify('Enter a key or address'); return }
   try {
     if (type === 'xpub') {
@@ -12371,8 +12364,8 @@ $('btn-import').onclick = async function() {
       if (!kt) { notify('Unsupported key format'); return }
       if (!b58decode(key)) { notify('Invalid key checksum'); return }
       var isTestKey = key[0] === 't' || key[0] === 'v';
-      if (APP.network === 'testnet4' && !isTestKey) { notify('Mainnet key on testnet'); return }
-      if (APP.network === 'mainnet' && isTestKey) { notify('Testnet key on mainnet'); return }
+      if (IS_TEST && !isTestKey) { notify('Mainnet key on testnet'); return }
+      if (!IS_TEST && isTestKey) { notify('Testnet key on mainnet'); return }
       APP.walletType = 'xpub'; APP.extendedKey = key; APP.keyType = kt;
       APP.addresses = deriveAddresses(key, kt, 0, 1, false);
     } else {
@@ -12418,7 +12411,6 @@ $('btn-create-tx').onclick = async function() {
   var feeRate = parseInt($v('inp-fee')) || 4;
   var sel = selectUtxos(amountSats, feeRate);
   if (!sel) { notify('Insufficient funds'); return }
-  var txNet = APP.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
   try {
     var txData = {};
     for (var i = 0; i < sel.selected.length; i++) {
@@ -12432,7 +12424,7 @@ $('btn-create-tx').onclick = async function() {
       var inp = {
         txid: u.txid, index: u.vout,
         witnessUtxo: {
-          script: btcSigner.OutScript.encode(btcSigner.Address(txNet).decode(u.address)),
+          script: btcSigner.OutScript.encode(btcSigner.Address(NET).decode(u.address)),
           amount: BigInt(u.value)
         }
       };
@@ -12443,10 +12435,10 @@ $('btn-create-tx').onclick = async function() {
       }
       tx.addInput(inp);
     }
-    tx.addOutputAddress(recipient, BigInt(amountSats), txNet);
+    tx.addOutputAddress(recipient, BigInt(amountSats), NET);
     if (sel.change > 0) {
       var ca = getChangeAddr();
-      if (ca) tx.addOutputAddress(ca, BigInt(sel.change), txNet);
+      if (ca) tx.addOutputAddress(ca, BigInt(sel.change), NET);
     }
     APP.currentPsbt = tx.toPSBT();
     var info = 'To: ' + recipient + '\nAmount: ' + satsBtc(amountSats) + ' BTC\nFee: ' + sel.fee + ' sats\nInputs: ' + sel.selected.length;
@@ -12476,7 +12468,7 @@ $('btn-do-import-signed').onclick = function() {
 $('btn-broadcast').onclick = async function() {
   try {
     var txid = await api('/tx', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: APP.signedTxHex });
-    $t('result-info', 'TXID: ' + txid + '\n\n' + APP.apiBaseUrl.replace('/api', '') + '/tx/' + txid);
+    $t('result-info', 'TXID: ' + txid + '\n\n' + API_BASE.replace('/api', '') + '/tx/' + txid);
     go('sec-result');
   } catch(e) { notify('Broadcast failed: ' + e.message) }
 };
