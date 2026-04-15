@@ -5,27 +5,38 @@
 <div id="notify" style="position:fixed;top:0;left:0;right:0;padding:8px;text-align:center;display:none"></div>
 <div id="sec-import" class="sec" style="display:block">
 <b>nugap yolo</b> <span id="net-label"></span><br><br>
-<span>Import Type</span><br><select id="sel-import-type"><option value="xpub">Extended Public Key</option><option value="address">Single Address</option></select><br>
-<span>Key / Address</span><br><input id="inp-key"><br><button id="btn-import">Import</button></div>
+<span>Import Type</span><br>
+<select id="sel-import-type"><option value="xpub">Extended Public Key</option><option value="address">Single Address</option></select><br>
+<span>Key / Address</span><br><input id="inp-key"><br>
+<button id="btn-import">Import</button></div>
 <div id="sec-dash" class="sec">
-<b>Dashboard</b> <span id="dash-type"></span><br><hr><div id="dash-addr" class="mono"></div><div id="dash-path"></div>
-<b id="dash-balance">0.00000000 BTC</b><br><span id="dash-updated"></span><br><hr><div id="dash-utxos"></div>
-<button id="btn-refresh">Refresh</button><button data-go="sec-send">Send</button><button data-go="sec-import-signed">Import Signed TX</button><button id="btn-reset">Reset</button></div>
+<b>Dashboard</b> <span id="dash-type"></span><br><hr>
+<div id="dash-addr" class="mono"></div><div id="dash-path"></div>
+<b id="dash-balance">0.00000000 BTC</b><br><span id="dash-updated"></span><br><hr>
+<div id="dash-utxos"></div>
+<button id="btn-refresh">Refresh</button><button data-go="sec-send">Send</button>
+<button data-go="sec-import-signed">Import Signed TX</button><button id="btn-reset">Reset</button></div>
 <div id="sec-send" class="sec">
-<b>Send Transaction</b><br><hr><span>Recipient</span><br><input id="inp-recipient"><br>
-<span>Amount (BTC)</span><br><input id="inp-amount" placeholder="0.00000000" inputmode="decimal"><button id="btn-max">MAX</button><br>
+<b>Send Transaction</b><br><hr>
+<span>Recipient</span><br><input id="inp-recipient"><br>
+<span>Amount (BTC)</span><br><input id="inp-amount" placeholder="0.00000000" inputmode="decimal">
+<button id="btn-max">MAX</button><br>
 <span>Fee Rate (sat/vB)</span><br><input id="inp-fee" type="number" value="4" min="1"><br>
 <button id="btn-create-tx">Create Transaction</button><button data-go="sec-dash">Back</button></div>
 <div id="sec-psbt" class="sec">
-<b>Unsigned PSBT</b><br><hr><pre id="tx-preview"></pre><span>Copy this to hodl for signing:</span><br>
+<b>Unsigned PSBT</b><br><hr><pre id="tx-preview"></pre>
+<span>Copy this to hodl for signing:</span><br>
 <textarea id="psbt-out" rows="6" readonly></textarea><br>
-<button data-copy="psbt-out">Copy</button><button data-go="sec-import-signed">Import Signed TX</button><button data-go="sec-send">Back</button></div>
+<button data-copy="psbt-out">Copy</button><button data-go="sec-import-signed">Import Signed TX</button>
+<button data-go="sec-send">Back</button></div>
 <div id="sec-import-signed" class="sec">
-<b>Import Signed Transaction</b><br><hr><span>Paste signed PSBT from hodl (base64):</span><br>
+<b>Import Signed Transaction</b><br><hr>
+<span>Paste signed PSBT from hodl (base64):</span><br>
 <textarea id="inp-signed" rows="6" placeholder="cHNidP8..."></textarea><br>
 <button id="btn-do-import-signed">Import & Finalize</button><button data-go="sec-dash">Back</button></div>
 <div id="sec-broadcast" class="sec">
-<b>Broadcast Transaction</b><br><hr><pre id="broadcast-info"></pre><b style="color:red">This will send real BTC. Cannot be undone.</b><br>
+<b>Broadcast Transaction</b><br><hr><pre id="broadcast-info"></pre>
+<b style="color:red">This will send real BTC. Cannot be undone.</b><br>
 <button id="btn-broadcast">Broadcast</button><button data-go="sec-dash">Back</button></div>
 <div id="sec-result" class="sec">
 <b style="color:green">Transaction Broadcast!</b><br><hr><pre id="result-info"></pre>
@@ -9966,103 +9977,208 @@ var nugap = (() => {
 </script>
 <script>
 'use strict';
-const{btcSigner,HDKey,sha256}=nugap,NETWORK='testnet4',IS_TEST=NETWORK==='testnet4';
-const NET=IS_TEST?btcSigner.TEST_NETWORK:btcSigner.NETWORK,API_BASE=IS_TEST?'https://mempool.space/testnet4/api':'https://mempool.space/api';
-const $=id=>document.getElementById(id),$v=(id,v)=>v===void 0?$(id).value:($(id).value=v),$t=(id,t)=>t===void 0?$(id).innerText:($(id).innerText=t);
-const $show=id=>$(id).style.display='block',$hide=id=>$(id).style.display='none';
-const SECS=['sec-import','sec-dash','sec-send','sec-psbt','sec-import-signed','sec-broadcast','sec-result'],go=id=>{SECS.forEach($hide);$show(id)};
-document.addEventListener('click',e=>{const t=e.target;if(t.dataset.go)go(t.dataset.go);if(t.dataset.copy)navigator.clipboard.writeText($v(t.dataset.copy)).then(()=>notify('Copied','ok'))});
-$t('net-label',IS_TEST?'[Testnet4]':'[Mainnet]');$('inp-key').placeholder=IS_TEST?'vpub / tpub / tb1...':'zpub / xpub / bc1...';$('inp-recipient').placeholder=IS_TEST?'tb1...':'bc1...';
-const APP={walletType:null,extendedKey:null,keyType:null,addresses:[],totalBalance:0,currentPsbt:null,signedTxHex:null};
-const notify=(msg,type)=>{const el=$('notify');el.innerText=msg;el.style.display='';el.style.background=type==='ok'?'#cfc':type==='warn'?'#ffc':'#fcc';setTimeout(()=>el.style.display='none',4000)};
-const satsBtc=s=>(Number(s)/1e8).toFixed(8),sleep=ms=>new Promise(r=>setTimeout(r,ms));
-const btcSats=b=>{let s=String(b).trim(),neg=s[0]==='-';if(neg)s=s.slice(1);const p=s.split('.'),i=p[0]||'0',d=(p[1]||'').padEnd(8,'0').slice(0,8),v=parseInt(i,10)*1e8+parseInt(d,10);return neg?-v:v};
-const hexToBytes=h=>{const b=new Uint8Array(h.length/2);for(let i=0;i<h.length;i+=2)b[i/2]=parseInt(h.slice(i,i+2),16);return b};
-const bytesToHex=b=>Array.from(b,x=>x.toString(16).padStart(2,'0')).join('');
-const toB64=bytes=>{let s='';for(let i=0;i<bytes.length;i++)s+=String.fromCharCode(bytes[i]);return btoa(s)};
-const fromB64=str=>{try{const s=atob(str.trim()),b=new Uint8Array(s.length);for(let i=0;i<s.length;i++)b[i]=s.charCodeAt(i);return b}catch(e){}try{return hexToBytes(str.trim())}catch(e){}return null};
-const B32='qpzry9x8gf2tvdw0s3jn54khce6mua7l',B32_GEN=[0x3b6a57b2,0x26508e6d,0x1ea119fa,0x3d4233dd,0x2a1462b3];
-const bech32Decode=str=>{str=str.toLowerCase();const pos=str.lastIndexOf('1');if(pos<1||pos+7>str.length)return null;const hrp=str.slice(0,pos),data=[];
-for(let i=pos+1;i<str.length;i++){const c=B32.indexOf(str[i]);if(c<0)return null;data.push(c)}
-const polymod=v=>{let chk=1;for(let i=0;i<v.length;i++){const b=chk>>25;chk=((chk&0x1ffffff)<<5)^v[i];for(let j=0;j<5;j++)if((b>>j)&1)chk^=B32_GEN[j]}return chk};
-const exp=[];for(let i=0;i<hrp.length;i++)exp.push(hrp.charCodeAt(i)>>5);exp.push(0);for(let i=0;i<hrp.length;i++)exp.push(hrp.charCodeAt(i)&31);
-const chk=polymod(exp.concat(data)),enc=chk===1?'bech32':chk===0x2bc830a3?'bech32m':null;if(!enc)return null;
-const dp=data.slice(0,-6),wv=dp[0];let payload=[],acc=0,bits=0;
-for(let i=1;i<dp.length;i++){acc=(acc<<5)|dp[i];bits+=5;if(bits>=8){bits-=8;payload.push((acc>>bits)&0xff)}}
-if(bits>=5||(acc<<(8-bits))&0xff)return null;return{hrp,witnessVer:wv,program:new Uint8Array(payload),encoding:enc}};
-const validateAddr=addr=>{if(/^[13]/.test(addr))return{valid:false,error:'Legacy not supported'};const hrp=IS_TEST?'tb':'bc';
-if(IS_TEST&&/^bc1/i.test(addr))return{valid:false,error:'Mainnet address on testnet'};if(!IS_TEST&&/^tb1/i.test(addr))return{valid:false,error:'Testnet address on mainnet'};
-const d=bech32Decode(addr);if(!d||d.hrp!==hrp)return{valid:false,error:'Invalid address'};
-if(d.witnessVer===0&&d.encoding!=='bech32')return{valid:false,error:'v0 needs bech32'};if(d.witnessVer>0&&d.encoding!=='bech32m')return{valid:false,error:'v1+ needs bech32m'};
-if(d.witnessVer===1&&d.program.length!==32)return{valid:false,error:'Bad taproot length'};return{valid:true,type:d.witnessVer===0?'p2wpkh':'p2tr'}};
-const B58='123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
-const b58decode=str=>{let n=0n;for(let i=0;i<str.length;i++){const c=B58.indexOf(str[i]);if(c<0)return null;n=n*58n+BigInt(c)}
-let h=n.toString(16);if(h.length%2)h='0'+h;const bytes=[];for(let i=0;i<h.length;i+=2)bytes.push(parseInt(h.slice(i,i+2),16));
-for(let i=0;i<str.length&&str[i]==='1';i++)bytes.unshift(0);const arr=new Uint8Array(bytes),payload=arr.slice(0,-4),cksum=arr.slice(-4),hash=sha256(sha256(payload));
-for(let i=0;i<4;i++)if(hash[i]!==cksum[i])return null;return payload};
-const b58encode=bytes=>{let n=0n;for(let i=0;i<bytes.length;i++)n=n*256n+BigInt(bytes[i]);let str='';while(n>0n){str=B58[Number(n%58n)]+str;n/=58n}
-for(let i=0;i<bytes.length&&bytes[i]===0;i++)str='1'+str;return str};
-const detectKeyType=key=>(key[0]==='z'||key[0]==='v')?'bip84':(key[0]==='x'||key[0]==='t')?'bip86':null;
-const convertToXpub=keyStr=>{const data=b58decode(keyStr);if(!data||data.length!==78)return null;const out=new Uint8Array(data);
-out[0]=0x04;out[1]=IS_TEST?0x35:0x88;out[2]=IS_TEST?0x87:0xB2;out[3]=IS_TEST?0xCF:0x1E;
-const h=sha256(sha256(out)),full=new Uint8Array(82);full.set(out);full.set(h.slice(0,4),78);return b58encode(full)};
-const deriveAddresses=(extKey,keyType,start,count,change)=>{let xpub=extKey;
-if(keyType==='bip84'&&(extKey[0]==='z'||extKey[0]==='v'))xpub=convertToXpub(extKey);if(!xpub)throw new Error('Invalid key');
-const vers=IS_TEST?{public:0x043587CF,private:0x04358394}:undefined,root=HDKey.fromExtendedKey(xpub,vers),ch=change?1:0,branch=root.deriveChild(ch),addrs=[];
-const base=keyType==='bip84'?"m/84'/0'/0'":"m/86'/0'/0'";
-for(let i=start;i<start+count;i++){const pub=branch.deriveChild(i).publicKey,addr=keyType==='bip84'?btcSigner.p2wpkh(pub,NET).address:btcSigner.p2tr(pub.slice(1),undefined,NET).address;
-addrs.push({path:base+'/'+ch+'/'+i,address:addr,isChange:!!change,balance:0,utxos:[],pubkey:pub})}return addrs};
-const api=async(path,opts)=>{opts=opts||{};const res=await fetch(API_BASE+path,opts);
-if(res.status===429){if((opts._retries||0)>=3)throw new Error('Rate limited');await sleep(5000);return api(path,{...opts,_retries:(opts._retries||0)+1})}
-if(!res.ok)throw new Error(await res.text()||'HTTP '+res.status);return(res.headers.get('content-type')||'').includes('json')?res.json():res.text()};
-const fetchBalances=async()=>{let total=0;for(let i=0;i<APP.addresses.length;i++){const a=APP.addresses[i];
-try{const info=await api('/address/'+a.address),cs=info.chain_stats||{},ms=info.mempool_stats||{};
-a.balance=(cs.funded_txo_sum-cs.spent_txo_sum)+(ms.funded_txo_sum-ms.spent_txo_sum);
-if(a.balance>0||(cs.tx_count||0)+(ms.tx_count||0)>0){a.utxos=((await api('/address/'+a.address+'/utxo'))||[]).map(u=>({txid:u.txid,vout:u.vout,value:u.value,confirmed:u.status&&u.status.confirmed}))}else a.utxos=[];
-total+=a.balance}catch(e){}if(i<APP.addresses.length-1)await sleep(300)}APP.totalBalance=total};
-const renderDash=()=>{const first=APP.addresses[0];$t('dash-type',APP.keyType==='bip84'?'[BIP-84 SegWit]':'[BIP-86 Taproot]');
-$t('dash-addr',first?first.address:'');$t('dash-path',first&&first.path!=='-'?first.path:'');
-$t('dash-balance',satsBtc(APP.totalBalance)+' BTC');$t('dash-updated','Updated: '+new Date().toLocaleTimeString());let html='';
-APP.addresses.forEach(a=>{if(a.balance<=0&&!a.utxos.length)return;html+='<b>'+satsBtc(a.balance)+' BTC</b> '+a.address.slice(0,12)+'...<br>';
-a.utxos.forEach(u=>{html+='  '+u.txid.slice(0,8)+':'+u.vout+' = '+u.value+' sats '+(u.confirmed?'✓':'⏳')+'<br>'})});
-$('dash-utxos').innerHTML=html||'<span>No UTXOs</span>'};
-const selectUtxos=(targetSats,feeRate)=>{const all=[];
-APP.addresses.forEach(a=>{a.utxos.forEach(u=>{all.push({...u,address:a.address,pubkey:a.pubkey,path:a.path,keyType:APP.keyType})})});
-all.sort((a,b)=>b.value-a.value);const ivb=APP.keyType==='bip86'?57.5:68,sel=[];let total=0;
-for(let i=0;i<all.length;i++){sel.push(all[i]);total+=all[i].value;const vs=Math.ceil(sel.length*ivb+2*31+10.5),fee=vs*feeRate;
-if(total>=targetSats+fee){const change=total-targetSats-fee;
-if(change>0&&change<546){const vs2=Math.ceil(sel.length*ivb+31+10.5);return{selected:sel,fee:total-targetSats,change:0,vsize:vs2}}
-return{selected:sel,fee,change,vsize:vs}}}return null};
-const getChangeAddr=()=>{const ch=APP.addresses.filter(a=>a.isChange);if(!ch.length)return APP.addresses[0]?APP.addresses[0].address:null;return(ch.find(a=>!a.balance&&!a.utxos.length)||ch[0]).address};
-$('btn-import').onclick=async()=>{const key=$v('inp-key').trim(),type=$v('sel-import-type');if(!key){notify('Enter a key or address');return}
-try{if(type==='xpub'){const kt=detectKeyType(key);if(!kt){notify('Unsupported key format');return}if(!b58decode(key)){notify('Invalid key checksum');return}
-const isTestKey=key[0]==='t'||key[0]==='v';if(IS_TEST&&!isTestKey){notify('Mainnet key on testnet');return}if(!IS_TEST&&isTestKey){notify('Testnet key on mainnet');return}
-APP.walletType='xpub';APP.extendedKey=key;APP.keyType=kt;APP.addresses=deriveAddresses(key,kt,0,1,false);
-}else{const v=validateAddr(key);if(!v.valid){notify(v.error);return}APP.walletType='address';APP.keyType=v.type==='p2tr'?'bip86':'bip84';
-APP.addresses=[{path:'-',address:key,isChange:false,balance:0,utxos:[],pubkey:null}]}
-await fetchBalances();renderDash();go('sec-dash');notify('Imported','ok')}catch(e){notify('Import failed: '+e.message)}};
-$('btn-refresh').onclick=async()=>{try{await fetchBalances();renderDash();notify('Updated','ok')}catch(e){notify('Refresh failed: '+e.message)}};
-$('btn-reset').onclick=()=>{APP.walletType=null;APP.extendedKey=null;APP.keyType=null;APP.addresses=[];APP.totalBalance=0;go('sec-import')};
-$('btn-max').onclick=()=>{const rate=parseInt($v('inp-fee'))||4,all=APP.addresses.flatMap(a=>a.utxos),ivb=APP.keyType==='bip86'?57.5:68;
-const fee=Math.ceil(all.length*ivb+31+10.5)*rate,max=APP.totalBalance-fee;if(max<=0){notify('Insufficient funds for fee');return}$v('inp-amount',satsBtc(max))};
-$('btn-create-tx').onclick=async()=>{const recipient=$v('inp-recipient').trim(),v=validateAddr(recipient);if(!v.valid){notify(v.error);return}
-const amountSats=btcSats($v('inp-amount'));if(amountSats<=0){notify('Invalid amount');return}
-const feeRate=parseInt($v('inp-fee'))||4,sel=selectUtxos(amountSats,feeRate);if(!sel){notify('Insufficient funds');return}
-try{const txData={};for(let i=0;i<sel.selected.length;i++){const u=sel.selected[i];
-if(!txData[u.txid])try{txData[u.txid]=await api('/tx/'+u.txid+'/hex')}catch(e){}await sleep(300)}
-const tx=new btcSigner.Transaction();for(let i=0;i<sel.selected.length;i++){const u=sel.selected[i];
-const inp={txid:u.txid,index:u.vout,witnessUtxo:{script:btcSigner.OutScript.encode(btcSigner.Address(NET).decode(u.address)),amount:BigInt(u.value)}};
-if(txData[u.txid])inp.nonWitnessUtxo=hexToBytes(txData[u.txid]);
-if(u.keyType==='bip86'&&u.pubkey){const pub=typeof u.pubkey==='string'?hexToBytes(u.pubkey):u.pubkey;inp.tapInternalKey=pub.length===33?pub.slice(1):pub}
-tx.addInput(inp)}tx.addOutputAddress(recipient,BigInt(amountSats),NET);
-if(sel.change>0){const ca=getChangeAddr();if(ca)tx.addOutputAddress(ca,BigInt(sel.change),NET)}
-APP.currentPsbt=tx.toPSBT();let info='To: '+recipient+'\nAmount: '+satsBtc(amountSats)+' BTC\nFee: '+sel.fee+' sats\nInputs: '+sel.selected.length;
-if(sel.change>0)info+='\nChange: '+satsBtc(sel.change)+' BTC → '+getChangeAddr();
-$t('tx-preview',info);$v('psbt-out',toB64(APP.currentPsbt));go('sec-psbt')}catch(e){notify('TX error: '+e.message)}};
-$('btn-do-import-signed').onclick=()=>{const text=$v('inp-signed').trim();if(!text){notify('Paste signed PSBT');return}
-const psbt=fromB64(text);if(!psbt){notify('Invalid base64 data');return}
-try{const tx=btcSigner.Transaction.fromPSBT(psbt);tx.finalize();APP.signedTxHex=bytesToHex(tx.extract());
-$t('broadcast-info','TX: '+APP.signedTxHex.slice(0,60)+'... ('+APP.signedTxHex.length/2+' bytes)');go('sec-broadcast');notify('Signed TX decoded','ok')}catch(e){notify('Failed: '+e.message)}};
-$('btn-broadcast').onclick=async()=>{try{const txid=await api('/tx',{method:'POST',headers:{'Content-Type':'text/plain'},body:APP.signedTxHex});
-$t('result-info','TXID: '+txid+'\n\n'+API_BASE.replace('/api','')+'/tx/'+txid);go('sec-result')}catch(e){notify('Broadcast failed: '+e.message)}};
+const { btcSigner, HDKey, sha256 } = nugap;
+const NETWORK = 'testnet4';
+const IS_TEST = NETWORK === 'testnet4';
+const NET = IS_TEST ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
+const API_BASE = IS_TEST ? 'https://mempool.space/testnet4/api' : 'https://mempool.space/api';
+const $ = id => document.getElementById(id), $v = (id, v) => v === void 0 ? $(id).value : ($(id).value = v),
+  $t = (id, t) => t === void 0 ? $(id).innerText : ($(id).innerText = t),
+  $show = id => $(id).style.display = 'block', $hide = id => $(id).style.display = 'none';
+const SECS = ['sec-import','sec-dash','sec-send','sec-psbt','sec-import-signed','sec-broadcast','sec-result'];
+const go = id => { SECS.forEach($hide); $show(id) };
+document.addEventListener('click', e => {
+  const t = e.target;
+  if (t.dataset.go) go(t.dataset.go);
+  if (t.dataset.copy) navigator.clipboard.writeText($v(t.dataset.copy)).then(() => notify('Copied', 'ok'));
+});
+$t('net-label', IS_TEST ? '[Testnet4]' : '[Mainnet]');
+$('inp-key').placeholder = IS_TEST ? 'vpub / tpub / tb1...' : 'zpub / xpub / bc1...';
+$('inp-recipient').placeholder = IS_TEST ? 'tb1...' : 'bc1...';
+const APP = { walletType: null, extendedKey: null, keyType: null, addresses: [], totalBalance: 0, currentPsbt: null, signedTxHex: null };
+const notify = (msg, type) => {
+  const el = $('notify'); el.innerText = msg; el.style.display = '';
+  el.style.background = type === 'ok' ? '#cfc' : type === 'warn' ? '#ffc' : '#fcc'; setTimeout(() => el.style.display = 'none', 4000);
+};
+const satsBtc = s => (Number(s) / 1e8).toFixed(8), sleep = ms => new Promise(r => setTimeout(r, ms));
+const btcSats = b => {
+  let s = String(b).trim(), neg = s[0] === '-'; if (neg) s = s.slice(1);
+  const p = s.split('.'), i = p[0] || '0', d = (p[1] || '').padEnd(8, '0').slice(0, 8);
+  return (neg ? -1 : 1) * (parseInt(i, 10) * 1e8 + parseInt(d, 10));
+};
+const hexToBytes = h => { const b = new Uint8Array(h.length / 2); for (let i = 0; i < h.length; i += 2) b[i / 2] = parseInt(h.slice(i, i + 2), 16); return b };
+const bytesToHex = b => Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+const toB64 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]); return btoa(s) };
+const fromB64 = str => {
+  try { const s = atob(str.trim()), b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b } catch(e) {}
+  try { return hexToBytes(str.trim()) } catch(e) {}
+  return null;
+};
+const B32 = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l', B32_GEN = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+const bech32Decode = str => {
+  str = str.toLowerCase(); const pos = str.lastIndexOf('1');
+  if (pos < 1 || pos + 7 > str.length) return null;
+  const hrp = str.slice(0, pos), data = [];
+  for (let i = pos + 1; i < str.length; i++) { const c = B32.indexOf(str[i]); if (c < 0) return null; data.push(c) }
+  const polymod = v => { let chk = 1; for (let i = 0; i < v.length; i++) { const b = chk >> 25; chk = ((chk & 0x1ffffff) << 5) ^ v[i]; for (let j = 0; j < 5; j++) if ((b >> j) & 1) chk ^= B32_GEN[j] } return chk };
+  const exp = []; for (let i = 0; i < hrp.length; i++) exp.push(hrp.charCodeAt(i) >> 5);
+  exp.push(0); for (let i = 0; i < hrp.length; i++) exp.push(hrp.charCodeAt(i) & 31);
+  const chk = polymod(exp.concat(data)), enc = chk === 1 ? 'bech32' : chk === 0x2bc830a3 ? 'bech32m' : null;
+  if (!enc) return null;
+  const dp = data.slice(0, -6), wv = dp[0]; let payload = [], acc = 0, bits = 0;
+  for (let i = 1; i < dp.length; i++) { acc = (acc << 5) | dp[i]; bits += 5; if (bits >= 8) { bits -= 8; payload.push((acc >> bits) & 0xff) } }
+  if (bits >= 5 || (acc << (8 - bits)) & 0xff) return null;
+  return { hrp, witnessVer: wv, program: new Uint8Array(payload), encoding: enc };
+};
+const validateAddr = addr => {
+  const err = e => ({ valid: false, error: e }), hrp = IS_TEST ? 'tb' : 'bc';
+  if (/^[13]/.test(addr)) return err('Legacy not supported');
+  if (IS_TEST && /^bc1/i.test(addr)) return err('Mainnet address on testnet');
+  if (!IS_TEST && /^tb1/i.test(addr)) return err('Testnet address on mainnet');
+  const d = bech32Decode(addr); if (!d || d.hrp !== hrp) return err('Invalid address');
+  if (d.witnessVer === 0 && d.encoding !== 'bech32') return err('v0 needs bech32');
+  if (d.witnessVer > 0 && d.encoding !== 'bech32m') return err('v1+ needs bech32m');
+  if (d.witnessVer === 1 && d.program.length !== 32) return err('Bad taproot length');
+  return { valid: true, type: d.witnessVer === 0 ? 'p2wpkh' : 'p2tr' };
+};
+const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+const b58decode = str => {
+  let n = 0n; for (let i = 0; i < str.length; i++) { const c = B58.indexOf(str[i]); if (c < 0) return null; n = n * 58n + BigInt(c) }
+  let h = n.toString(16); if (h.length % 2) h = '0' + h;
+  const bytes = []; for (let i = 0; i < h.length; i += 2) bytes.push(parseInt(h.slice(i, i + 2), 16));
+  for (let i = 0; i < str.length && str[i] === '1'; i++) bytes.unshift(0);
+  const arr = new Uint8Array(bytes), payload = arr.slice(0, -4), cksum = arr.slice(-4), hash = sha256(sha256(payload));
+  for (let i = 0; i < 4; i++) if (hash[i] !== cksum[i]) return null; return payload;
+};
+const b58encode = bytes => {
+  let n = 0n; for (let i = 0; i < bytes.length; i++) n = n * 256n + BigInt(bytes[i]);
+  let str = ''; while (n > 0n) { str = B58[Number(n % 58n)] + str; n /= 58n }
+  for (let i = 0; i < bytes.length && bytes[i] === 0; i++) str = '1' + str; return str;
+};
+const detectKeyType = key => (key[0] === 'z' || key[0] === 'v') ? 'bip84' : (key[0] === 'x' || key[0] === 't') ? 'bip86' : null;
+const convertToXpub = keyStr => {
+  const data = b58decode(keyStr); if (!data || data.length !== 78) return null;
+  const out = new Uint8Array(data);
+  out[0] = 0x04; out[1] = IS_TEST ? 0x35 : 0x88; out[2] = IS_TEST ? 0x87 : 0xB2; out[3] = IS_TEST ? 0xCF : 0x1E;
+  const h = sha256(sha256(out)), full = new Uint8Array(82);
+  full.set(out); full.set(h.slice(0, 4), 78); return b58encode(full);
+};
+const deriveAddresses = (extKey, keyType, start, count, change) => {
+  let xpub = extKey;
+  if (keyType === 'bip84' && (extKey[0] === 'z' || extKey[0] === 'v')) xpub = convertToXpub(extKey);
+  if (!xpub) throw new Error('Invalid key');
+  const vers = IS_TEST ? { public: 0x043587CF, private: 0x04358394 } : undefined;
+  const root = HDKey.fromExtendedKey(xpub, vers), ch = change ? 1 : 0, branch = root.deriveChild(ch), addrs = [], base = keyType === 'bip84' ? "m/84'/0'/0'" : "m/86'/0'/0'";
+  for (let i = start; i < start + count; i++) { const pub = branch.deriveChild(i).publicKey;
+    addrs.push({ path: base + '/' + ch + '/' + i, address: keyType === 'bip84' ? btcSigner.p2wpkh(pub, NET).address : btcSigner.p2tr(pub.slice(1), undefined, NET).address, isChange: !!change, balance: 0, utxos: [], pubkey: pub })
+  } return addrs;
+};
+const api = async (path, opts) => {
+  opts = opts || {}; const res = await fetch(API_BASE + path, opts);
+  if (res.status === 429) { if ((opts._retries || 0) >= 3) throw new Error('Rate limited'); await sleep(5000); return api(path, { ...opts, _retries: (opts._retries || 0) + 1 }) }
+  if (!res.ok) throw new Error(await res.text() || 'HTTP ' + res.status);
+  return (res.headers.get('content-type') || '').includes('json') ? res.json() : res.text();
+};
+const fetchBalances = async () => {
+  let total = 0;
+  for (let i = 0; i < APP.addresses.length; i++) {
+    const a = APP.addresses[i];
+    try {
+      const info = await api('/address/' + a.address), cs = info.chain_stats || {}, ms = info.mempool_stats || {};
+      a.balance = (cs.funded_txo_sum - cs.spent_txo_sum) + (ms.funded_txo_sum - ms.spent_txo_sum);
+      if (a.balance > 0 || (cs.tx_count || 0) + (ms.tx_count || 0) > 0)
+        a.utxos = ((await api('/address/' + a.address + '/utxo')) || []).map(u => ({ txid: u.txid, vout: u.vout, value: u.value, confirmed: u.status && u.status.confirmed }));
+      else a.utxos = []; total += a.balance;
+    } catch(e) {}
+    if (i < APP.addresses.length - 1) await sleep(300);
+  }
+  APP.totalBalance = total;
+};
+const renderDash = () => {
+  const f = APP.addresses[0];
+  $t('dash-type', APP.keyType === 'bip84' ? '[BIP-84 SegWit]' : '[BIP-86 Taproot]');
+  $t('dash-addr', f ? f.address : ''); $t('dash-path', f && f.path !== '-' ? f.path : '');
+  $t('dash-balance', satsBtc(APP.totalBalance) + ' BTC'); $t('dash-updated', 'Updated: ' + new Date().toLocaleTimeString());
+  let html = ''; APP.addresses.forEach(a => {
+    if (a.balance <= 0 && !a.utxos.length) return;
+    html += '<b>' + satsBtc(a.balance) + ' BTC</b> ' + a.address.slice(0, 12) + '...<br>';
+    a.utxos.forEach(u => { html += '  ' + u.txid.slice(0, 8) + ':' + u.vout + ' = ' + u.value + ' sats ' + (u.confirmed ? '✓' : '⏳') + '<br>' });
+  }); $('dash-utxos').innerHTML = html || '<span>No UTXOs</span>';
+};
+const selectUtxos = (targetSats, feeRate) => {
+  const all = []; APP.addresses.forEach(a => { a.utxos.forEach(u => { all.push({ ...u, address: a.address, pubkey: a.pubkey, path: a.path, keyType: APP.keyType }) }) });
+  all.sort((a, b) => b.value - a.value); const ivb = APP.keyType === 'bip86' ? 57.5 : 68, sel = []; let total = 0;
+  for (let i = 0; i < all.length; i++) {
+    sel.push(all[i]); total += all[i].value; const vs = Math.ceil(sel.length * ivb + 2 * 31 + 10.5), fee = vs * feeRate;
+    if (total >= targetSats + fee) { const ch = total - targetSats - fee;
+      if (ch > 0 && ch < 546) return { selected: sel, fee: total - targetSats, change: 0, vsize: Math.ceil(sel.length * ivb + 31 + 10.5) };
+      return { selected: sel, fee, change: ch, vsize: vs };
+    }
+  } return null;
+};
+const getChangeAddr = () => {
+  const ch = APP.addresses.filter(a => a.isChange);
+  if (!ch.length) return APP.addresses[0] ? APP.addresses[0].address : null;
+  return (ch.find(a => !a.balance && !a.utxos.length) || ch[0]).address;
+};
+$('btn-import').onclick = async () => {
+  const key = $v('inp-key').trim(), type = $v('sel-import-type'); if (!key) { notify('Enter a key or address'); return }
+  try {
+    if (type === 'xpub') {
+      const kt = detectKeyType(key); if (!kt) { notify('Unsupported key format'); return }
+      if (!b58decode(key)) { notify('Invalid key checksum'); return }
+      const tk = key[0] === 't' || key[0] === 'v';
+      if (IS_TEST && !tk) { notify('Mainnet key on testnet'); return }
+      if (!IS_TEST && tk) { notify('Testnet key on mainnet'); return }
+      APP.walletType = 'xpub'; APP.extendedKey = key; APP.keyType = kt; APP.addresses = deriveAddresses(key, kt, 0, 1, false);
+    } else {
+      const v = validateAddr(key); if (!v.valid) { notify(v.error); return }
+      APP.walletType = 'address'; APP.keyType = v.type === 'p2tr' ? 'bip86' : 'bip84';
+      APP.addresses = [{ path: '-', address: key, isChange: false, balance: 0, utxos: [], pubkey: null }];
+    }
+    await fetchBalances(); renderDash(); go('sec-dash'); notify('Imported', 'ok');
+  } catch(e) { notify('Import failed: ' + e.message) }
+};
+$('btn-refresh').onclick = async () => { try { await fetchBalances(); renderDash(); notify('Updated', 'ok') } catch(e) { notify('Refresh failed: ' + e.message) } };
+$('btn-reset').onclick = () => { APP.walletType = null; APP.extendedKey = null; APP.keyType = null; APP.addresses = []; APP.totalBalance = 0; go('sec-import') };
+$('btn-max').onclick = () => {
+  const rate = parseInt($v('inp-fee')) || 4, all = APP.addresses.flatMap(a => a.utxos), ivb = APP.keyType === 'bip86' ? 57.5 : 68;
+  const fee = Math.ceil(all.length * ivb + 31 + 10.5) * rate, max = APP.totalBalance - fee;
+  if (max <= 0) { notify('Insufficient funds for fee'); return } $v('inp-amount', satsBtc(max));
+};
+$('btn-create-tx').onclick = async () => {
+  const recipient = $v('inp-recipient').trim(), v = validateAddr(recipient); if (!v.valid) { notify(v.error); return }
+  const amt = btcSats($v('inp-amount')); if (amt <= 0) { notify('Invalid amount'); return }
+  const feeRate = parseInt($v('inp-fee')) || 4, sel = selectUtxos(amt, feeRate); if (!sel) { notify('Insufficient funds'); return }
+  try {
+    const txData = {}; for (let i = 0; i < sel.selected.length; i++) {
+      const u = sel.selected[i]; if (!txData[u.txid]) try { txData[u.txid] = await api('/tx/' + u.txid + '/hex') } catch(e) {} await sleep(300);
+    }
+    const tx = new btcSigner.Transaction(); for (let i = 0; i < sel.selected.length; i++) {
+      const u = sel.selected[i], inp = { txid: u.txid, index: u.vout,
+        witnessUtxo: { script: btcSigner.OutScript.encode(btcSigner.Address(NET).decode(u.address)), amount: BigInt(u.value) } };
+      if (txData[u.txid]) inp.nonWitnessUtxo = hexToBytes(txData[u.txid]);
+      if (u.keyType === 'bip86' && u.pubkey) { const pub = typeof u.pubkey === 'string' ? hexToBytes(u.pubkey) : u.pubkey; inp.tapInternalKey = pub.length === 33 ? pub.slice(1) : pub }
+      tx.addInput(inp);
+    }
+    tx.addOutputAddress(recipient, BigInt(amt), NET);
+    if (sel.change > 0) { const ca = getChangeAddr(); if (ca) tx.addOutputAddress(ca, BigInt(sel.change), NET) }
+    APP.currentPsbt = tx.toPSBT();
+    let info = 'To: ' + recipient + '\nAmount: ' + satsBtc(amt) + ' BTC\nFee: ' + sel.fee + ' sats\nInputs: ' + sel.selected.length;
+    if (sel.change > 0) info += '\nChange: ' + satsBtc(sel.change) + ' BTC → ' + getChangeAddr();
+    $t('tx-preview', info); $v('psbt-out', toB64(APP.currentPsbt)); go('sec-psbt');
+  } catch(e) { notify('TX error: ' + e.message) }
+};
+$('btn-do-import-signed').onclick = () => {
+  const text = $v('inp-signed').trim(); if (!text) { notify('Paste signed PSBT'); return }
+  const psbt = fromB64(text); if (!psbt) { notify('Invalid base64 data'); return }
+  try { const tx = btcSigner.Transaction.fromPSBT(psbt); tx.finalize(); APP.signedTxHex = bytesToHex(tx.extract());
+    $t('broadcast-info', 'TX: ' + APP.signedTxHex.slice(0, 60) + '... (' + APP.signedTxHex.length / 2 + ' bytes)'); go('sec-broadcast'); notify('Signed TX decoded', 'ok');
+  } catch(e) { notify('Failed: ' + e.message) }
+};
+$('btn-broadcast').onclick = async () => {
+  try { const txid = await api('/tx', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: APP.signedTxHex });
+    $t('result-info', 'TXID: ' + txid + '\n\n' + API_BASE.replace('/api', '') + '/tx/' + txid); go('sec-result');
+  } catch(e) { notify('Broadcast failed: ' + e.message) }
+};
 </script>
