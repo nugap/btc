@@ -944,6 +944,20 @@ function bytesToHex(bytes) {
   return Array.from(bytes).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
+// Extract raw bytes from a UR's CBOR payload (strips CBOR byte-string header)
+function extractURBytes(ur) {
+  const raw = ur.cbor;
+  const buf = raw instanceof Uint8Array ? raw : new Uint8Array(raw);
+  // CBOR major type 2 (byte string): 0x40-0x57 = len 0-23, 0x58 XX = 1-byte len, 0x59 XX XX = 2-byte len
+  const first = buf[0];
+  if (first >= 0x40 && first <= 0x57) return buf.slice(1, 1 + (first - 0x40));
+  if (first === 0x58) return buf.slice(2, 2 + buf[1]);
+  if (first === 0x59) return buf.slice(3, 3 + ((buf[1] << 8) | buf[2]));
+  if (first === 0x5a) return buf.slice(5, 5 + ((buf[1] << 24) | (buf[2] << 16) | (buf[3] << 8) | buf[4]));
+  // Fallback: try decodeCBOR
+  try { return new Uint8Array(ur.decodeCBOR()); } catch(e) { return buf; }
+}
+
 function renderPreview() {
   const info = pendingTxInfo;
   const card = document.getElementById('tx-preview-card');
@@ -1075,7 +1089,7 @@ async function startScanner() {
           if (APP.urDecoder.isComplete()) {
             if (APP.urDecoder.isSuccess()) {
               const ur = APP.urDecoder.resultUR();
-              const buf = ur.decodeCBOR ? ur.decodeCBOR() : ur.cbor;
+              const buf = extractURBytes(ur);
               APP.signedPsbt = new Uint8Array(buf);
               stopScanner();
               processSignedPsbt();
@@ -1128,7 +1142,7 @@ function importFromPaste() {
     }
     if (decoder.isComplete() && decoder.isSuccess()) {
       const ur = decoder.resultUR();
-      const buf = ur.decodeCBOR ? ur.decodeCBOR() : ur.cbor;
+      const buf = extractURBytes(ur);
       APP.signedPsbt = new Uint8Array(buf);
       stopScanner();
       processSignedPsbt();

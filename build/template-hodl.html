@@ -400,6 +400,18 @@ function makeQR(text, container, ecl) {
   }
 }
 
+/* ── Extract raw bytes from UR CBOR payload ── */
+function extractURBytes(ur) {
+  const raw = ur.cbor;
+  const buf = raw instanceof Uint8Array ? raw : new Uint8Array(raw);
+  const first = buf[0];
+  if (first >= 0x40 && first <= 0x57) return buf.slice(1, 1 + (first - 0x40));
+  if (first === 0x58) return buf.slice(2, 2 + buf[1]);
+  if (first === 0x59) return buf.slice(3, 3 + ((buf[1] << 8) | buf[2]));
+  if (first === 0x5a) return buf.slice(5, 5 + ((buf[1] << 24) | (buf[2] << 16) | (buf[3] << 8) | buf[4]));
+  try { return new Uint8Array(ur.decodeCBOR()); } catch(e) { return buf; }
+}
+
 /* ── zpub / xpub / vpub / tpub conversion ── */
 function xpubToZpub(xpubStr) {
   const decoded = base58c.decode(xpubStr);
@@ -724,7 +736,7 @@ function onQRScanned(text) {
           goToDash();
           return;
         }
-        const psbtBytes = new Uint8Array(ur.decodeCBOR ? ur.decodeCBOR() : ur.cbor);
+        const psbtBytes = extractURBytes(ur);
         processPSBT(psbtBytes);
       } else {
         notify('QR scan failed — corrupted data', 'error');
@@ -768,7 +780,7 @@ document.getElementById('btn-paste-import').onclick = () => {
         notify('Expected crypto-psbt, got: ' + ur.type, 'error');
         return;
       }
-      const psbtBytes = new Uint8Array(ur.decodeCBOR ? ur.decodeCBOR() : ur.cbor);
+      const psbtBytes = extractURBytes(ur);
       stopScanner();
       processPSBT(psbtBytes);
     } else if (decoder.isComplete()) {
