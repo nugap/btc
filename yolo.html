@@ -55017,7 +55017,7 @@ var $ = function(id) { return document.getElementById(id) }
 var $v = function(id, v) { return v === void 0 ? $(id).value : ($(id).value = v) }
 var $t = function(id, t) { return t === void 0 ? $(id).innerText : ($(id).innerText = t) }
 var $on = function(id, f) { $(id).onclick = f }
-var $show = function(id) { $(id).style.display = '' }
+var $show = function(id) { $(id).style.display = 'block' }
 var $hide = function(id) { $(id).style.display = 'none' }
 
 var sections = ['sec-import','sec-dash','sec-send','sec-preview','sec-psbt','sec-import-signed','sec-broadcast','sec-result'];
