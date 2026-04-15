@@ -900,25 +900,10 @@ async function createTransaction() {
         const rawBytes = hexToBytes(txData[u.txid]);
         inputOpts.nonWitnessUtxo = rawBytes;
       }
-      // Taproot inputs need tapInternalKey and tapBip32Derivation
+      // Taproot inputs need tapInternalKey
       if (u.keyType === 'bip86' && u.pubkey) {
-        const xonly = u.pubkey.length === 33 ? u.pubkey.slice(1) : u.pubkey;
-        inputOpts.tapInternalKey = xonly;
-        // Add BIP32 derivation path for signer
-        if (u.path && u.path !== '-') {
-          inputOpts.tapBip32Derivation = [[
-            xonly,
-            { hashes: [], fingerprint: 0, path: parsePath(u.path) }
-          ]];
-        }
-      } else if (u.keyType === 'bip84' && u.pubkey) {
-        // SegWit: add bip32Derivation for signer
-        if (u.path && u.path !== '-') {
-          inputOpts.bip32Derivation = [[
-            u.pubkey,
-            { fingerprint: 0, path: parsePath(u.path) }
-          ]];
-        }
+        const pub = typeof u.pubkey === 'string' ? hexToBytes(u.pubkey) : u.pubkey;
+        inputOpts.tapInternalKey = pub.length === 33 ? pub.slice(1) : pub;
       }
       tx.addInput(inputOpts);
     }
@@ -978,14 +963,6 @@ function extractURBytes(ur) {
   try { return new Uint8Array(ur.decodeCBOR()); } catch(e) { return buf; }
 }
 
-// Parse BIP32 path string like "m/86'/0'/0'/0/0" into array of uint32 indices
-function parsePath(pathStr) {
-  return pathStr.replace(/^m\//, '').split('/').map(s => {
-    const hard = s.endsWith("'");
-    const idx = parseInt(s.replace("'", ''), 10);
-    return hard ? (idx + 0x80000000) : idx;
-  });
-}
 
 function renderPreview() {
   const info = pendingTxInfo;
