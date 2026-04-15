@@ -13,7 +13,7 @@ const ENTRIES = {
       "import { sha256 } from '@noble/hashes/sha2.js'",
     ],
     exports: 'btcSigner, HDKey, sha256',
-    template: 'template.html',
+    template: 'template-yolo.html',
     outputs: { mainnet: 'yolo.html', testnet4: 'yolo_test.html' },
   },
   hodl: {
