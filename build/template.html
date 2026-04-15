@@ -160,6 +160,10 @@ input[type=range] { width: 100%; accent-color: #58a6ff; }
       </div>
       <div class="balance-big" id="total-balance">0.00000000 BTC</div>
       <div class="balance-sub" id="last-updated"></div>
+      <div id="wallet-address" style="margin:8px 0;padding:10px;background:#0d1117;border:1px solid #30363d;border-radius:6px;display:none">
+        <div style="font-size:0.75rem;color:#8b949e;margin-bottom:4px" id="wallet-path"></div>
+        <div class="mono" style="font-size:0.85rem;word-break:break-all" id="wallet-addr-full"></div>
+      </div>
       <div id="address-list"></div>
     </div>
     <button style="width:100%;margin-top:4px" onclick="showSend()" id="btn-send">Send Transaction</button>
@@ -667,6 +671,17 @@ function renderDashboard() {
     ? (APP.keyType === 'bip84' ? 'BIP-84 (SegWit)' : 'BIP-86 (Taproot)')
     : 'Single Address';
   document.getElementById('wallet-type-label').textContent = typeLabel;
+
+  // Show address and derivation path
+  const addrBox = document.getElementById('wallet-address');
+  if (APP.addresses.length > 0) {
+    const first = APP.addresses[0];
+    document.getElementById('wallet-path').textContent = first.path !== '-' ? 'Derivation: ' + first.path : 'Single Address';
+    document.getElementById('wallet-addr-full').textContent = first.address;
+    addrBox.style.display = '';
+  } else {
+    addrBox.style.display = 'none';
+  }
 
   const list = document.getElementById('address-list');
   list.replaceChildren();
