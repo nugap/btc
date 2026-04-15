@@ -44,20 +44,14 @@
 <button data-go="sec-dash">Back</button>
 </div>
 
-<div id="sec-preview" class="sec">
-<b>Transaction Preview</b><br><hr>
-<pre id="tx-preview"></pre>
-<button id="btn-show-psbt">Show PSBT for Signing</button>
-<button data-go="sec-send">Back</button>
-</div>
-
 <div id="sec-psbt" class="sec">
 <b>Unsigned PSBT</b><br><hr>
+<pre id="tx-preview"></pre>
 <span>Copy this to hodl for signing:</span><br>
 <textarea id="psbt-out" rows="6" readonly></textarea><br>
 <button data-copy="psbt-out">Copy</button>
 <button data-go="sec-import-signed">Import Signed TX</button>
-<button data-go="sec-preview">Back</button>
+<button data-go="sec-send">Back</button>
 </div>
 
 <div id="sec-import-signed" class="sec">
@@ -12077,299 +12071,299 @@ var nugap = (() => {
 <script>
 'use strict';
 
-var { btcSigner, HDKey, sha256, ripemd160, secp256k1 } = nugap;
+const { btcSigner, HDKey, sha256, ripemd160, secp256k1 } = nugap;
 
-var NETWORK = 'mainnet';
-var IS_TEST = NETWORK === 'testnet4';
-var NET = IS_TEST ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
-var API_BASE = IS_TEST ? 'https://mempool.space/testnet4/api' : 'https://mempool.space/api';
+const NETWORK = 'mainnet';
+const IS_TEST = NETWORK === 'testnet4';
+const NET = IS_TEST ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
+const API_BASE = IS_TEST ? 'https://mempool.space/testnet4/api' : 'https://mempool.space/api';
 
-var $ = function(id) { return document.getElementById(id) }
-var $v = function(id, v) { return v === void 0 ? $(id).value : ($(id).value = v) }
-var $t = function(id, t) { return t === void 0 ? $(id).innerText : ($(id).innerText = t) }
-var $show = function(id) { $(id).style.display = 'block' }
-var $hide = function(id) { $(id).style.display = 'none' }
+const $ = id => document.getElementById(id);
+const $v = (id, v) => v === void 0 ? $(id).value : ($(id).value = v);
+const $t = (id, t) => t === void 0 ? $(id).innerText : ($(id).innerText = t);
+const $show = id => $(id).style.display = 'block';
+const $hide = id => $(id).style.display = 'none';
 
-var SECS = ['sec-import','sec-dash','sec-send','sec-preview','sec-psbt','sec-import-signed','sec-broadcast','sec-result'];
-function go(id) { SECS.forEach($hide); $show(id) }
+const SECS = ['sec-import','sec-dash','sec-send','sec-psbt','sec-import-signed','sec-broadcast','sec-result'];
+const go = id => { SECS.forEach($hide); $show(id) };
 
-document.addEventListener('click', function(e) {
-  var t = e.target;
+document.addEventListener('click', e => {
+  const t = e.target;
   if (t.dataset.go) go(t.dataset.go);
-  if (t.dataset.copy) navigator.clipboard.writeText($v(t.dataset.copy)).then(function() { notify('Copied', 'ok') });
+  if (t.dataset.copy) navigator.clipboard.writeText($v(t.dataset.copy)).then(() => notify('Copied', 'ok'));
 });
 
 $t('net-label', IS_TEST ? '[Testnet4]' : '[Mainnet]');
 $('inp-key').placeholder = IS_TEST ? 'vpub / tpub / tb1...' : 'zpub / xpub / bc1...';
 $('inp-recipient').placeholder = IS_TEST ? 'tb1...' : 'bc1...';
 
-var APP = {
+const APP = {
   walletType: null, extendedKey: null, keyType: null,
   addresses: [], totalBalance: 0,
   currentPsbt: null, signedTxHex: null
 };
 
-function notify(msg, type) {
-  var el = $('notify');
+const notify = (msg, type) => {
+  const el = $('notify');
   el.innerText = msg;
   el.style.display = '';
   el.style.background = type === 'ok' ? '#cfc' : type === 'warn' ? '#ffc' : '#fcc';
-  setTimeout(function() { el.style.display = 'none' }, 4000);
-}
+  setTimeout(() => el.style.display = 'none', 4000);
+};
 
-function satsBtc(s) { return (Number(s) / 1e8).toFixed(8) }
+const satsBtc = s => (Number(s) / 1e8).toFixed(8);
 
-function btcSats(b) {
-  var s = String(b).trim(), neg = s[0] === '-';
+const btcSats = b => {
+  let s = String(b).trim(), neg = s[0] === '-';
   if (neg) s = s.slice(1);
-  var p = s.split('.'), i = p[0] || '0', d = (p[1] || '').padEnd(8, '0').slice(0, 8);
-  var v = parseInt(i, 10) * 1e8 + parseInt(d, 10);
+  const p = s.split('.'), i = p[0] || '0', d = (p[1] || '').padEnd(8, '0').slice(0, 8);
+  const v = parseInt(i, 10) * 1e8 + parseInt(d, 10);
   return neg ? -v : v;
-}
+};
 
-function sleep(ms) { return new Promise(function(r) { setTimeout(r, ms) }) }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-function hexToBytes(h) {
-  var b = new Uint8Array(h.length / 2);
-  for (var i = 0; i < h.length; i += 2) b[i / 2] = parseInt(h.slice(i, i + 2), 16);
+const hexToBytes = h => {
+  const b = new Uint8Array(h.length / 2);
+  for (let i = 0; i < h.length; i += 2) b[i / 2] = parseInt(h.slice(i, i + 2), 16);
   return b;
-}
+};
 
-function bytesToHex(b) {
-  return Array.from(b, function(x) { return x.toString(16).padStart(2, '0') }).join('');
-}
+const bytesToHex = b => Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
 
-function toB64(bytes) {
-  var s = '';
-  for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+const toB64 = bytes => {
+  let s = '';
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
   return btoa(s);
-}
+};
 
-function fromB64(str) {
+const fromB64 = str => {
   try {
-    var s = atob(str.trim()), b = new Uint8Array(s.length);
-    for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
+    const s = atob(str.trim()), b = new Uint8Array(s.length);
+    for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
     return b;
   } catch(e) {}
   try { return hexToBytes(str.trim()) } catch(e) {}
   return null;
-}
+};
 
-var B32 = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
-var B32_GEN = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+const B32 = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+const B32_GEN = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
 
-function bech32Decode(str) {
+const bech32Decode = str => {
   str = str.toLowerCase();
-  var pos = str.lastIndexOf('1');
+  const pos = str.lastIndexOf('1');
   if (pos < 1 || pos + 7 > str.length) return null;
-  var hrp = str.slice(0, pos), data = [];
-  for (var i = pos + 1; i < str.length; i++) {
-    var c = B32.indexOf(str[i]);
+  const hrp = str.slice(0, pos), data = [];
+  for (let i = pos + 1; i < str.length; i++) {
+    const c = B32.indexOf(str[i]);
     if (c < 0) return null;
     data.push(c);
   }
-  function polymod(v) {
-    var chk = 1;
-    for (var i = 0; i < v.length; i++) {
-      var b = chk >> 25;
+  const polymod = v => {
+    let chk = 1;
+    for (let i = 0; i < v.length; i++) {
+      const b = chk >> 25;
       chk = ((chk & 0x1ffffff) << 5) ^ v[i];
-      for (var j = 0; j < 5; j++) if ((b >> j) & 1) chk ^= B32_GEN[j];
+      for (let j = 0; j < 5; j++) if ((b >> j) & 1) chk ^= B32_GEN[j];
     }
     return chk;
-  }
-  var exp = [];
-  for (var i = 0; i < hrp.length; i++) exp.push(hrp.charCodeAt(i) >> 5);
+  };
+  const exp = [];
+  for (let i = 0; i < hrp.length; i++) exp.push(hrp.charCodeAt(i) >> 5);
   exp.push(0);
-  for (var i = 0; i < hrp.length; i++) exp.push(hrp.charCodeAt(i) & 31);
-  var chk = polymod(exp.concat(data));
-  var enc = chk === 1 ? 'bech32' : chk === 0x2bc830a3 ? 'bech32m' : null;
+  for (let i = 0; i < hrp.length; i++) exp.push(hrp.charCodeAt(i) & 31);
+  const chk = polymod(exp.concat(data));
+  const enc = chk === 1 ? 'bech32' : chk === 0x2bc830a3 ? 'bech32m' : null;
   if (!enc) return null;
-  var dp = data.slice(0, -6), wv = dp[0], payload = [], acc = 0, bits = 0;
-  for (var i = 1; i < dp.length; i++) {
+  const dp = data.slice(0, -6), wv = dp[0];
+  let payload = [], acc = 0, bits = 0;
+  for (let i = 1; i < dp.length; i++) {
     acc = (acc << 5) | dp[i]; bits += 5;
     if (bits >= 8) { bits -= 8; payload.push((acc >> bits) & 0xff); }
   }
   if (bits >= 5 || (acc << (8 - bits)) & 0xff) return null;
-  return { hrp: hrp, witnessVer: wv, program: new Uint8Array(payload), encoding: enc };
-}
+  return { hrp, witnessVer: wv, program: new Uint8Array(payload), encoding: enc };
+};
 
-function validateAddr(addr) {
+const validateAddr = addr => {
   if (/^[13]/.test(addr)) return { valid: false, error: 'Legacy not supported' };
-  var hrp = IS_TEST ? 'tb' : 'bc';
+  const hrp = IS_TEST ? 'tb' : 'bc';
   if (IS_TEST && /^bc1/i.test(addr)) return { valid: false, error: 'Mainnet address on testnet' };
   if (!IS_TEST && /^tb1/i.test(addr)) return { valid: false, error: 'Testnet address on mainnet' };
-  var d = bech32Decode(addr);
+  const d = bech32Decode(addr);
   if (!d || d.hrp !== hrp) return { valid: false, error: 'Invalid address' };
   if (d.witnessVer === 0 && d.encoding !== 'bech32') return { valid: false, error: 'v0 needs bech32' };
   if (d.witnessVer > 0 && d.encoding !== 'bech32m') return { valid: false, error: 'v1+ needs bech32m' };
   if (d.witnessVer === 1 && d.program.length !== 32) return { valid: false, error: 'Bad taproot length' };
   return { valid: true, type: d.witnessVer === 0 ? 'p2wpkh' : 'p2tr' };
-}
+};
 
-var B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
 
-function b58decode(str) {
-  var n = 0n;
-  for (var i = 0; i < str.length; i++) {
-    var c = B58.indexOf(str[i]);
+const b58decode = str => {
+  let n = 0n;
+  for (let i = 0; i < str.length; i++) {
+    const c = B58.indexOf(str[i]);
     if (c < 0) return null;
     n = n * 58n + BigInt(c);
   }
-  var h = n.toString(16);
+  let h = n.toString(16);
   if (h.length % 2) h = '0' + h;
-  var bytes = [];
-  for (var i = 0; i < h.length; i += 2) bytes.push(parseInt(h.slice(i, i + 2), 16));
-  for (var i = 0; i < str.length && str[i] === '1'; i++) bytes.unshift(0);
-  var arr = new Uint8Array(bytes), payload = arr.slice(0, -4), cksum = arr.slice(-4);
-  var hash = sha256(sha256(payload));
-  for (var i = 0; i < 4; i++) if (hash[i] !== cksum[i]) return null;
+  const bytes = [];
+  for (let i = 0; i < h.length; i += 2) bytes.push(parseInt(h.slice(i, i + 2), 16));
+  for (let i = 0; i < str.length && str[i] === '1'; i++) bytes.unshift(0);
+  const arr = new Uint8Array(bytes), payload = arr.slice(0, -4), cksum = arr.slice(-4);
+  const hash = sha256(sha256(payload));
+  for (let i = 0; i < 4; i++) if (hash[i] !== cksum[i]) return null;
   return payload;
-}
+};
 
-function b58encode(bytes) {
-  var n = 0n;
-  for (var i = 0; i < bytes.length; i++) n = n * 256n + BigInt(bytes[i]);
-  var str = '';
+const b58encode = bytes => {
+  let n = 0n;
+  for (let i = 0; i < bytes.length; i++) n = n * 256n + BigInt(bytes[i]);
+  let str = '';
   while (n > 0n) { str = B58[Number(n % 58n)] + str; n /= 58n; }
-  for (var i = 0; i < bytes.length && bytes[i] === 0; i++) str = '1' + str;
+  for (let i = 0; i < bytes.length && bytes[i] === 0; i++) str = '1' + str;
   return str;
-}
+};
 
-function detectKeyType(key) {
+const detectKeyType = key => {
   if (key[0] === 'z' || key[0] === 'v') return 'bip84';
   if (key[0] === 'x' || key[0] === 't') return 'bip86';
   return null;
-}
+};
 
-function convertToXpub(keyStr) {
-  var data = b58decode(keyStr);
+const convertToXpub = keyStr => {
+  const data = b58decode(keyStr);
   if (!data || data.length !== 78) return null;
-  var out = new Uint8Array(data);
+  const out = new Uint8Array(data);
   out[0] = 0x04; out[1] = IS_TEST ? 0x35 : 0x88;
   out[2] = IS_TEST ? 0x87 : 0xB2; out[3] = IS_TEST ? 0xCF : 0x1E;
-  var h = sha256(sha256(out));
-  var full = new Uint8Array(82);
+  const h = sha256(sha256(out));
+  const full = new Uint8Array(82);
   full.set(out); full.set(h.slice(0, 4), 78);
   return b58encode(full);
-}
+};
 
-function deriveAddresses(extKey, keyType, start, count, change) {
-  var xpub = extKey;
+const deriveAddresses = (extKey, keyType, start, count, change) => {
+  let xpub = extKey;
   if (keyType === 'bip84' && (extKey[0] === 'z' || extKey[0] === 'v'))
     xpub = convertToXpub(extKey);
   if (!xpub) throw new Error('Invalid key');
-  var vers = IS_TEST ? { public: 0x043587CF, private: 0x04358394 } : undefined;
-  var root = HDKey.fromExtendedKey(xpub, vers);
-  var ch = change ? 1 : 0, branch = root.deriveChild(ch), addrs = [];
-  var base = keyType === 'bip84' ? "m/84'/0'/0'" : "m/86'/0'/0'";
-  for (var i = start; i < start + count; i++) {
-    var pub = branch.deriveChild(i).publicKey;
-    var addr = keyType === 'bip84'
+  const vers = IS_TEST ? { public: 0x043587CF, private: 0x04358394 } : undefined;
+  const root = HDKey.fromExtendedKey(xpub, vers);
+  const ch = change ? 1 : 0, branch = root.deriveChild(ch), addrs = [];
+  const base = keyType === 'bip84' ? "m/84'/0'/0'" : "m/86'/0'/0'";
+  for (let i = start; i < start + count; i++) {
+    const pub = branch.deriveChild(i).publicKey;
+    const addr = keyType === 'bip84'
       ? btcSigner.p2wpkh(pub, NET).address
       : btcSigner.p2tr(pub.slice(1), undefined, NET).address;
     addrs.push({ path: base + '/' + ch + '/' + i, address: addr, isChange: !!change, balance: 0, utxos: [], pubkey: pub });
   }
   return addrs;
-}
+};
 
-async function api(path, opts) {
+const api = async (path, opts) => {
   opts = opts || {};
-  var res = await fetch(API_BASE + path, opts);
+  const res = await fetch(API_BASE + path, opts);
   if (res.status === 429) {
     if ((opts._retries || 0) >= 3) throw new Error('Rate limited');
     await sleep(5000);
-    return api(path, Object.assign({}, opts, { _retries: (opts._retries || 0) + 1 }));
+    return api(path, { ...opts, _retries: (opts._retries || 0) + 1 });
   }
   if (!res.ok) throw new Error(await res.text() || 'HTTP ' + res.status);
   return (res.headers.get('content-type') || '').includes('json') ? res.json() : res.text();
-}
+};
 
-async function fetchBalances() {
-  var total = 0;
-  for (var i = 0; i < APP.addresses.length; i++) {
-    var a = APP.addresses[i];
+const fetchBalances = async () => {
+  let total = 0;
+  for (let i = 0; i < APP.addresses.length; i++) {
+    const a = APP.addresses[i];
     try {
-      var info = await api('/address/' + a.address);
-      var cs = info.chain_stats || {}, ms = info.mempool_stats || {};
+      const info = await api('/address/' + a.address);
+      const cs = info.chain_stats || {}, ms = info.mempool_stats || {};
       a.balance = (cs.funded_txo_sum - cs.spent_txo_sum) + (ms.funded_txo_sum - ms.spent_txo_sum);
       if (a.balance > 0 || (cs.tx_count || 0) + (ms.tx_count || 0) > 0) {
-        a.utxos = ((await api('/address/' + a.address + '/utxo')) || []).map(function(u) {
-          return { txid: u.txid, vout: u.vout, value: u.value, confirmed: u.status && u.status.confirmed };
-        });
+        a.utxos = ((await api('/address/' + a.address + '/utxo')) || []).map(u => ({
+          txid: u.txid, vout: u.vout, value: u.value, confirmed: u.status && u.status.confirmed
+        }));
       } else a.utxos = [];
       total += a.balance;
     } catch(e) {}
     if (i < APP.addresses.length - 1) await sleep(300);
   }
   APP.totalBalance = total;
-}
+};
 
-function renderDash() {
-  var first = APP.addresses[0];
+const renderDash = () => {
+  const first = APP.addresses[0];
   $t('dash-type', APP.keyType === 'bip84' ? '[BIP-84 SegWit]' : '[BIP-86 Taproot]');
   $t('dash-addr', first ? first.address : '');
   $t('dash-path', first && first.path !== '-' ? first.path : '');
   $t('dash-balance', satsBtc(APP.totalBalance) + ' BTC');
   $t('dash-updated', 'Updated: ' + new Date().toLocaleTimeString());
-  var html = '';
-  APP.addresses.forEach(function(a) {
+  let html = '';
+  APP.addresses.forEach(a => {
     if (a.balance <= 0 && !a.utxos.length) return;
     html += '<b>' + satsBtc(a.balance) + ' BTC</b> ' + a.address.slice(0, 12) + '...<br>';
-    a.utxos.forEach(function(u) {
+    a.utxos.forEach(u => {
       html += '  ' + u.txid.slice(0, 8) + ':' + u.vout + ' = ' + u.value + ' sats ' + (u.confirmed ? '✓' : '⏳') + '<br>';
     });
   });
   $('dash-utxos').innerHTML = html || '<span>No UTXOs</span>';
-}
+};
 
-function selectUtxos(targetSats, feeRate) {
-  var all = [];
-  APP.addresses.forEach(function(a) {
-    a.utxos.forEach(function(u) {
-      all.push(Object.assign({}, u, { address: a.address, pubkey: a.pubkey, path: a.path, keyType: APP.keyType }));
+const selectUtxos = (targetSats, feeRate) => {
+  const all = [];
+  APP.addresses.forEach(a => {
+    a.utxos.forEach(u => {
+      all.push({ ...u, address: a.address, pubkey: a.pubkey, path: a.path, keyType: APP.keyType });
     });
   });
-  all.sort(function(a, b) { return b.value - a.value });
-  var ivb = APP.keyType === 'bip86' ? 57.5 : 68;
-  var sel = [], total = 0;
-  for (var i = 0; i < all.length; i++) {
+  all.sort((a, b) => b.value - a.value);
+  const ivb = APP.keyType === 'bip86' ? 57.5 : 68;
+  const sel = [];
+  let total = 0;
+  for (let i = 0; i < all.length; i++) {
     sel.push(all[i]); total += all[i].value;
-    var vs = Math.ceil(sel.length * ivb + 2 * 31 + 10.5);
-    var fee = vs * feeRate;
+    const vs = Math.ceil(sel.length * ivb + 2 * 31 + 10.5);
+    const fee = vs * feeRate;
     if (total >= targetSats + fee) {
-      var change = total - targetSats - fee;
+      const change = total - targetSats - fee;
       if (change > 0 && change < 546) {
-        var vs2 = Math.ceil(sel.length * ivb + 31 + 10.5);
+        const vs2 = Math.ceil(sel.length * ivb + 31 + 10.5);
         return { selected: sel, fee: total - targetSats, change: 0, vsize: vs2 };
       }
-      return { selected: sel, fee: fee, change: change, vsize: vs };
+      return { selected: sel, fee, change, vsize: vs };
     }
   }
   return null;
-}
+};
 
-function getChangeAddr() {
-  var ch = APP.addresses.filter(function(a) { return a.isChange });
+const getChangeAddr = () => {
+  const ch = APP.addresses.filter(a => a.isChange);
   if (!ch.length) return APP.addresses[0] ? APP.addresses[0].address : null;
-  var unused = ch.find(function(a) { return !a.balance && !a.utxos.length });
+  const unused = ch.find(a => !a.balance && !a.utxos.length);
   return (unused || ch[0]).address;
-}
+};
 
-$('btn-import').onclick = async function() {
-  var key = $v('inp-key').trim(), type = $v('sel-import-type');
+$('btn-import').onclick = async () => {
+  const key = $v('inp-key').trim(), type = $v('sel-import-type');
   if (!key) { notify('Enter a key or address'); return }
   try {
     if (type === 'xpub') {
-      var kt = detectKeyType(key);
+      const kt = detectKeyType(key);
       if (!kt) { notify('Unsupported key format'); return }
       if (!b58decode(key)) { notify('Invalid key checksum'); return }
-      var isTestKey = key[0] === 't' || key[0] === 'v';
+      const isTestKey = key[0] === 't' || key[0] === 'v';
       if (IS_TEST && !isTestKey) { notify('Mainnet key on testnet'); return }
       if (!IS_TEST && isTestKey) { notify('Testnet key on mainnet'); return }
       APP.walletType = 'xpub'; APP.extendedKey = key; APP.keyType = kt;
       APP.addresses = deriveAddresses(key, kt, 0, 1, false);
     } else {
-      var v = validateAddr(key);
+      const v = validateAddr(key);
       if (!v.valid) { notify(v.error); return }
       APP.walletType = 'address'; APP.keyType = v.type === 'p2tr' ? 'bip86' : 'bip84';
       APP.addresses = [{ path: '-', address: key, isChange: false, balance: 0, utxos: [], pubkey: null }];
@@ -12381,47 +12375,47 @@ $('btn-import').onclick = async function() {
   } catch(e) { notify('Import failed: ' + e.message) }
 };
 
-$('btn-refresh').onclick = async function() {
+$('btn-refresh').onclick = async () => {
   try { await fetchBalances(); renderDash(); notify('Updated', 'ok') }
   catch(e) { notify('Refresh failed: ' + e.message) }
 };
 
-$('btn-reset').onclick = function() {
+$('btn-reset').onclick = () => {
   APP.walletType = null; APP.extendedKey = null; APP.keyType = null;
   APP.addresses = []; APP.totalBalance = 0;
   go('sec-import');
 };
 
-$('btn-max').onclick = function() {
-  var rate = parseInt($v('inp-fee')) || 4;
-  var all = APP.addresses.flatMap(function(a) { return a.utxos });
-  var ivb = APP.keyType === 'bip86' ? 57.5 : 68;
-  var fee = Math.ceil(all.length * ivb + 31 + 10.5) * rate;
-  var max = APP.totalBalance - fee;
+$('btn-max').onclick = () => {
+  const rate = parseInt($v('inp-fee')) || 4;
+  const all = APP.addresses.flatMap(a => a.utxos);
+  const ivb = APP.keyType === 'bip86' ? 57.5 : 68;
+  const fee = Math.ceil(all.length * ivb + 31 + 10.5) * rate;
+  const max = APP.totalBalance - fee;
   if (max <= 0) { notify('Insufficient funds for fee'); return }
   $v('inp-amount', satsBtc(max));
 };
 
-$('btn-create-tx').onclick = async function() {
-  var recipient = $v('inp-recipient').trim();
-  var v = validateAddr(recipient);
+$('btn-create-tx').onclick = async () => {
+  const recipient = $v('inp-recipient').trim();
+  const v = validateAddr(recipient);
   if (!v.valid) { notify(v.error); return }
-  var amountSats = btcSats($v('inp-amount'));
+  const amountSats = btcSats($v('inp-amount'));
   if (amountSats <= 0) { notify('Invalid amount'); return }
-  var feeRate = parseInt($v('inp-fee')) || 4;
-  var sel = selectUtxos(amountSats, feeRate);
+  const feeRate = parseInt($v('inp-fee')) || 4;
+  const sel = selectUtxos(amountSats, feeRate);
   if (!sel) { notify('Insufficient funds'); return }
   try {
-    var txData = {};
-    for (var i = 0; i < sel.selected.length; i++) {
-      var u = sel.selected[i];
+    const txData = {};
+    for (let i = 0; i < sel.selected.length; i++) {
+      const u = sel.selected[i];
       if (!txData[u.txid]) try { txData[u.txid] = await api('/tx/' + u.txid + '/hex') } catch(e) {}
       await sleep(300);
     }
-    var tx = new btcSigner.Transaction();
-    for (var i = 0; i < sel.selected.length; i++) {
-      var u = sel.selected[i];
-      var inp = {
+    const tx = new btcSigner.Transaction();
+    for (let i = 0; i < sel.selected.length; i++) {
+      const u = sel.selected[i];
+      const inp = {
         txid: u.txid, index: u.vout,
         witnessUtxo: {
           script: btcSigner.OutScript.encode(btcSigner.Address(NET).decode(u.address)),
@@ -12430,33 +12424,32 @@ $('btn-create-tx').onclick = async function() {
       };
       if (txData[u.txid]) inp.nonWitnessUtxo = hexToBytes(txData[u.txid]);
       if (u.keyType === 'bip86' && u.pubkey) {
-        var pub = typeof u.pubkey === 'string' ? hexToBytes(u.pubkey) : u.pubkey;
+        const pub = typeof u.pubkey === 'string' ? hexToBytes(u.pubkey) : u.pubkey;
         inp.tapInternalKey = pub.length === 33 ? pub.slice(1) : pub;
       }
       tx.addInput(inp);
     }
     tx.addOutputAddress(recipient, BigInt(amountSats), NET);
     if (sel.change > 0) {
-      var ca = getChangeAddr();
+      const ca = getChangeAddr();
       if (ca) tx.addOutputAddress(ca, BigInt(sel.change), NET);
     }
     APP.currentPsbt = tx.toPSBT();
-    var info = 'To: ' + recipient + '\nAmount: ' + satsBtc(amountSats) + ' BTC\nFee: ' + sel.fee + ' sats\nInputs: ' + sel.selected.length;
+    let info = 'To: ' + recipient + '\nAmount: ' + satsBtc(amountSats) + ' BTC\nFee: ' + sel.fee + ' sats\nInputs: ' + sel.selected.length;
     if (sel.change > 0) info += '\nChange: ' + satsBtc(sel.change) + ' BTC → ' + getChangeAddr();
     $t('tx-preview', info);
-    go('sec-preview');
+    $v('psbt-out', toB64(APP.currentPsbt));
+    go('sec-psbt');
   } catch(e) { notify('TX error: ' + e.message) }
 };
 
-$('btn-show-psbt').onclick = function() { $v('psbt-out', toB64(APP.currentPsbt)); go('sec-psbt') };
-
-$('btn-do-import-signed').onclick = function() {
-  var text = $v('inp-signed').trim();
+$('btn-do-import-signed').onclick = () => {
+  const text = $v('inp-signed').trim();
   if (!text) { notify('Paste signed PSBT'); return }
-  var psbt = fromB64(text);
+  const psbt = fromB64(text);
   if (!psbt) { notify('Invalid base64 data'); return }
   try {
-    var tx = btcSigner.Transaction.fromPSBT(psbt);
+    const tx = btcSigner.Transaction.fromPSBT(psbt);
     tx.finalize();
     APP.signedTxHex = bytesToHex(tx.extract());
     $t('broadcast-info', 'TX: ' + APP.signedTxHex.slice(0, 60) + '... (' + APP.signedTxHex.length / 2 + ' bytes)');
@@ -12465,9 +12458,9 @@ $('btn-do-import-signed').onclick = function() {
   } catch(e) { notify('Failed: ' + e.message) }
 };
 
-$('btn-broadcast').onclick = async function() {
+$('btn-broadcast').onclick = async () => {
   try {
-    var txid = await api('/tx', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: APP.signedTxHex });
+    const txid = await api('/tx', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: APP.signedTxHex });
     $t('result-info', 'TXID: ' + txid + '\n\n' + API_BASE.replace('/api', '') + '/tx/' + txid);
     go('sec-result');
   } catch(e) { notify('Broadcast failed: ' + e.message) }

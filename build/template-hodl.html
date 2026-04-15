@@ -89,11 +89,6 @@
 <button id="btn-cancel-tx">Cancel</button>
 </div>
 
-<div id="sec-signing" class="sec">
-<b>Signing...</b><br>
-<span id="sign-status">Preparing...</span>
-</div>
-
 <div id="sec-signed" class="sec">
 <b>Transaction Signed</b><br><hr>
 <span>Copy this to yolo:</span><br>
@@ -116,150 +111,149 @@
 (function(){
 'use strict';
 
-var { generateMnemonic, mnemonicToSeedSync, validateMnemonic, wordlist,
-      btcSigner, HDKey, sha256, ripemd160, secp256k1,
-      base58c, hex } = nugap;
+const { generateMnemonic, mnemonicToSeedSync, validateMnemonic, wordlist,
+        btcSigner, HDKey, sha256, ripemd160, secp256k1,
+        base58c, hex } = nugap;
 
-var NETWORK = '/* __NETWORK__ */';
-var IS_TEST = NETWORK === 'testnet4';
-var NET = IS_TEST ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
+const NETWORK = '/* __NETWORK__ */';
+const IS_TEST = NETWORK === 'testnet4';
+const NET = IS_TEST ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
 
-var $ = function(id) { return document.getElementById(id) }
-var $v = function(id, v) { return v === void 0 ? $(id).value : ($(id).value = v) }
-var $t = function(id, t) { return t === void 0 ? $(id).innerText : ($(id).innerText = t) }
-var $show = function(id) { $(id).style.display = 'block' }
-var $hide = function(id) { $(id).style.display = 'none' }
+const $ = id => document.getElementById(id);
+const $v = (id, v) => v === void 0 ? $(id).value : ($(id).value = v);
+const $t = (id, t) => t === void 0 ? $(id).innerText : ($(id).innerText = t);
+const $show = id => $(id).style.display = 'block';
+const $hide = id => $(id).style.display = 'none';
 
-var SECS = ['sec-landing','sec-create','sec-mnemonic','sec-verify','sec-import','sec-dash','sec-export','sec-scan','sec-review','sec-signing','sec-signed','sec-show-mn'];
-function go(id) { SECS.forEach($hide); $show(id) }
+const SECS = ['sec-landing','sec-create','sec-mnemonic','sec-verify','sec-import','sec-dash','sec-export','sec-scan','sec-review','sec-signed','sec-show-mn'];
+const go = id => { SECS.forEach($hide); $show(id) };
 
-document.addEventListener('click', function(e) {
-  var t = e.target;
+document.addEventListener('click', e => {
+  const t = e.target;
   if (t.dataset.go) go(t.dataset.go);
-  if (t.dataset.copy) navigator.clipboard.writeText($v(t.dataset.copy)).then(function() { notify('Copied', 'ok') });
+  if (t.dataset.copy) navigator.clipboard.writeText($v(t.dataset.copy)).then(() => notify('Copied', 'ok'));
 });
 
 $t('net-label', IS_TEST ? '[Testnet4]' : '[Mainnet]');
 
-var S = {
+const S = {
   mnemonic: null, passphrase: '', seed: null, masterKey: null,
   accounts: { bip84: null, bip86: null }, activeAccount: 'bip84',
   pendingPSBT: null
 };
 
-var notifyTimer;
-function notify(msg, type) {
-  var el = $('notify');
+let notifyTimer;
+const notify = (msg, type) => {
+  const el = $('notify');
   el.innerText = msg;
   el.style.display = '';
   el.style.background = type === 'ok' ? '#cfc' : type === 'warn' ? '#ffc' : '#fcc';
   clearTimeout(notifyTimer);
-  notifyTimer = setTimeout(function() { el.style.display = 'none' }, 4000);
-}
+  notifyTimer = setTimeout(() => el.style.display = 'none', 4000);
+};
 
-function checkOnline() { $('online-warn').style.display = navigator.onLine ? 'block' : 'none' }
+const checkOnline = () => $('online-warn').style.display = navigator.onLine ? 'block' : 'none';
 checkOnline();
-window.addEventListener('online', function() { checkOnline(); notify('Internet detected! Disconnect!') });
+window.addEventListener('online', () => { checkOnline(); notify('Internet detected! Disconnect!') });
 window.addEventListener('offline', checkOnline);
 
-function toB64(bytes) {
-  var s = '';
-  for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+const toB64 = bytes => {
+  let s = '';
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
   return btoa(s);
-}
+};
 
-function fromB64(str) {
-  var s = atob(str.trim()), b = new Uint8Array(s.length);
-  for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
+const fromB64 = str => {
+  const s = atob(str.trim()), b = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
   return b;
-}
+};
 
-function convertXpub(xpub, v0, v1, v2, v3) {
-  var b = new Uint8Array(base58c.decode(xpub));
+const convertXpub = (xpub, v0, v1, v2, v3) => {
+  const b = new Uint8Array(base58c.decode(xpub));
   b[0] = v0; b[1] = v1; b[2] = v2; b[3] = v3;
   return base58c.encode(b);
-}
+};
 
-function deriveAccounts() {
-  var mk = S.masterKey;
-  var acc84 = mk.derive("m/84'/0'/0'");
+const deriveAccounts = () => {
+  const mk = S.masterKey;
+  const acc84 = mk.derive("m/84'/0'/0'");
   S.accounts.bip84 = {
     path: "m/84'/0'/0'", accountKey: acc84,
     pubkey: convertXpub(acc84.publicExtendedKey, ...(IS_TEST ? [0x04,0x5F,0x1C,0xF6] : [0x04,0xB2,0x47,0x46]))
   };
-  var acc86 = mk.derive("m/86'/0'/0'");
+  const acc86 = mk.derive("m/86'/0'/0'");
   S.accounts.bip86 = {
     path: "m/86'/0'/0'", accountKey: acc86,
     pubkey: IS_TEST ? convertXpub(acc86.publicExtendedKey, 0x04,0x35,0x87,0xCF) : acc86.publicExtendedKey
   };
-}
+};
 
-function goToDash() {
+const goToDash = () => {
   $t('dash-fp', S.masterKey.fingerprint.toString(16).padStart(8, '0'));
-  $t('dash-info', (S.activeAccount === 'bip84' ? 'BIP-84 SegWit' : 'BIP-86 Taproot'));
+  $t('dash-info', S.activeAccount === 'bip84' ? 'BIP-84 SegWit' : 'BIP-86 Taproot');
   $v('sel-account', S.activeAccount);
   go('sec-dash');
-}
+};
 
-function displayWords(id, words) {
-  $(id).innerHTML = words.split(' ').map(function(w, i) {
-    return '<span>' + (i + 1) + '. ' + w + '</span>';
-  }).join('');
-}
+const displayWords = (id, words) => {
+  $(id).innerHTML = words.split(' ').map((w, i) => '<span>' + (i + 1) + '. ' + w + '</span>').join('');
+};
 
-function activateWallet() {
+const activateWallet = () => {
   S.seed = mnemonicToSeedSync(S.mnemonic, S.passphrase);
   S.masterKey = HDKey.fromMasterSeed(S.seed);
   deriveAccounts();
   notify('Wallet activated', 'ok');
   goToDash();
-}
+};
 
-function formatBTC(sats) { return (Number(sats) / 1e8).toFixed(8) }
+const formatBTC = sats => (Number(sats) / 1e8).toFixed(8);
 
-$('btn-generate').onclick = function() {
+$('btn-generate').onclick = () => {
   S.passphrase = $v('inp-pass-create') || '';
-  var wc = parseInt($v('sel-wc'));
+  const wc = parseInt($v('sel-wc'));
   S.mnemonic = generateMnemonic(wordlist, wc === 24 ? 256 : 128);
   displayWords('mnemonic-grid', S.mnemonic);
   go('sec-mnemonic');
-  var sec = 60;
+  let sec = 60;
   $t('mnemonic-timer', 'Auto-hide in ' + sec + 's');
-  var timer = setInterval(function() {
+  const timer = setInterval(() => {
     if (--sec <= 0) { clearInterval(timer); $('mnemonic-grid').innerHTML = '<span>Hidden</span>'; $t('mnemonic-timer', ''); return }
     $t('mnemonic-timer', 'Auto-hide in ' + sec + 's');
   }, 1000);
 };
 
-$('btn-wrote-down').onclick = function() {
-  var words = S.mnemonic.split(' '), indices = [];
+$('btn-wrote-down').onclick = () => {
+  const words = S.mnemonic.split(' '), indices = [];
   while (indices.length < 3) {
-    var r = Math.floor(crypto.getRandomValues(new Uint8Array(1))[0] / 256 * words.length);
+    const r = Math.floor(crypto.getRandomValues(new Uint8Array(1))[0] / 256 * words.length);
     if (indices.indexOf(r) < 0) indices.push(r);
   }
-  indices.sort(function(a, b) { return a - b });
-  $('verify-fields').innerHTML = indices.map(function(idx) {
-    return '<span>Word #' + (idx + 1) + '</span><br><input data-idx="' + idx + '" type="text" autocomplete="off">';
-  }).join('');
+  indices.sort((a, b) => a - b);
+  $('verify-fields').innerHTML = indices.map(idx =>
+    '<span>Word #' + (idx + 1) + '</span><br><input data-idx="' + idx + '" type="text" autocomplete="off">'
+  ).join('');
   go('sec-verify');
 };
 
-$('btn-show-again').onclick = function() { displayWords('mnemonic-grid', S.mnemonic); go('sec-mnemonic') };
+$('btn-show-again').onclick = () => { displayWords('mnemonic-grid', S.mnemonic); go('sec-mnemonic') };
 
-$('btn-verify').onclick = function() {
-  var words = S.mnemonic.split(' '), ok = true;
-  document.querySelectorAll('#verify-fields input').forEach(function(inp) {
+$('btn-verify').onclick = () => {
+  const words = S.mnemonic.split(' ');
+  let ok = true;
+  document.querySelectorAll('#verify-fields input').forEach(inp => {
     if (inp.value.trim().toLowerCase() !== words[parseInt(inp.getAttribute('data-idx'))]) ok = false;
   });
   if (!ok) { notify('Incorrect words'); return }
   activateWallet();
 };
 
-$('btn-import-go').onclick = function() {
-  var raw = $v('inp-mnemonic').trim().toLowerCase().replace(/\s+/g, ' ');
-  var words = raw.split(' ');
+$('btn-import-go').onclick = () => {
+  const raw = $v('inp-mnemonic').trim().toLowerCase().replace(/\s+/g, ' ');
+  const words = raw.split(' ');
   if (words.length !== 12 && words.length !== 24) { notify('Need 12 or 24 words, got ' + words.length); return }
-  for (var i = 0; i < words.length; i++)
+  for (let i = 0; i < words.length; i++)
     if (wordlist.indexOf(words[i]) < 0) { notify('Invalid word: ' + words[i]); return }
   if (!validateMnemonic(raw, wordlist)) { notify('Invalid checksum'); return }
   S.mnemonic = raw;
@@ -267,27 +261,27 @@ $('btn-import-go').onclick = function() {
   activateWallet();
 };
 
-$('sel-account').onchange = function() { S.activeAccount = $v('sel-account'); goToDash() };
+$('sel-account').onchange = () => { S.activeAccount = $v('sel-account'); goToDash() };
 
-$('btn-export').onclick = function() { $v('export-key', S.accounts[S.activeAccount].pubkey); go('sec-export') };
+$('btn-export').onclick = () => { $v('export-key', S.accounts[S.activeAccount].pubkey); go('sec-export') };
 
-$('btn-back-dash').onclick = function() { goToDash() };
-$('btn-back-dash2').onclick = function() { goToDash() };
+$('btn-back-dash').onclick = goToDash;
+$('btn-back-dash2').onclick = goToDash;
 
-$('btn-import-psbt').onclick = function() {
-  var text = $v('inp-psbt').trim();
+$('btn-import-psbt').onclick = () => {
+  const text = $v('inp-psbt').trim();
   if (!text) { notify('Paste PSBT base64'); return }
   try { processPSBT(fromB64(text)) }
   catch(e) { notify('Invalid base64: ' + e.message) }
 };
 
-function getChangeAddresses() {
-  var addrs = {};
-  ['bip84', 'bip86'].forEach(function(type) {
-    var acc = S.accounts[type];
+const getChangeAddresses = () => {
+  const addrs = {};
+  ['bip84', 'bip86'].forEach(type => {
+    const acc = S.accounts[type];
     if (!acc) return;
-    for (var i = 0; i < 20; i++) {
-      var child = acc.accountKey.deriveChild(1).deriveChild(i), pub = child.publicKey;
+    for (let i = 0; i < 20; i++) {
+      const child = acc.accountKey.deriveChild(1).deriveChild(i), pub = child.publicKey;
       addrs[type === 'bip84'
         ? btcSigner.p2wpkh(pub, NET).address
         : btcSigner.p2tr(pub.length === 33 ? pub.slice(1) : pub, undefined, NET).address
@@ -295,48 +289,48 @@ function getChangeAddresses() {
     }
   });
   return addrs;
-}
+};
 
-function processPSBT(psbtBytes) {
+const processPSBT = psbtBytes => {
   S.pendingPSBT = psbtBytes;
-  var tx = btcSigner.Transaction.fromPSBT(psbtBytes);
-  var totalIn = 0n, totalOut = 0n, outputs = [];
-  for (var i = 0; i < tx.inputsLength; i++) {
-    var inp = tx.getInput(i);
+  const tx = btcSigner.Transaction.fromPSBT(psbtBytes);
+  let totalIn = 0n, totalOut = 0n;
+  const outputs = [];
+  for (let i = 0; i < tx.inputsLength; i++) {
+    const inp = tx.getInput(i);
     if (inp.witnessUtxo) totalIn += BigInt(inp.witnessUtxo.amount);
   }
-  for (var i = 0; i < tx.outputsLength; i++) {
-    var out = tx.getOutput(i);
+  for (let i = 0; i < tx.outputsLength; i++) {
+    const out = tx.getOutput(i);
     totalOut += BigInt(out.amount);
-    var addr;
+    let addr;
     try { addr = btcSigner.Address(NET).encode(btcSigner.OutScript.decode(out.script)) } catch(e) { addr = '(unknown)' }
-    outputs.push({ addr: addr, amount: out.amount });
+    outputs.push({ addr, amount: out.amount });
   }
-  var changeAddrs = getChangeAddresses();
-  var info = outputs.map(function(o) {
-    return (changeAddrs[o.addr] ? '[CHANGE] ' : '[SEND]   ') + formatBTC(o.amount) + ' BTC\n         ' + o.addr;
-  }).join('\n');
+  const changeAddrs = getChangeAddresses();
+  let info = outputs.map(o =>
+    (changeAddrs[o.addr] ? '[CHANGE] ' : '[SEND]   ') + formatBTC(o.amount) + ' BTC\n         ' + o.addr
+  ).join('\n');
   info += '\n\nFee: ' + formatBTC(Number(totalIn - totalOut)) + ' BTC (' + Number(totalIn - totalOut) + ' sats)\nInputs: ' + tx.inputsLength;
   $t('review-body', info);
   go('sec-review');
-}
+};
 
-$('btn-cancel-tx').onclick = function() { goToDash() };
+$('btn-cancel-tx').onclick = goToDash;
 
-$('btn-sign').onclick = function() {
-  go('sec-signing');
-  $t('sign-status', 'Signing...');
-  setTimeout(function() {
+$('btn-sign').onclick = () => {
+  $('btn-sign').disabled = true;
+  $('btn-sign').innerText = 'Signing...';
+  setTimeout(() => {
     try {
-      var tx = btcSigner.Transaction.fromPSBT(S.pendingPSBT);
-      var paths = ["m/84'/0'/0'", "m/86'/0'/0'"];
-      for (var i = 0; i < tx.inputsLength; i++) {
-        var signed = false;
-        for (var p = 0; p < paths.length && !signed; p++)
-          for (var ch = 0; ch <= 1 && !signed; ch++)
-            for (var idx = 0; idx < 20 && !signed; idx++)
+      const tx = btcSigner.Transaction.fromPSBT(S.pendingPSBT);
+      const paths = ["m/84'/0'/0'", "m/86'/0'/0'"];
+      for (let i = 0; i < tx.inputsLength; i++) {
+        let signed = false;
+        for (let p = 0; p < paths.length && !signed; p++)
+          for (let ch = 0; ch <= 1 && !signed; ch++)
+            for (let idx = 0; idx < 20 && !signed; idx++)
               try { tx.signIdx(S.masterKey.derive(paths[p] + '/' + ch + '/' + idx).privateKey, i); signed = true } catch(e) {}
-        $t('sign-status', 'Signed ' + (i + 1) + '/' + tx.inputsLength);
       }
       $v('signed-out', toB64(tx.toPSBT()));
       go('sec-signed');
@@ -345,20 +339,22 @@ $('btn-sign').onclick = function() {
       notify('Signing failed: ' + e.message);
       goToDash();
     }
+    $('btn-sign').disabled = false;
+    $('btn-sign').innerText = 'Sign Transaction';
   }, 50);
 };
 
-$('btn-done').onclick = function() { S.pendingPSBT = null; goToDash() };
+$('btn-done').onclick = () => { S.pendingPSBT = null; goToDash() };
 
-$('btn-show-mn').onclick = function() {
+$('btn-show-mn').onclick = () => {
   if (!confirm('Show sensitive data?')) return;
   displayWords('show-mn-grid', S.mnemonic);
   go('sec-show-mn');
 };
 
-$('btn-hide-mn').onclick = function() { $('show-mn-grid').innerHTML = ''; goToDash() };
+$('btn-hide-mn').onclick = () => { $('show-mn-grid').innerHTML = ''; goToDash() };
 
-$('btn-wipe').onclick = function() {
+$('btn-wipe').onclick = () => {
   if (!confirm('Erase wallet? Make sure you backed up your mnemonic.')) return;
   if (!confirm('Are you sure?')) return;
   try { if (S.seed) S.seed.fill(0) } catch(e) {}
