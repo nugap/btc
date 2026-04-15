@@ -211,6 +211,10 @@ input[type=range] { width: 100%; accent-color: #58a6ff; }
         <button class="secondary" style="padding:6px 12px;min-height:auto" onclick="qrSlower()">⏪ Slower</button>
         <button class="secondary" style="padding:6px 12px;min-height:auto" onclick="qrFaster()">Faster ⏩</button>
       </div>
+      <details style="margin-top:12px">
+        <summary style="cursor:pointer;font-size:0.8rem;color:#8b949e">Show raw UR text</summary>
+        <textarea id="qr-raw-text" readonly rows="4" style="margin-top:8px;font-size:0.75rem;word-break:break-all"></textarea>
+      </details>
     </div>
     <button class="secondary" style="width:100%;margin-top:8px" onclick="stopQrDisplay();showPreview()">← Cancel</button>
   </div>
@@ -224,6 +228,11 @@ input[type=range] { width: 100%; accent-color: #58a6ff; }
         <div class="scan-progress-bar"><div class="scan-progress-fill" id="scan-fill" style="width:0%"></div></div>
         <div style="text-align:center;font-size:0.8rem;color:#8b949e;margin-top:4px" id="scan-pct">0%</div>
       </div>
+      <details style="margin-top:12px" open>
+        <summary style="cursor:pointer;font-size:0.85rem;color:#8b949e">Paste UR text instead</summary>
+        <textarea id="scan-paste-input" rows="4" placeholder="Paste ur:crypto-psbt/... here" style="margin-top:8px;font-size:0.75rem"></textarea>
+        <button class="secondary" style="width:100%;margin-top:8px" onclick="importFromPaste()">Import from text</button>
+      </details>
     </div>
     <button class="secondary" style="width:100%;margin-top:8px" onclick="stopScanner();showDashboard()">← Cancel</button>
   </div>
@@ -55665,11 +55674,18 @@ function showPsbtQR() {
     const tmp = document.createElement('div'); tmp.innerHTML = svgHtml;
     container.replaceChildren(tmp.firstChild);
     document.getElementById('qr-frame-info').textContent = 'Static QR (single frame)';
+    document.getElementById('qr-raw-text').value = urStr;
     return;
   }
 
-  // Animated QR
+  // Animated QR — collect all parts for raw text
   const encoder = new UREncoder(ur, 200);
+  const allParts = [];
+  const seqLen = encoder.fragmentsLength;
+  for (let i = 0; i < seqLen; i++) allParts.push(encoder.nextPart());
+  document.getElementById('qr-raw-text').value = allParts.join('\n');
+  // Reset encoder for animation
+  let partIdx = 0;
   const frameInfo = document.getElementById('qr-frame-info');
   function renderFrame() {
     const part = encoder.nextPart();
@@ -55760,6 +55776,39 @@ async function stopScanner() {
   if (APP.scanner) {
     try { await APP.scanner.stop(); } catch(e) {}
     APP.scanner = null;
+  }
+}
+
+function importFromPaste() {
+  const text = document.getElementById('scan-paste-input').value.trim();
+  if (!text) { notify('Please paste UR text'); return; }
+  try {
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+    const decoder = new URDecoder();
+    for (const line of lines) {
+      decoder.receivePart(line.toLowerCase());
+      if (decoder.isComplete()) break;
+    }
+    if (decoder.isComplete() && decoder.isSuccess()) {
+      const ur = decoder.resultUR();
+      const buf = ur.decodeCBOR ? ur.decodeCBOR() : ur.cbor;
+      APP.signedPsbt = new Uint8Array(buf);
+      stopScanner();
+      processSignedPsbt();
+    } else if (decoder.isComplete()) {
+      notify('Failed to decode UR data');
+    } else {
+      // Try as raw hex PSBT
+      try {
+        APP.signedPsbt = hexToBytes(text);
+        stopScanner();
+        processSignedPsbt();
+      } catch(e) {
+        notify('Incomplete UR data or invalid format');
+      }
+    }
+  } catch(e) {
+    notify('Import failed: ' + e.message);
   }
 }
 

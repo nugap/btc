@@ -265,6 +265,11 @@ header h1 { font-size: 1.2rem; font-weight: 700; }
       <div id="scan-reader"></div>
       <div class="progress-bar"><div id="scan-progress" class="progress-fill" style="width:0%"></div></div>
       <p id="scan-status" class="text-center text-sm text-secondary mt-8"></p>
+      <details style="margin-top:12px" open>
+        <summary style="cursor:pointer;font-size:0.85rem;color:#8b949e">Paste UR text instead</summary>
+        <textarea id="scan-paste-input" rows="4" placeholder="Paste ur:crypto-psbt/... here" style="margin-top:8px;font-size:0.75rem"></textarea>
+        <button id="btn-paste-import" class="secondary mt-8" style="width:100%">Import from text</button>
+      </details>
       <button id="btn-cancel-scan" class="secondary mt-12" style="width:100%">Cancel</button>
     </div>
   </div>
@@ -302,6 +307,10 @@ header h1 { font-size: 1.2rem; font-weight: 700; }
         <button id="btn-speed-down" class="secondary">Slower</button>
         <button id="btn-speed-up" class="secondary">Faster</button>
       </div>
+      <details style="margin-top:12px">
+        <summary style="cursor:pointer;font-size:0.8rem;color:#8b949e">Show raw UR text</summary>
+        <textarea id="signed-raw-text" readonly rows="4" style="margin-top:8px;font-size:0.75rem;word-break:break-all"></textarea>
+      </details>
       <button id="btn-done-sign" class="mt-12" style="width:100%">Done → Dashboard</button>
     </div>
   </div>
@@ -743,6 +752,35 @@ document.getElementById('btn-cancel-scan').onclick = async () => {
   goToDash();
 };
 
+document.getElementById('btn-paste-import').onclick = () => {
+  const text = document.getElementById('scan-paste-input').value.trim();
+  if (!text) { notify('Please paste UR text', 'error'); return; }
+  try {
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l);
+    const decoder = new URDecoder();
+    for (const line of lines) {
+      decoder.receivePart(line.toLowerCase());
+      if (decoder.isComplete()) break;
+    }
+    if (decoder.isComplete() && decoder.isSuccess()) {
+      const ur = decoder.resultUR();
+      if (ur.type !== 'crypto-psbt') {
+        notify('Expected crypto-psbt, got: ' + ur.type, 'error');
+        return;
+      }
+      const psbtBytes = new Uint8Array(ur.decodeCBOR ? ur.decodeCBOR() : ur.cbor);
+      stopScanner();
+      processPSBT(psbtBytes);
+    } else if (decoder.isComplete()) {
+      notify('Failed to decode UR data', 'error');
+    } else {
+      notify('Incomplete UR data — need all parts', 'error');
+    }
+  } catch(e) {
+    notify('Import failed: ' + e.message, 'error');
+  }
+};
+
 /* ──────────────────────────────────────────
    PSBT REVIEW
    ────────────────────────────────────────── */
@@ -978,10 +1016,17 @@ function showSignedQR(psbtBytes) {
     const part = encoder.nextPart();
     makeQR(part.toUpperCase(), document.getElementById('signed-qr'), 'L');
     document.getElementById('signed-frame').textContent = 'Single QR (no animation needed)';
+    document.getElementById('signed-raw-text').value = part;
     return;
   }
 
-  // Animated QR
+  // Animated QR — collect all parts for raw text
+  signedEncoder = new UREncoder(ur, 200);
+  const allParts = [];
+  const seqLen = signedEncoder.fragmentsLength;
+  for (let i = 0; i < seqLen; i++) allParts.push(signedEncoder.nextPart());
+  document.getElementById('signed-raw-text').value = allParts.join('\n');
+  // Reset encoder for animation
   signedEncoder = new UREncoder(ur, 200);
   signedAnimSpeed = 250;
   clearInterval(signedAnimInterval);
