@@ -1,86 +1,57 @@
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:">
 <title>nugap hodl</title>
 <style>body{font-family:monospace;padding:8px;max-width:560px;margin:0 auto}input,textarea,select{width:100%;margin:3px 0;padding:6px;font-family:monospace;box-sizing:border-box}button{margin:3px 0;padding:8px 16px;cursor:pointer}pre{white-space:pre-wrap;word-break:break-all;background:#f0f0f0;padding:8px;margin:3px 0}.sec{display:none}hr{margin:8px 0}.mono{font-family:monospace;word-break:break-all}.warn{background:#fff3cd;padding:8px;margin:3px 0}.words{display:flex;flex-wrap:wrap;gap:4px;margin:8px 0}.words span{background:#eee;padding:4px 8px;border:1px solid #ccc}</style>
-
 <div id="online-warn" class="warn" style="display:none;background:#fcc"><b>WARNING:</b> This device is ONLINE. Disconnect from the internet!</div>
 <div id="notify" style="position:fixed;top:0;left:0;right:0;padding:8px;text-align:center;display:none"></div>
-
 <div id="sec-landing" class="sec" style="display:block">
 <b>nugap hodl</b> <span id="net-label"></span><br><br>
 <button data-go="sec-create">Create New Wallet</button><br>
-<button data-go="sec-import">Import Existing Wallet</button>
-</div>
-
+<button data-go="sec-import">Import Existing Wallet</button></div>
 <div id="sec-create" class="sec">
-<b>New Wallet</b><br><hr>
-<span>Word Count</span><br>
-<select id="sel-wc">
-<option value="12">12 words</option>
-<option value="24">24 words</option>
-</select><br>
+<b>New Wallet</b><br><hr><span>Word Count</span><br>
+<select id="sel-wc"><option value="12">12 words</option><option value="24">24 words</option></select><br>
 <span>BIP-39 Passphrase (optional)</span><br>
 <input id="inp-pass-create" type="password" placeholder="Leave empty for none"><br>
 <button id="btn-generate">Generate</button>
-<button data-go="sec-landing">Back</button>
-</div>
-
+<button data-go="sec-landing">Back</button></div>
 <div id="sec-mnemonic" class="sec">
 <b>Your Mnemonic</b><br>
 <div class="warn">Write these words down on paper. Never store digitally.</div>
 <div id="mnemonic-grid" class="words"></div>
 <span id="mnemonic-timer"></span><br>
-<button id="btn-wrote-down">I've Written Them Down</button>
-</div>
-
+<button id="btn-wrote-down">I've Written Them Down</button></div>
 <div id="sec-verify" class="sec">
 <b>Verify Mnemonic</b><br><hr>
 <div id="verify-fields"></div>
 <button id="btn-show-again">Show Again</button>
-<button id="btn-verify">Verify</button>
-</div>
-
+<button id="btn-verify">Verify</button></div>
 <div id="sec-import" class="sec">
-<b>Import Wallet</b><br><hr>
-<span>Mnemonic (12 or 24 words)</span><br>
+<b>Import Wallet</b><br><hr><span>Mnemonic (12 or 24 words)</span><br>
 <textarea id="inp-mnemonic" rows="4" placeholder="word1 word2 word3 ..."></textarea><br>
 <span>BIP-39 Passphrase (optional)</span><br>
 <input id="inp-pass-import" type="password" placeholder="Leave empty for none"><br>
 <button id="btn-import-go">Import</button>
-<button data-go="sec-landing">Back</button>
-</div>
-
+<button data-go="sec-landing">Back</button></div>
 <div id="sec-dash" class="sec">
 <b>Dashboard</b> <span id="dash-info"></span><br><hr>
 <span>Fingerprint: </span><span id="dash-fp" class="mono"></span><br>
 <span>Account: </span>
-<select id="sel-account">
-<option value="bip84">SegWit (bc1q)</option>
-<option value="bip86">Taproot (bc1p)</option>
-</select><br><hr>
+<select id="sel-account"><option value="bip84">SegWit (bc1q)</option><option value="bip86">Taproot (bc1p)</option></select><br><hr>
 <button id="btn-export">Export Public Key</button><br>
 <button data-go="sec-scan">Sign Transaction</button><br>
 <button id="btn-show-mn">Show Mnemonic</button><br>
-<button id="btn-wipe" style="color:red">Wipe Wallet</button>
-</div>
-
+<button id="btn-wipe" style="color:red">Wipe Wallet</button></div>
 <div id="sec-export" class="sec">
-<b>Public Key</b><br><hr>
-<span>Copy this to yolo:</span><br>
+<b>Public Key</b><br><hr><span>Copy this to yolo:</span><br>
 <textarea id="export-key" rows="3" readonly></textarea><br>
 <button data-copy="export-key">Copy</button>
-<button id="btn-back-dash">Back</button>
-</div>
-
+<button id="btn-back-dash">Back</button></div>
 <div id="sec-scan" class="sec">
-<b>Import Unsigned PSBT</b><br><hr>
-<span>Paste PSBT from yolo (base64):</span><br>
+<b>Import Unsigned PSBT</b><br><hr><span>Paste PSBT from yolo (base64):</span><br>
 <textarea id="inp-psbt" rows="6" placeholder="cHNidP8..."></textarea><br>
 <button id="btn-import-psbt">Import</button>
-<button id="btn-back-dash2">Back</button>
-</div>
-
+<button id="btn-back-dash2">Back</button></div>
 <div id="sec-signed" class="sec">
 <b>Signed Transaction</b><br><hr>
 <pre id="review-body"></pre>
@@ -88,16 +59,12 @@
 <span>Copy this to yolo:</span><br>
 <textarea id="signed-out" rows="6" readonly></textarea><br>
 <button data-copy="signed-out">Copy</button>
-<button id="btn-done">Done</button>
-</div>
-
+<button id="btn-done">Done</button></div>
 <div id="sec-show-mn" class="sec">
 <b>Mnemonic</b><br>
 <div class="warn">Make sure nobody is watching!</div>
 <div id="show-mn-grid" class="words"></div>
-<button id="btn-hide-mn">Back</button>
-</div>
-
+<button id="btn-hide-mn">Back</button></div>
 <script>
 if(typeof process==="undefined"){var process={env:{},pid:0,noDeprecation:true,stderr:{isTTY:false},nextTick:function(f){setTimeout(f,0)},emitWarning:function(){}};}
 var nugap = (() => {
@@ -12919,112 +12886,68 @@ zoo`.split("\n");
 
 </script>
 <script>
-(function(){
+(()=>{
 'use strict';
-
-const { generateMnemonic, mnemonicToSeedSync, validateMnemonic, wordlist,
-        btcSigner, HDKey, base58c } = nugap;
-
+const { generateMnemonic, mnemonicToSeedSync, validateMnemonic, wordlist, btcSigner, HDKey, base58c } = nugap;
 const NETWORK = 'mainnet';
 const IS_TEST = NETWORK === 'testnet4';
 const NET = IS_TEST ? btcSigner.TEST_NETWORK : btcSigner.NETWORK;
-
-const $ = id => document.getElementById(id);
-const $v = (id, v) => v === void 0 ? $(id).value : ($(id).value = v);
-const $t = (id, t) => t === void 0 ? $(id).innerText : ($(id).innerText = t);
-const $show = id => $(id).style.display = 'block';
-const $hide = id => $(id).style.display = 'none';
-
+const $ = id => document.getElementById(id), $v = (id, v) => v === void 0 ? $(id).value : ($(id).value = v),
+  $t = (id, t) => t === void 0 ? $(id).innerText : ($(id).innerText = t),
+  $show = id => $(id).style.display = 'block', $hide = id => $(id).style.display = 'none';
 const SECS = ['sec-landing','sec-create','sec-mnemonic','sec-verify','sec-import','sec-dash','sec-export','sec-scan','sec-signed','sec-show-mn'];
 const go = id => { SECS.forEach($hide); $show(id) };
-
 document.addEventListener('click', e => {
   const t = e.target;
   if (t.dataset.go) go(t.dataset.go);
   if (t.dataset.copy) navigator.clipboard.writeText($v(t.dataset.copy)).then(() => notify('Copied', 'ok'));
 });
-
 $t('net-label', IS_TEST ? '[Testnet4]' : '[Mainnet]');
-
-const S = {
-  mnemonic: null, passphrase: '', seed: null, masterKey: null,
-  accounts: { bip84: null, bip86: null }, activeAccount: 'bip84'
-};
-
+const S = { mnemonic: null, passphrase: '', seed: null, masterKey: null,
+  accounts: { bip84: null, bip86: null }, activeAccount: 'bip84' };
 let notifyTimer;
 const notify = (msg, type) => {
   const el = $('notify');
-  el.innerText = msg;
-  el.style.display = '';
+  el.innerText = msg; el.style.display = '';
   el.style.background = type === 'ok' ? '#cfc' : type === 'warn' ? '#ffc' : '#fcc';
-  clearTimeout(notifyTimer);
-  notifyTimer = setTimeout(() => el.style.display = 'none', 4000);
+  clearTimeout(notifyTimer); notifyTimer = setTimeout(() => el.style.display = 'none', 4000);
 };
-
 const checkOnline = () => $('online-warn').style.display = navigator.onLine ? 'block' : 'none';
 checkOnline();
 window.addEventListener('online', () => { checkOnline(); notify('Internet detected! Disconnect!') });
 window.addEventListener('offline', checkOnline);
-
-const toB64 = bytes => {
-  let s = '';
-  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
-  return btoa(s);
-};
-
-const fromB64 = str => {
-  const s = atob(str.trim()), b = new Uint8Array(s.length);
-  for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i);
-  return b;
-};
-
+const toB64 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]); return btoa(s) };
+const fromB64 = str => { const s = atob(str.trim()), b = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) b[i] = s.charCodeAt(i); return b };
 const convertXpub = (xpub, v0, v1, v2, v3) => {
   const b = new Uint8Array(base58c.decode(xpub));
-  b[0] = v0; b[1] = v1; b[2] = v2; b[3] = v3;
-  return base58c.encode(b);
+  b[0] = v0; b[1] = v1; b[2] = v2; b[3] = v3; return base58c.encode(b);
 };
-
 const deriveAccounts = () => {
-  const mk = S.masterKey;
-  const acc84 = mk.derive("m/84'/0'/0'");
-  S.accounts.bip84 = {
-    path: "m/84'/0'/0'", accountKey: acc84,
-    pubkey: convertXpub(acc84.publicExtendedKey, ...(IS_TEST ? [0x04,0x5F,0x1C,0xF6] : [0x04,0xB2,0x47,0x46]))
-  };
+  const mk = S.masterKey, acc84 = mk.derive("m/84'/0'/0'");
+  S.accounts.bip84 = { path: "m/84'/0'/0'", accountKey: acc84,
+    pubkey: convertXpub(acc84.publicExtendedKey, ...(IS_TEST ? [0x04,0x5F,0x1C,0xF6] : [0x04,0xB2,0x47,0x46])) };
   const acc86 = mk.derive("m/86'/0'/0'");
-  S.accounts.bip86 = {
-    path: "m/86'/0'/0'", accountKey: acc86,
-    pubkey: IS_TEST ? convertXpub(acc86.publicExtendedKey, 0x04,0x35,0x87,0xCF) : acc86.publicExtendedKey
-  };
+  S.accounts.bip86 = { path: "m/86'/0'/0'", accountKey: acc86,
+    pubkey: IS_TEST ? convertXpub(acc86.publicExtendedKey, 0x04,0x35,0x87,0xCF) : acc86.publicExtendedKey };
 };
-
 const goToDash = () => {
   $t('dash-fp', S.masterKey.fingerprint.toString(16).padStart(8, '0'));
   $t('dash-info', S.activeAccount === 'bip84' ? 'BIP-84 SegWit' : 'BIP-86 Taproot');
-  $v('sel-account', S.activeAccount);
-  go('sec-dash');
+  $v('sel-account', S.activeAccount); go('sec-dash');
 };
-
 const displayWords = (id, words) => {
   $(id).innerHTML = words.split(' ').map((w, i) => '<span>' + (i + 1) + '. ' + w + '</span>').join('');
 };
-
 const activateWallet = () => {
   S.seed = mnemonicToSeedSync(S.mnemonic, S.passphrase);
   S.masterKey = HDKey.fromMasterSeed(S.seed);
-  deriveAccounts();
-  notify('Wallet activated', 'ok');
-  goToDash();
+  deriveAccounts(); notify('Wallet activated', 'ok'); goToDash();
 };
-
 const formatBTC = sats => (Number(sats) / 1e8).toFixed(8);
-
 $('btn-generate').onclick = () => {
   S.passphrase = $v('inp-pass-create') || '';
-  const wc = parseInt($v('sel-wc'));
-  S.mnemonic = generateMnemonic(wordlist, wc === 24 ? 256 : 128);
-  displayWords('mnemonic-grid', S.mnemonic);
-  go('sec-mnemonic');
+  S.mnemonic = generateMnemonic(wordlist, parseInt($v('sel-wc')) === 24 ? 256 : 128);
+  displayWords('mnemonic-grid', S.mnemonic); go('sec-mnemonic');
   let sec = 60;
   $t('mnemonic-timer', 'Auto-hide in ' + sec + 's');
   const timer = setInterval(() => {
@@ -13032,7 +12955,6 @@ $('btn-generate').onclick = () => {
     $t('mnemonic-timer', 'Auto-hide in ' + sec + 's');
   }, 1000);
 };
-
 $('btn-wrote-down').onclick = () => {
   const words = S.mnemonic.split(' '), indices = [];
   while (indices.length < 3) {
@@ -13042,76 +12964,51 @@ $('btn-wrote-down').onclick = () => {
   indices.sort((a, b) => a - b);
   $('verify-fields').innerHTML = indices.map(idx =>
     '<span>Word #' + (idx + 1) + '</span><br><input data-idx="' + idx + '" type="text" autocomplete="off">'
-  ).join('');
-  go('sec-verify');
+  ).join(''); go('sec-verify');
 };
-
 $('btn-show-again').onclick = () => { displayWords('mnemonic-grid', S.mnemonic); go('sec-mnemonic') };
-
 $('btn-verify').onclick = () => {
-  const words = S.mnemonic.split(' ');
-  let ok = true;
+  const words = S.mnemonic.split(' '); let ok = true;
   document.querySelectorAll('#verify-fields input').forEach(inp => {
     if (inp.value.trim().toLowerCase() !== words[parseInt(inp.getAttribute('data-idx'))]) ok = false;
   });
-  if (!ok) { notify('Incorrect words'); return }
-  activateWallet();
+  if (!ok) { notify('Incorrect words'); return } activateWallet();
 };
-
 $('btn-import-go').onclick = () => {
-  const raw = $v('inp-mnemonic').trim().toLowerCase().replace(/\s+/g, ' ');
-  const words = raw.split(' ');
+  const raw = $v('inp-mnemonic').trim().toLowerCase().replace(/\s+/g, ' '), words = raw.split(' ');
   if (words.length !== 12 && words.length !== 24) { notify('Need 12 or 24 words, got ' + words.length); return }
   for (let i = 0; i < words.length; i++)
     if (wordlist.indexOf(words[i]) < 0) { notify('Invalid word: ' + words[i]); return }
   if (!validateMnemonic(raw, wordlist)) { notify('Invalid checksum'); return }
-  S.mnemonic = raw;
-  S.passphrase = $v('inp-pass-import') || '';
-  activateWallet();
+  S.mnemonic = raw; S.passphrase = $v('inp-pass-import') || ''; activateWallet();
 };
-
 $('sel-account').onchange = () => { S.activeAccount = $v('sel-account'); goToDash() };
-
 $('btn-export').onclick = () => { $v('export-key', S.accounts[S.activeAccount].pubkey); go('sec-export') };
-
-$('btn-back-dash').onclick = goToDash;
-$('btn-back-dash2').onclick = goToDash;
-
+$('btn-back-dash').onclick = $('btn-back-dash2').onclick = goToDash;
 $('btn-import-psbt').onclick = () => {
   const text = $v('inp-psbt').trim();
   if (!text) { notify('Paste PSBT base64'); return }
-  try { processPSBT(fromB64(text)) }
-  catch(e) { notify('Invalid base64: ' + e.message) }
+  try { processPSBT(fromB64(text)) } catch(e) { notify('Invalid base64: ' + e.message) }
 };
-
 const getChangeAddresses = () => {
   const addrs = {};
   ['bip84', 'bip86'].forEach(type => {
-    const acc = S.accounts[type];
-    if (!acc) return;
+    const acc = S.accounts[type]; if (!acc) return;
     for (let i = 0; i < 20; i++) {
       const child = acc.accountKey.deriveChild(1).deriveChild(i), pub = child.publicKey;
-      addrs[type === 'bip84'
-        ? btcSigner.p2wpkh(pub, NET).address
-        : btcSigner.p2tr(pub.length === 33 ? pub.slice(1) : pub, undefined, NET).address
-      ] = true;
+      addrs[type === 'bip84' ? btcSigner.p2wpkh(pub, NET).address
+        : btcSigner.p2tr(pub.length === 33 ? pub.slice(1) : pub, undefined, NET).address] = true;
     }
-  });
-  return addrs;
+  }); return addrs;
 };
-
 const processPSBT = psbtBytes => {
   const tx = btcSigner.Transaction.fromPSBT(psbtBytes);
-  let totalIn = 0n, totalOut = 0n;
-  const outputs = [];
+  let totalIn = 0n, totalOut = 0n; const outputs = [];
   for (let i = 0; i < tx.inputsLength; i++) {
-    const inp = tx.getInput(i);
-    if (inp.witnessUtxo) totalIn += BigInt(inp.witnessUtxo.amount);
+    const inp = tx.getInput(i); if (inp.witnessUtxo) totalIn += BigInt(inp.witnessUtxo.amount);
   }
   for (let i = 0; i < tx.outputsLength; i++) {
-    const out = tx.getOutput(i);
-    totalOut += BigInt(out.amount);
-    let addr;
+    const out = tx.getOutput(i); totalOut += BigInt(out.amount); let addr;
     try { addr = btcSigner.Address(NET).encode(btcSigner.OutScript.decode(out.script)) } catch(e) { addr = '(unknown)' }
     outputs.push({ addr, amount: out.amount });
   }
@@ -13121,7 +13018,6 @@ const processPSBT = psbtBytes => {
   ).join('\n');
   info += '\n\nFee: ' + formatBTC(Number(totalIn - totalOut)) + ' BTC (' + Number(totalIn - totalOut) + ' sats)\nInputs: ' + tx.inputsLength;
   $t('review-body', info);
-
   const paths = ["m/84'/0'/0'", "m/86'/0'/0'"];
   for (let i = 0; i < tx.inputsLength; i++) {
     let signed = false;
@@ -13130,30 +13026,20 @@ const processPSBT = psbtBytes => {
         for (let idx = 0; idx < 20 && !signed; idx++)
           try { tx.signIdx(S.masterKey.derive(paths[p] + '/' + ch + '/' + idx).privateKey, i); signed = true } catch(e) {}
   }
-  $v('signed-out', toB64(tx.toPSBT()));
-  go('sec-signed');
-  notify('Signed!', 'ok');
+  $v('signed-out', toB64(tx.toPSBT())); go('sec-signed'); notify('Signed!', 'ok');
 };
-
 $('btn-done').onclick = goToDash;
-
 $('btn-show-mn').onclick = () => {
   if (!confirm('Show sensitive data?')) return;
-  displayWords('show-mn-grid', S.mnemonic);
-  go('sec-show-mn');
+  displayWords('show-mn-grid', S.mnemonic); go('sec-show-mn');
 };
-
 $('btn-hide-mn').onclick = () => { $('show-mn-grid').innerHTML = ''; goToDash() };
-
 $('btn-wipe').onclick = () => {
   if (!confirm('Erase wallet? Make sure you backed up your mnemonic.')) return;
   if (!confirm('Are you sure?')) return;
   try { if (S.seed) S.seed.fill(0) } catch(e) {}
   S.mnemonic = null; S.passphrase = ''; S.seed = null; S.masterKey = null;
-  S.accounts = { bip84: null, bip86: null };
-  notify('Wiped', 'warn');
-  go('sec-landing');
+  S.accounts = { bip84: null, bip86: null }; notify('Wiped', 'warn'); go('sec-landing');
 };
-
 })();
 </script>
