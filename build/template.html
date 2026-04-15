@@ -819,6 +819,10 @@ function getChangeAddress() {
   if (APP.walletType === 'address') return APP.addresses[0].address;
   // First unused change address
   const changeAddrs = APP.addresses.filter(a => a.isChange);
+  if (changeAddrs.length === 0) {
+    // No change addresses derived — fall back to first receive address
+    return APP.addresses[0].address;
+  }
   const unused = changeAddrs.find(a => a.balance === 0 && a.utxos.length === 0);
   return unused ? unused.address : changeAddrs[0].address;
 }
