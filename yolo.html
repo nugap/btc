@@ -55554,7 +55554,7 @@ async function createTransaction() {
         txid: u.txid,
         index: u.vout,
         witnessUtxo: {
-          script: btcSigner.OutScript.encode(btcSigner.Address(APP.network === 'testnet4' ? btcSigner.TEST_NETWORK : btcSigner.NETWORK).decode(u.address)),
+          script: btcSigner.OutScript.encode(btcSigner.Address(txNetwork).decode(u.address)),
           amount: BigInt(u.value),
         },
       };
@@ -55562,6 +55562,26 @@ async function createTransaction() {
       if (txData[u.txid]) {
         const rawBytes = hexToBytes(txData[u.txid]);
         inputOpts.nonWitnessUtxo = rawBytes;
+      }
+      // Taproot inputs need tapInternalKey and tapBip32Derivation
+      if (u.keyType === 'bip86' && u.pubkey) {
+        const xonly = u.pubkey.length === 33 ? u.pubkey.slice(1) : u.pubkey;
+        inputOpts.tapInternalKey = xonly;
+        // Add BIP32 derivation path for signer
+        if (u.path && u.path !== '-') {
+          inputOpts.tapBip32Derivation = [[
+            xonly,
+            { hashes: [], fingerprint: 0, path: parsePath(u.path) }
+          ]];
+        }
+      } else if (u.keyType === 'bip84' && u.pubkey) {
+        // SegWit: add bip32Derivation for signer
+        if (u.path && u.path !== '-') {
+          inputOpts.bip32Derivation = [[
+            u.pubkey,
+            { fingerprint: 0, path: parsePath(u.path) }
+          ]];
+        }
       }
       tx.addInput(inputOpts);
     }
@@ -55619,6 +55639,15 @@ function extractURBytes(ur) {
   if (first === 0x5a) return buf.slice(5, 5 + ((buf[1] << 24) | (buf[2] << 16) | (buf[3] << 8) | buf[4]));
   // Fallback: try decodeCBOR
   try { return new Uint8Array(ur.decodeCBOR()); } catch(e) { return buf; }
+}
+
+// Parse BIP32 path string like "m/86'/0'/0'/0/0" into array of uint32 indices
+function parsePath(pathStr) {
+  return pathStr.replace(/^m\//, '').split('/').map(s => {
+    const hard = s.endsWith("'");
+    const idx = parseInt(s.replace("'", ''), 10);
+    return hard ? (idx + 0x80000000) : idx;
+  });
 }
 
 function renderPreview() {
