@@ -1,0 +1,395 @@
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:">
+<title>HODL</title>
+<style>body{font-family:monospace;padding:8px;max-width:560px;margin:0 auto}input,textarea,select{width:100%;margin:2px 0;padding:5px;font-family:monospace;box-sizing:border-box}button{margin:2px 0;padding:6px 14px;cursor:pointer}pre{white-space:pre-wrap;word-break:break-all;background:#f0f0f0;padding:6px;margin:2px 0}.mono{word-break:break-all}.warn{background:#fff3cd;padding:6px;margin:2px 0}.words{display:flex;flex-wrap:wrap;gap:3px;margin:6px 0}.words span{background:#eee;padding:3px 6px;border:1px solid #ccc}fieldset{border:1px solid #ccc;padding:6px;margin:6px 0}</style>
+<div id="online-warn" class="warn" style="display:none;background:#fcc"><b>WARNING:</b> This device is ONLINE. Disconnect from the internet!</div>
+<div id="notify" style="position:fixed;top:0;left:0;right:0;padding:6px;text-align:center;display:none"></div>
+<b>NUGAP HODL</b> <span id="net-label"></span>
+<div id="phase-init">
+<fieldset><legend>Create New Wallet</legend>
+<select id="sel-wc"><option value="12">12 words</option><option value="24">24 words</option></select>
+<input id="inp-pass-create" type="password" placeholder="BIP-39 Passphrase (optional)">
+<button id="btn-generate">Generate</button>
+</fieldset>
+<fieldset><legend>Import Existing Wallet</legend>
+<textarea id="inp-mnemonic" rows="3" placeholder="word1 word2 word3 ..."></textarea>
+<input id="inp-pass-import" type="password" placeholder="BIP-39 Passphrase (optional)">
+<button id="btn-import-go">Import</button>
+</fieldset>
+</div>
+<div id="phase-mnemonic" style="display:none">
+<fieldset><legend>Your Mnemonic</legend>
+<div class="warn">Write these words down on paper. Never store digitally.</div>
+<div id="mnemonic-grid" class="words"></div>
+<span id="mnemonic-timer"></span>
+<button id="btn-wrote-down">I've Written Them Down</button>
+</fieldset>
+</div>
+<div id="phase-verify" style="display:none">
+<fieldset><legend>Verify Mnemonic</legend>
+<div id="verify-fields"></div>
+<button id="btn-show-again">Show Again</button>
+<button id="btn-verify">Verify</button>
+</fieldset>
+</div>
+<div id="phase-dash" style="display:none">
+<fieldset><legend>Wallet</legend>
+Fingerprint: <span id="dash-fp" class="mono"></span>
+</fieldset>
+<fieldset><legend>Public Keys</legend>
+<b>SegWit (bc1q)</b><br>
+<textarea id="key-84" rows="2" readonly></textarea>
+<button data-copy="key-84">Copy</button><br>
+<b>Taproot (bc1p)</b><br>
+<textarea id="key-86" rows="2" readonly></textarea>
+<button data-copy="key-86">Copy</button>
+</fieldset>
+<fieldset><legend>Sign Transaction</legend>
+<textarea id="inp-psbt" rows="4" placeholder="Paste PSBT from yolo (base64)"></textarea>
+<button id="btn-import-psbt">Sign</button>
+</fieldset>
+<div id="signed-area" style="display:none">
+<fieldset><legend>Signed Transaction</legend>
+<pre id="review-body"></pre>
+<div class="warn">Verify the recipient address before pasting to yolo!</div>
+<textarea id="signed-out" rows="4" readonly></textarea>
+<button data-copy="signed-out">Copy</button>
+</fieldset>
+</div>
+<fieldset><legend>Security</legend>
+<button id="btn-show-mn">Show Mnemonic</button>
+<button id="btn-wipe" style="color:red">Wipe Wallet</button>
+<div id="mn-area" style="display:none">
+<div class="warn">Make sure nobody is watching!</div>
+<div id="show-mn-grid" class="words"></div>
+<button id="btn-hide-mn">Hide</button>
+</div>
+</fieldset>
+</div>
+<script>
+const BTC_NETWORK = { bech32: 'bc' }, BTC_TEST_NETWORK = { bech32: 'tb' };
+
+const $ = id => document.getElementById(id), $v = (id, v) => v === void 0 ? $(id).value : ($(id).value = v),
+  $t = (id, t) => t === void 0 ? $(id).innerText : ($(id).innerText = t),
+  $show = id => $(id).style.display = '', $hide = id => $(id).style.display = 'none';
+let _nt;
+const notify = (msg, type) => { const el = $('notify'); el.innerText = msg; el.style.display = ''; el.style.background = type === 'ok' ? '#cfc' : type === 'warn' ? '#ffc' : '#fcc'; clearTimeout(_nt); _nt = setTimeout(() => el.style.display = 'none', 4000) };
+document.addEventListener('click', e => { if (e.target.dataset.copy) navigator.clipboard.writeText($v(e.target.dataset.copy)).then(() => notify('Copied', 'ok')) });
+
+const concat = (...p) => { const t = new Uint8Array(p.reduce((s, a) => s + a.length, 0)); let o = 0; p.forEach(a => { t.set(a, o); o += a.length }); return t };
+const hexToBytes = h => { const b = new Uint8Array(h.length / 2); for (let i = 0; i < h.length; i += 2) b[i / 2] = parseInt(h.slice(i, i + 2), 16); return b };
+const bytesToHex = b => Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+const toB64 = b => { let s = ''; for (let i = 0; i < b.length; i++) s += String.fromCharCode(b[i]); return btoa(s) };
+const fromB64 = s => { try { const d = atob(s.trim()), b = new Uint8Array(d.length); for (let i = 0; i < d.length; i++) b[i] = d.charCodeAt(i); return b } catch(e) {} try { return hexToBytes(s.trim()) } catch(e) {} return null };
+const satsBtc = s => (Number(s) / 1e8).toFixed(8);
+const btcSats = b => { let s = String(b).trim(), neg = s[0] === '-'; if (neg) s = s.slice(1); const pt = s.split('.'), i = pt[0] || '0', d = (pt[1] || '').padEnd(8, '0').slice(0, 8); return (neg ? -1 : 1) * (parseInt(i, 10) * 1e8 + parseInt(d, 10)) };
+
+const sha256 = async d => new Uint8Array(await crypto.subtle.digest('SHA-256', typeof d === 'string' ? new TextEncoder().encode(d) : d));
+const hmacSHA256 = async (key, data) => { const k = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']); return new Uint8Array(await crypto.subtle.sign('HMAC', k, data)) };
+const hmacSHA512 = async (key, data) => { const k = await crypto.subtle.importKey('raw', key, { name: 'HMAC', hash: 'SHA-512' }, false, ['sign']); return new Uint8Array(await crypto.subtle.sign('HMAC', k, data)) };
+const pbkdf2SHA512 = async (pw, salt, iter, len) => { if (typeof pw === 'string') pw = new TextEncoder().encode(pw); if (typeof salt === 'string') salt = new TextEncoder().encode(salt); const k = await crypto.subtle.importKey('raw', pw, 'PBKDF2', false, ['deriveBits']); return new Uint8Array(await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations: iter, hash: 'SHA-512' }, k, len * 8)) };
+
+function ripemd160(data) {
+  const KL = [0,0x5a827999,0x6ed9eba1,0x8f1bbcdc,0xa953fd4e], KR = [0x50a28be6,0x5c4dd124,0x6d703ef3,0x7a6d76e9,0];
+  const RL = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,7,4,13,1,10,6,15,3,12,0,9,5,2,14,11,8,3,10,14,4,9,15,8,1,2,7,0,6,13,11,5,12,1,9,11,10,0,8,12,4,13,3,7,15,14,5,6,2,4,0,5,9,7,12,2,10,14,1,3,8,11,6,15,13];
+  const RR = [5,14,7,0,9,2,11,4,13,6,15,8,1,10,3,12,6,11,3,7,0,13,5,10,14,15,8,12,4,9,1,2,15,5,1,3,7,14,6,9,11,8,12,2,10,0,4,13,8,6,4,1,3,11,15,0,5,12,2,13,9,7,10,14,12,15,10,4,1,5,8,7,6,2,13,14,0,3,9,11];
+  const SL = [11,14,15,12,5,8,7,9,11,13,14,15,6,7,9,8,7,6,8,13,11,9,7,15,7,12,15,9,11,7,13,12,11,13,6,7,14,9,13,15,14,8,13,6,5,12,7,5,11,12,14,15,14,15,9,8,9,14,5,6,8,6,5,12,9,15,5,11,6,8,13,12,5,12,13,14,11,8,5,6];
+  const SR = [8,9,9,11,13,15,15,5,7,7,8,11,14,14,12,6,9,13,15,7,12,8,9,11,7,7,12,7,6,15,13,11,9,7,15,11,8,6,6,14,12,13,5,14,13,13,7,5,15,5,8,11,14,14,6,14,6,9,12,9,12,5,15,8,8,5,12,9,12,5,14,6,8,13,6,5,15,13,11,11];
+  const len = data.length, padLen = len + 9 + (64 - ((len + 9) % 64)) % 64, buf = new Uint8Array(padLen);
+  buf.set(data); buf[len] = 0x80; new DataView(buf.buffer).setUint32(padLen - 8, len * 8, true);
+  let h0 = 0x67452301, h1 = 0xefcdab89, h2 = 0x98badcfe, h3 = 0x10325476, h4 = 0xc3d2e1f0;
+  const rotl = (x, n) => (x << n) | (x >>> (32 - n));
+  for (let off = 0; off < padLen; off += 64) {
+    const w = new Uint32Array(16), dv = new DataView(buf.buffer, off, 64);
+    for (let i = 0; i < 16; i++) w[i] = dv.getUint32(i * 4, true);
+    let al = h0, bl = h1, cl = h2, dl = h3, el = h4, ar = h0, br = h1, cr = h2, dr = h3, er = h4;
+    for (let j = 0; j < 80; j++) {
+      const r = j >> 4;
+      const fl = r===0 ? bl^cl^dl : r===1 ? (bl&cl)|(~bl&dl) : r===2 ? (bl|~cl)^dl : r===3 ? (bl&dl)|(cl&~dl) : bl^(cl|~dl);
+      const fr = r===0 ? br^(cr|~dr) : r===1 ? (br&dr)|(cr&~dr) : r===2 ? (br|~cr)^dr : r===3 ? (br&cr)|(~br&dr) : br^cr^dr;
+      let tl = (rotl((al + fl + w[RL[j]] + KL[r]) | 0, SL[j]) + el) | 0;
+      al = el; el = dl; dl = rotl(cl, 10); cl = bl; bl = tl;
+      let tr = (rotl((ar + fr + w[RR[j]] + KR[r]) | 0, SR[j]) + er) | 0;
+      ar = er; er = dr; dr = rotl(cr, 10); cr = br; br = tr;
+    }
+    const t = (h1+cl+dr)|0; h1 = (h2+dl+er)|0; h2 = (h3+el+ar)|0; h3 = (h4+al+br)|0; h4 = (h0+bl+cr)|0; h0 = t;
+  }
+  const out = new Uint8Array(20), ov = new DataView(out.buffer);
+  [h0,h1,h2,h3,h4].forEach((v,i) => ov.setUint32(i*4, v, true)); return out;
+}
+async function hash160(d) { return ripemd160(await sha256(d)) }
+async function hash256(d) { return sha256(await sha256(d)) }
+
+const secp256k1 = (() => {
+  const P = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEFFFFFC2Fn, N = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141n;
+  const Gx = 0x79BE667EF9DCBBAC55A06295CE870B07029BFCDB2DCE28D959F2815B16F81798n, Gy = 0x483ADA7726A3C4655DA4FBFC0E1108A8FD17B448A68554199C47D08FFB10D4B8n;
+  const mod = (a, m = P) => ((a % m) + m) % m;
+  const inv = (a, m = P) => { let [x, u, r, s] = [0n, 1n, m, mod(a, m)]; while (s) { const q = r / s; [x, u, r, s] = [u, x - q*u, s, r - q*s] } return mod(x, m) };
+  const modPow = (b, e, m = P) => { let r = 1n; b = mod(b, m); for (; e > 0n; e >>= 1n, b = mod(b * b, m)) if (e & 1n) r = mod(r * b, m); return r };
+  const ptAdd = (p1, p2) => {
+    if (!p1) return p2; if (!p2) return p1;
+    const [x1, y1] = p1, [x2, y2] = p2;
+    const s = x1 === x2 ? (y1 !== y2 ? null : mod(3n * x1 * x1 * inv(2n * y1))) : mod((y2 - y1) * inv(x2 - x1));
+    if (s === null) return null; const x3 = mod(s * s - x1 - x2); return [x3, mod(s * (x1 - x3) - y1)];
+  };
+  const ptMul = (k, pt) => { let R = null, Q = pt || [Gx, Gy]; k = mod(k, N); for (; k > 0n; k >>= 1n, Q = ptAdd(Q, Q)) if (k & 1n) R = ptAdd(R, Q); return R };
+  const toBytes = (n, l = 32) => { const h = n.toString(16).padStart(l * 2, '0'), b = new Uint8Array(l); for (let i = 0; i < l; i++) b[i] = parseInt(h.slice(i*2, i*2+2), 16); return b };
+  const fromBytes = b => { let n = 0n; for (let i = 0; i < b.length; i++) n = (n << 8n) | BigInt(b[i]); return n };
+  const liftX = x => { const c = mod(x * x * x + 7n), y = modPow(c, (P + 1n) / 4n); return mod(y * y) === c ? [x, y % 2n === 0n ? y : P - y] : null };
+  const getPublicKey = pk => { const d = typeof pk === 'bigint' ? pk : fromBytes(pk), [x, y] = ptMul(d), o = new Uint8Array(33); o[0] = y % 2n === 0n ? 2 : 3; o.set(toBytes(x), 1); return o };
+  const taggedHash = async (tag, ...msgs) => { const t = await sha256(new TextEncoder().encode(tag)); return sha256(concat(t, t, ...msgs)) };
+  const rfc6979 = async (hash, d) => {
+    let v = new Uint8Array(32).fill(1), k = new Uint8Array(32).fill(0);
+    const x = toBytes(d), z = toBytes(mod(fromBytes(hash), N));
+    k = await hmacSHA256(k, concat(v, new Uint8Array([0]), x, z)); v = await hmacSHA256(k, v);
+    k = await hmacSHA256(k, concat(v, new Uint8Array([1]), x, z)); v = await hmacSHA256(k, v);
+    for (;;) { v = await hmacSHA256(k, v); const t = fromBytes(v); if (t > 0n && t < N) return t; k = await hmacSHA256(k, concat(v, new Uint8Array([0]))); v = await hmacSHA256(k, v) }
+  };
+  const sign = async (hash, pk) => { const d = typeof pk === 'bigint' ? pk : fromBytes(pk), z = fromBytes(hash), k = await rfc6979(hash, d), [rx] = ptMul(k), r = mod(rx, N); let s = mod(inv(k, N) * (z + r * d), N); if (s > N / 2n) s = N - s; return { r, s } };
+  const derEncode = ({ r, s }) => {
+    const enc = x => { let b = toBytes(x), i = 0; while (i < b.length - 1 && b[i] === 0) i++; b = b.slice(i); if (b[0] & 0x80) { const n = new Uint8Array(b.length + 1); n.set(b, 1); b = n } return concat(new Uint8Array([2, b.length]), b) };
+    const rb = enc(r), sb = enc(s); return concat(new Uint8Array([0x30, rb.length + sb.length]), rb, sb);
+  };
+  const schnorrSign = async (hash, pk) => {
+    let d = typeof pk === 'bigint' ? pk : fromBytes(pk); const [px, py] = ptMul(d); if (py % 2n !== 0n) d = N - d;
+    const dB = toBytes(d), pxB = toBytes(px), a = await taggedHash('BIP0340/aux', hash), t = new Uint8Array(32);
+    for (let i = 0; i < 32; i++) t[i] = dB[i] ^ a[i];
+    let k = mod(fromBytes(await taggedHash('BIP0340/nonce', t, pxB, hash)), N); if (k === 0n) throw new Error('bad nonce');
+    const [rx, ry] = ptMul(k); if (ry % 2n !== 0n) k = N - k;
+    return concat(toBytes(rx), toBytes(mod(k + mod(fromBytes(await taggedHash('BIP0340/challenge', toBytes(rx), pxB, hash)), N) * d, N)));
+  };
+  return { P, N, mod, modPow, ptAdd, ptMul, toBytes, fromBytes, liftX, getPublicKey, taggedHash, sign, derEncode, schnorrSign };
+})();
+
+const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+function base58Encode(buf) { let n = 0n; for (let i = 0; i < buf.length; i++) n = n * 256n + BigInt(buf[i]); let s = ''; while (n > 0n) { s = B58[Number(n % 58n)] + s; n /= 58n } for (let i = 0; i < buf.length && buf[i] === 0; i++) s = '1' + s; return s }
+async function base58Decode(str) { let n = 0n; for (let i = 0; i < str.length; i++) { const c = B58.indexOf(str[i]); if (c < 0) return null; n = n * 58n + BigInt(c) } let h = n.toString(16); if (h.length % 2) h = '0' + h; const bytes = []; for (let i = 0; i < h.length; i += 2) bytes.push(parseInt(h.slice(i, i+2), 16)); for (let i = 0; i < str.length && str[i] === '1'; i++) bytes.unshift(0); const arr = new Uint8Array(bytes), payload = arr.slice(0, -4), cs = await hash256(payload); for (let i = 0; i < 4; i++) if (cs[i] !== arr[arr.length - 4 + i]) return null; return payload }
+async function base58CheckEncode(data) { return base58Encode(concat(data, (await hash256(data)).slice(0, 4))) }
+async function convertXpubVersion(xpub, v0, v1, v2, v3) { const b = new Uint8Array(await base58Decode(xpub)); b[0] = v0; b[1] = v1; b[2] = v2; b[3] = v3; return base58CheckEncode(b) }
+
+const B32 = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l', B32_GEN = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+function bech32Polymod(values) { let chk = 1; for (const v of values) { const b = chk >> 25; chk = ((chk & 0x1ffffff) << 5) ^ v; for (let i = 0; i < 5; i++) if ((b >> i) & 1) chk ^= B32_GEN[i] } return chk }
+function bech32HrpExpand(hrp) { return [...[...hrp].map(c => c.charCodeAt(0) >> 5), 0, ...[...hrp].map(c => c.charCodeAt(0) & 31)] }
+function bech32Encode(hrp, data, spec) { const m = bech32Polymod([...bech32HrpExpand(hrp), ...data, 0, 0, 0, 0, 0, 0]) ^ spec; return hrp + '1' + [...data, ...[0,1,2,3,4,5].map(i => (m >> (5*(5-i))) & 31)].map(v => B32[v]).join('') }
+function bech32Decode(str) {
+  str = str.toLowerCase(); const pos = str.lastIndexOf('1'); if (pos < 1 || pos + 7 > str.length) return null;
+  const hrp = str.slice(0, pos), data = []; for (let i = pos + 1; i < str.length; i++) { const c = B32.indexOf(str[i]); if (c < 0) return null; data.push(c) }
+  const chk = bech32Polymod([...bech32HrpExpand(hrp), ...data]), enc = chk === 1 ? 1 : chk === 0x2bc830a3 ? 2 : null; if (!enc) return null;
+  const dp = data.slice(0, -6), wv = dp[0]; let payload = [], acc = 0, bits = 0;
+  for (let i = 1; i < dp.length; i++) { acc = (acc << 5) | dp[i]; bits += 5; if (bits >= 8) { bits -= 8; payload.push((acc >> bits) & 0xff) } }
+  if (bits >= 5 || (acc << (8 - bits)) & 0xff) return null; return { hrp, witnessVer: wv, program: new Uint8Array(payload), encoding: enc };
+}
+function convertBits(data, from, to) { let acc = 0, bits = 0, ret = []; for (const v of data) { acc = (acc << from) | v; bits += from; while (bits >= to) { bits -= to; ret.push((acc >> bits) & ((1 << to) - 1)) } } if (bits) ret.push((acc << (to - bits)) & ((1 << to) - 1)); return ret }
+
+async function p2wpkh(pubkey, net = BTC_NETWORK) { const h = await hash160(pubkey), s = new Uint8Array(22); s[0] = 0; s[1] = 0x14; s.set(h, 2); return { address: bech32Encode(net.bech32, [0, ...convertBits(h, 8, 5)], 1), script: s } }
+async function p2tr(xOnly, script, net = BTC_NETWORK) {
+  let ok = xOnly;
+  if (!script) { const P = secp256k1.liftX(secp256k1.fromBytes(xOnly)); if (!P) throw new Error('invalid pubkey'); ok = secp256k1.toBytes(secp256k1.ptAdd(P, secp256k1.ptMul(secp256k1.fromBytes(await secp256k1.taggedHash('TapTweak', xOnly))))[0]) }
+  const s = new Uint8Array(34); s[0] = 0x51; s[1] = 0x20; s.set(ok, 2); return { address: bech32Encode(net.bech32, [1, ...convertBits(ok, 8, 5)], 0x2bc830a3), script: s };
+}
+function encodeAddress(sp, net = BTC_NETWORK) { if (sp[0] === 0 && sp[1] === 0x14) return bech32Encode(net.bech32, [0, ...convertBits(sp.slice(2), 8, 5)], 1); if (sp[0] === 0x51 && sp[1] === 0x20) return bech32Encode(net.bech32, [1, ...convertBits(sp.slice(2), 8, 5)], 0x2bc830a3); return null }
+function decodeAddress(addr, net = BTC_NETWORK) { const d = bech32Decode(addr); if (!d || d.hrp !== net.bech32) throw new Error('invalid address'); const s = new Uint8Array(d.witnessVer === 0 ? 22 : 34); s[0] = d.witnessVer === 0 ? 0 : 0x51; s[1] = d.program.length; s.set(d.program, 2); return s }
+function validateAddr(addr, net = BTC_NETWORK) { const err = e => ({ valid: false, error: e }), isTest = net.bech32 === 'tb'; if (/^[13]/.test(addr)) return err('Legacy not supported'); if (isTest && /^bc1/i.test(addr)) return err('Mainnet address on testnet'); if (!isTest && /^tb1/i.test(addr)) return err('Testnet address on mainnet'); const d = bech32Decode(addr); if (!d || d.hrp !== net.bech32) return err('Invalid address'); if (d.witnessVer === 0 && d.encoding !== 1) return err('v0 needs bech32'); if (d.witnessVer > 0 && d.encoding !== 2) return err('v1+ needs bech32m'); if (d.witnessVer === 1 && d.program.length !== 32) return err('Bad taproot length'); return { valid: true, type: d.witnessVer === 0 ? 'p2wpkh' : 'p2tr' } }
+
+class HDKey {
+  constructor() { this.privateKey = null; this.publicKey = null; this.chainCode = null; this.depth = 0; this.index = 0; this.parentFingerprint = 0 }
+  async fingerprint() { const fp = await hash160(this.publicKey); return (fp[0] << 24 | fp[1] << 16 | fp[2] << 8 | fp[3]) >>> 0 }
+  async publicExtendedKey() { const buf = new Uint8Array(78), dv = new DataView(buf.buffer); dv.setUint32(0, 0x0488B21E); buf[4] = this.depth; dv.setUint32(5, this.parentFingerprint); dv.setUint32(9, this.index); buf.set(this.chainCode, 13); buf.set(this.publicKey, 45); return base58Encode(concat(buf, (await hash256(buf)).slice(0, 4))) }
+  static async fromMasterSeed(seed) { const I = await hmacSHA512(new TextEncoder().encode('Bitcoin seed'), seed), k = new HDKey(); k.privateKey = I.slice(0, 32); k.chainCode = I.slice(32); k.publicKey = secp256k1.getPublicKey(k.privateKey); return k }
+  static async fromExtendedKey(str, versions) {
+    const data = await base58Decode(str); if (!data || data.length !== 78) throw new Error('invalid xkey');
+    const dv = new DataView(data.buffer, data.byteOffset, data.byteLength), ver = dv.getUint32(0), k = new HDKey();
+    k.depth = data[4]; k.parentFingerprint = dv.getUint32(5); k.index = dv.getUint32(9); k.chainCode = data.slice(13, 45);
+    const pv = [0x0488B21E, 0x043587CF, 0x04B24746, 0x045F1CF6]; if (versions) pv.push(versions.public);
+    if (pv.includes(ver)) k.publicKey = data.slice(45, 78); else { k.privateKey = data.slice(46, 78); k.publicKey = secp256k1.getPublicKey(k.privateKey) } return k;
+  }
+  async derive(path) { let k = this; for (const p of path.split('/')) { if (p === 'm' || p === '') continue; k = await k.deriveChild(parseInt(p) + (p.endsWith("'") ? 0x80000000 : 0)) } return k }
+  async deriveChild(index) {
+    const data = new Uint8Array(37); if (index >= 0x80000000) { data[0] = 0; data.set(this.privateKey, 1) } else data.set(this.publicKey, 0);
+    data[33] = index >>> 24; data[34] = (index >>> 16) & 0xff; data[35] = (index >>> 8) & 0xff; data[36] = index & 0xff;
+    const I = await hmacSHA512(this.chainCode, data), child = new HDKey();
+    child.chainCode = I.slice(32); child.depth = this.depth + 1; child.index = index; child.parentFingerprint = await this.fingerprint();
+    const il = secp256k1.fromBytes(I.slice(0, 32)); if (il >= secp256k1.N) throw new Error('invalid child');
+    if (this.privateKey) {
+      const pk = secp256k1.mod(il + secp256k1.fromBytes(this.privateKey), secp256k1.N); if (pk === 0n) throw new Error('invalid child');
+      child.privateKey = secp256k1.toBytes(pk); child.publicKey = secp256k1.getPublicKey(child.privateKey);
+    } else {
+      const x = secp256k1.fromBytes(this.publicKey.slice(1)), y2 = secp256k1.mod(x * x * x + 7n); let y = secp256k1.modPow(y2, (secp256k1.P + 1n) / 4n);
+      if ((this.publicKey[0] === 2) !== (y % 2n === 0n)) y = secp256k1.P - y;
+      const pt = secp256k1.ptAdd(secp256k1.ptMul(il), [x, y]); if (!pt) throw new Error('invalid child');
+      child.publicKey = new Uint8Array(33); child.publicKey[0] = pt[1] % 2n === 0n ? 2 : 3; child.publicKey.set(secp256k1.toBytes(pt[0]), 1);
+    } return child;
+  }
+}
+
+const wordlist = ['abandon','ability','able','about','above','absent','absorb','abstract','absurd','abuse','access','accident','account','accuse','achieve','acid','acoustic','acquire','across','act','action','actor','actress','actual','adapt','add','addict','address','adjust','admit','adult','advance','advice','aerobic','affair','afford','afraid','again','age','agent','agree','ahead','aim','air','airport','aisle','alarm','album','alcohol','alert','alien','all','alley','allow','almost','alone','alpha','already','also','alter','always','amateur','amazing','among','amount','amused','analyst','anchor','ancient','anger','angle','angry','animal','ankle','announce','annual','another','answer','antenna','antique','anxiety','any','apart','apology','appear','apple','approve','april','arch','arctic','area','arena','argue','arm','armed','armor','army','around','arrange','arrest','arrive','arrow','art','artefact','artist','artwork','ask','aspect','assault','asset','assist','assume','asthma','athlete','atom','attack','attend','attitude','attract','auction','audit','august','aunt','author','auto','autumn','average','avocado','avoid','awake','aware','away','awesome','awful','awkward','axis','baby','bachelor','bacon','badge','bag','balance','balcony','ball','bamboo','banana','banner','bar','barely','bargain','barrel','base','basic','basket','battle','beach','bean','beauty','because','become','beef','before','begin','behave','behind','believe','below','belt','bench','benefit','best','betray','better','between','beyond','bicycle','bid','bike','bind','biology','bird','birth','bitter','black','blade','blame','blanket','blast','bleak','bless','blind','blood','blossom','blouse','blue','blur','blush','board','boat','body','boil','bomb','bone','bonus','book','boost','border','boring','borrow','boss','bottom','bounce','box','boy','bracket','brain','brand','brass','brave','bread','breeze','brick','bridge','brief','bright','bring','brisk','broccoli','broken','bronze','broom','brother','brown','brush','bubble','buddy','budget','buffalo','build','bulb','bulk','bullet','bundle','bunker','burden','burger','burst','bus','business','busy','butter','buyer','buzz','cabbage','cabin','cable','cactus','cage','cake','call','calm','camera','camp','can','canal','cancel','candy','cannon','canoe','canvas','canyon','capable','capital','captain','car','carbon','card','cargo','carpet','carry','cart','case','cash','casino','castle','casual','cat','catalog','catch','category','cattle','caught','cause','caution','cave','ceiling','celery','cement','census','century','cereal','certain','chair','chalk','champion','change','chaos','chapter','charge','chase','chat','cheap','check','cheese','chef','cherry','chest','chicken','chief','child','chimney','choice','choose','chronic','chuckle','chunk','churn','cigar','cinnamon','circle','citizen','city','civil','claim','clap','clarify','claw','clay','clean','clerk','clever','click','client','cliff','climb','clinic','clip','clock','clog','close','cloth','cloud','clown','club','clump','cluster','clutch','coach','coast','coconut','code','coffee','coil','coin','collect','color','column','combine','come','comfort','comic','common','company','concert','conduct','confirm','congress','connect','consider','control','convince','cook','cool','copper','copy','coral','core','corn','correct','cost','cotton','couch','country','couple','course','cousin','cover','coyote','crack','cradle','craft','cram','crane','crash','crater','crawl','crazy','cream','credit','creek','crew','cricket','crime','crisp','critic','crop','cross','crouch','crowd','crucial','cruel','cruise','crumble','crunch','crush','cry','crystal','cube','culture','cup','cupboard','curious','current','curtain','curve','cushion','custom','cute','cycle','dad','damage','damp','dance','danger','daring','dash','daughter','dawn','day','deal','debate','debris','decade','december','decide','decline','decorate','decrease','deer','defense','define','defy','degree','delay','deliver','demand','demise','denial','dentist','deny','depart','depend','deposit','depth','deputy','derive','describe','desert','design','desk','despair','destroy','detail','detect','develop','device','devote','diagram','dial','diamond','diary','dice','diesel','diet','differ','digital','dignity','dilemma','dinner','dinosaur','direct','dirt','disagree','discover','disease','dish','dismiss','disorder','display','distance','divert','divide','divorce','dizzy','doctor','document','dog','doll','dolphin','domain','donate','donkey','donor','door','dose','double','dove','draft','dragon','drama','drastic','draw','dream','dress','drift','drill','drink','drip','drive','drop','drum','dry','duck','dumb','dune','during','dust','dutch','duty','dwarf','dynamic','eager','eagle','early','earn','earth','easily','east','easy','echo','ecology','economy','edge','edit','educate','effort','egg','eight','either','elbow','elder','electric','elegant','element','elephant','elevator','elite','else','embark','embody','embrace','emerge','emotion','employ','empower','empty','enable','enact','end','endless','endorse','enemy','energy','enforce','engage','engine','enhance','enjoy','enlist','enough','enrich','enroll','ensure','enter','entire','entry','envelope','episode','equal','equip','era','erase','erode','erosion','error','erupt','escape','essay','essence','estate','eternal','ethics','evidence','evil','evoke','evolve','exact','example','excess','exchange','excite','exclude','excuse','execute','exercise','exhaust','exhibit','exile','exist','exit','exotic','expand','expect','expire','explain','expose','express','extend','extra','eye','eyebrow','fabric','face','faculty','fade','faint','faith','fall','false','fame','family','famous','fan','fancy','fantasy','farm','fashion','fat','fatal','father','fatigue','fault','favorite','feature','february','federal','fee','feed','feel','female','fence','festival','fetch','fever','few','fiber','fiction','field','figure','file','film','filter','final','find','fine','finger','finish','fire','firm','first','fiscal','fish','fit','fitness','fix','flag','flame','flash','flat','flavor','flee','flight','flip','float','flock','floor','flower','fluid','flush','fly','foam','focus','fog','foil','fold','follow','food','foot','force','forest','forget','fork','fortune','forum','forward','fossil','foster','found','fox','fragile','frame','frequent','fresh','friend','fringe','frog','front','frost','frown','frozen','fruit','fuel','fun','funny','furnace','fury','future','gadget','gain','galaxy','gallery','game','gap','garage','garbage','garden','garlic','garment','gas','gasp','gate','gather','gauge','gaze','general','genius','genre','gentle','genuine','gesture','ghost','giant','gift','giggle','ginger','giraffe','girl','give','glad','glance','glare','glass','glide','glimpse','globe','gloom','glory','glove','glow','glue','goat','goddess','gold','good','goose','gorilla','gospel','gossip','govern','gown','grab','grace','grain','grant','grape','grass','gravity','great','green','grid','grief','grit','grocery','group','grow','grunt','guard','guess','guide','guilt','guitar','gun','gym','habit','hair','half','hammer','hamster','hand','happy','harbor','hard','harsh','harvest','hat','have','hawk','hazard','head','health','heart','heavy','hedgehog','height','hello','helmet','help','hen','hero','hidden','high','hill','hint','hip','hire','history','hobby','hockey','hold','hole','holiday','hollow','home','honey','hood','hope','horn','horror','horse','hospital','host','hotel','hour','hover','hub','huge','human','humble','humor','hundred','hungry','hunt','hurdle','hurry','hurt','husband','hybrid','ice','icon','idea','identify','idle','ignore','ill','illegal','illness','image','imitate','immense','immune','impact','impose','improve','impulse','inch','include','income','increase','index','indicate','indoor','industry','infant','inflict','inform','inhale','inherit','initial','inject','injury','inmate','inner','innocent','input','inquiry','insane','insect','inside','inspire','install','intact','interest','into','invest','invite','involve','iron','island','isolate','issue','item','ivory','jacket','jaguar','jar','jazz','jealous','jeans','jelly','jewel','job','join','joke','journey','joy','judge','juice','jump','jungle','junior','junk','just','kangaroo','keen','keep','ketchup','key','kick','kid','kidney','kind','kingdom','kiss','kit','kitchen','kite','kitten','kiwi','knee','knife','knock','know','lab','label','labor','ladder','lady','lake','lamp','language','laptop','large','later','latin','laugh','laundry','lava','law','lawn','lawsuit','layer','lazy','leader','leaf','learn','leave','lecture','left','leg','legal','legend','leisure','lemon','lend','length','lens','leopard','lesson','letter','level','liar','liberty','library','license','life','lift','light','like','limb','limit','link','lion','liquid','list','little','live','lizard','load','loan','lobster','local','lock','logic','lonely','long','loop','lottery','loud','lounge','love','loyal','lucky','luggage','lumber','lunar','lunch','luxury','lyrics','machine','mad','magic','magnet','maid','mail','main','major','make','mammal','man','manage','mandate','mango','mansion','manual','maple','marble','march','margin','marine','market','marriage','mask','mass','master','match','material','math','matrix','matter','maximum','maze','meadow','mean','measure','meat','mechanic','medal','media','melody','melt','member','memory','mention','menu','mercy','merge','merit','merry','mesh','message','metal','method','middle','midnight','milk','million','mimic','mind','minimum','minor','minute','miracle','mirror','misery','miss','mistake','mix','mixed','mixture','mobile','model','modify','mom','moment','monitor','monkey','monster','month','moon','moral','more','morning','mosquito','mother','motion','motor','mountain','mouse','move','movie','much','muffin','mule','multiply','muscle','museum','mushroom','music','must','mutual','myself','mystery','myth','naive','name','napkin','narrow','nasty','nation','nature','near','neck','need','negative','neglect','neither','nephew','nerve','nest','net','network','neutral','never','news','next','nice','night','noble','noise','nominee','noodle','normal','north','nose','notable','note','nothing','notice','novel','now','nuclear','number','nurse','nut','oak','obey','object','oblige','obscure','observe','obtain','obvious','occur','ocean','october','odor','off','offer','office','often','oil','okay','old','olive','olympic','omit','once','one','onion','online','only','open','opera','opinion','oppose','option','orange','orbit','orchard','order','ordinary','organ','orient','original','orphan','ostrich','other','outdoor','outer','output','outside','oval','oven','over','own','owner','oxygen','oyster','ozone','pact','paddle','page','pair','palace','palm','panda','panel','panic','panther','paper','parade','parent','park','parrot','party','pass','patch','path','patient','patrol','pattern','pause','pave','payment','peace','peanut','pear','peasant','pelican','pen','penalty','pencil','people','pepper','perfect','permit','person','pet','phone','photo','phrase','physical','piano','picnic','picture','piece','pig','pigeon','pill','pilot','pink','pioneer','pipe','pistol','pitch','pizza','place','planet','plastic','plate','play','please','pledge','pluck','plug','plunge','poem','poet','point','polar','pole','police','pond','pony','pool','popular','portion','position','possible','post','potato','pottery','poverty','powder','power','practice','praise','predict','prefer','prepare','present','pretty','prevent','price','pride','primary','print','priority','prison','private','prize','problem','process','produce','profit','program','project','promote','proof','property','prosper','protect','proud','provide','public','pudding','pull','pulp','pulse','pumpkin','punch','pupil','puppy','purchase','purity','purpose','purse','push','put','puzzle','pyramid','quality','quantum','quarter','question','quick','quit','quiz','quote','rabbit','raccoon','race','rack','radar','radio','rail','rain','raise','rally','ramp','ranch','random','range','rapid','rare','rate','rather','raven','raw','razor','ready','real','reason','rebel','rebuild','recall','receive','recipe','record','recycle','reduce','reflect','reform','refuse','region','regret','regular','reject','relax','release','relief','rely','remain','remember','remind','remove','render','renew','rent','reopen','repair','repeat','replace','report','require','rescue','resemble','resist','resource','response','result','retire','retreat','return','reunion','reveal','review','reward','rhythm','rib','ribbon','rice','rich','ride','ridge','rifle','right','rigid','ring','riot','ripple','risk','ritual','rival','river','road','roast','robot','robust','rocket','romance','roof','rookie','room','rose','rotate','rough','round','route','royal','rubber','rude','rug','rule','run','runway','rural','sad','saddle','sadness','safe','sail','salad','salmon','salon','salt','salute','same','sample','sand','satisfy','satoshi','sauce','sausage','save','say','scale','scan','scare','scatter','scene','scheme','school','science','scissors','scorpion','scout','scrap','screen','script','scrub','sea','search','season','seat','second','secret','section','security','seed','seek','segment','select','sell','seminar','senior','sense','sentence','series','service','session','settle','setup','seven','shadow','shaft','shallow','share','shed','shell','sheriff','shield','shift','shine','ship','shiver','shock','shoe','shoot','shop','short','shoulder','shove','shrimp','shrug','shuffle','shy','sibling','sick','side','siege','sight','sign','silent','silk','silly','silver','similar','simple','since','sing','siren','sister','situate','six','size','skate','sketch','ski','skill','skin','skirt','skull','slab','slam','sleep','slender','slice','slide','slight','slim','slogan','slot','slow','slush','small','smart','smile','smoke','smooth','snack','snake','snap','sniff','snow','soap','soccer','social','sock','soda','soft','solar','soldier','solid','solution','solve','someone','song','soon','sorry','sort','soul','sound','soup','source','south','space','spare','spatial','spawn','speak','special','speed','spell','spend','sphere','spice','spider','spike','spin','spirit','split','spoil','sponsor','spoon','sport','spot','spray','spread','spring','spy','square','squeeze','squirrel','stable','stadium','staff','stage','stairs','stamp','stand','start','state','stay','steak','steel','stem','step','stereo','stick','still','sting','stock','stomach','stone','stool','story','stove','strategy','street','strike','strong','struggle','student','stuff','stumble','style','subject','submit','subway','success','such','sudden','suffer','sugar','suggest','suit','summer','sun','sunny','sunset','super','supply','supreme','sure','surface','surge','surprise','surround','survey','suspect','sustain','swallow','swamp','swap','swarm','swear','sweet','swift','swim','swing','switch','sword','symbol','symptom','syrup','system','table','tackle','tag','tail','talent','talk','tank','tape','target','task','taste','tattoo','taxi','teach','team','tell','ten','tenant','tennis','tent','term','test','text','thank','that','theme','then','theory','there','they','thing','this','thought','three','thrive','throw','thumb','thunder','ticket','tide','tiger','tilt','timber','time','tiny','tip','tired','tissue','title','toast','tobacco','today','toddler','toe','together','toilet','token','tomato','tomorrow','tone','tongue','tonight','tool','tooth','top','topic','topple','torch','tornado','tortoise','toss','total','tourist','toward','tower','town','toy','track','trade','traffic','tragic','train','transfer','trap','trash','travel','tray','treat','tree','trend','trial','tribe','trick','trigger','trim','trip','trophy','trouble','truck','true','truly','trumpet','trust','truth','try','tube','tuition','tumble','tuna','tunnel','turkey','turn','turtle','twelve','twenty','twice','twin','twist','two','type','typical','ugly','umbrella','unable','unaware','uncle','uncover','under','undo','unfair','unfold','unhappy','uniform','unique','unit','universe','unknown','unlock','until','unusual','unveil','update','upgrade','uphold','upon','upper','upset','urban','urge','usage','use','used','useful','useless','usual','utility','vacant','vacuum','vague','valid','valley','valve','van','vanish','vapor','various','vast','vault','vehicle','velvet','vendor','venture','venue','verb','verify','version','very','vessel','veteran','viable','vibrant','vicious','victory','video','view','village','vintage','violin','virtual','virus','visa','visit','visual','vital','vivid','vocal','voice','void','volcano','volume','vote','voyage','wage','wagon','wait','walk','wall','walnut','want','warfare','warm','warrior','wash','wasp','waste','water','wave','way','wealth','weapon','wear','weasel','weather','web','wedding','weekend','weird','welcome','west','wet','whale','what','wheat','wheel','when','where','whip','whisper','wide','width','wife','wild','will','win','window','wine','wing','wink','winner','winter','wire','wisdom','wise','wish','witness','wolf','woman','wonder','wood','wool','word','work','world','worry','worth','wrap','wreck','wrestle','wrist','write','wrong','yard','year','yellow','you','young','youth','zebra','zero','zone','zoo'];
+async function generateMnemonic(wl, strength = 128) {
+  const ent = new Uint8Array(strength / 8); crypto.getRandomValues(ent); const cs = await sha256(ent), bits = [], csLen = strength / 32;
+  for (const b of ent) for (let j = 7; j >= 0; j--) bits.push((b >> j) & 1);
+  for (let i = 0; i < csLen; i++) bits.push((cs[i >> 3] >> (7 - (i & 7))) & 1);
+  const words = []; for (let i = 0; i < bits.length; i += 11) { let idx = 0; for (let j = 0; j < 11; j++) idx = (idx << 1) | bits[i + j]; words.push(wl[idx]) } return words.join(' ');
+}
+async function validateMnemonic(mnemonic, wl) {
+  const words = mnemonic.trim().split(/\s+/); if (words.length !== 12 && words.length !== 24) return false;
+  const bits = []; for (const w of words) { const idx = wl.indexOf(w); if (idx < 0) return false; for (let j = 10; j >= 0; j--) bits.push((idx >> j) & 1) }
+  const csLen = bits.length / 33, entBits = bits.slice(0, -csLen), csBits = bits.slice(-csLen), ent = new Uint8Array(entBits.length / 8);
+  for (let i = 0; i < ent.length; i++) { let b = 0; for (let j = 0; j < 8; j++) b = (b << 1) | entBits[i*8+j]; ent[i] = b }
+  const cs = await sha256(ent); for (let i = 0; i < csLen; i++) if (csBits[i] !== ((cs[i >> 3] >> (7 - (i & 7))) & 1)) return false; return true;
+}
+async function mnemonicToSeed(mnemonic, passphrase = '') { return pbkdf2SHA512(mnemonic, 'mnemonic' + passphrase, 2048, 64) }
+
+function writeVarInt(n) { if (n < 0xfd) return new Uint8Array([n]); if (n <= 0xffff) { const b = new Uint8Array(3); b[0] = 0xfd; b[1] = n & 0xff; b[2] = (n >> 8) & 0xff; return b } const b = new Uint8Array(5); b[0] = 0xfe; new DataView(b.buffer).setUint32(1, n, true); return b }
+function readVarInt(buf, off) { const f = buf[off], dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength); if (f < 0xfd) return { v: f, s: 1 }; if (f === 0xfd) return { v: dv.getUint16(off+1, true), s: 3 }; return { v: dv.getUint32(off+1, true), s: 5 } }
+function writeU32(n) { const b = new Uint8Array(4); new DataView(b.buffer).setUint32(0, n, true); return b }
+function writeU64(n) { const b = new Uint8Array(8); new DataView(b.buffer).setBigUint64(0, BigInt(n), true); return b }
+function txidBytes(hex) { const b = new Uint8Array(32); for (let j = 0; j < 32; j++) b[j] = parseInt(hex.slice((31-j)*2, (31-j)*2+2), 16); return b }
+
+class Transaction {
+  constructor() { this._inputs = []; this._outputs = []; this.version = 2; this.locktime = 0 }
+  get inputsLength() { return this._inputs.length }
+  get outputsLength() { return this._outputs.length }
+  getInput(i) { return this._inputs[i] }
+  getOutput(i) { return this._outputs[i] }
+  addInput(inp) { this._inputs.push(inp) }
+  addOutput(out) { this._outputs.push(out) }
+  addOutputAddress(addr, amt, net) { this._outputs.push({ script: decodeAddress(addr, net), amount: BigInt(amt) }) }
+  static fromPSBT(psbtBytes) {
+    const buf = psbtBytes instanceof Uint8Array ? psbtBytes : new Uint8Array(psbtBytes);
+    if (bytesToHex(buf.slice(0,4)) !== '70736274' || buf[4] !== 0xff) throw new Error('invalid PSBT');
+    let pos = 5;
+    const readKV = () => { const pairs = []; while (pos < buf.length) { const kl = readVarInt(buf, pos); pos += kl.s; if (kl.v === 0) break; const key = buf.slice(pos, pos + kl.v); pos += kl.v; const vl = readVarInt(buf, pos); pos += vl.s; const val = buf.slice(pos, pos + vl.v); pos += vl.v; pairs.push({ key, val }) } return pairs };
+    const gp = readKV(); let txRaw = null; for (const p of gp) if (p.key[0] === 0) txRaw = p.val; if (!txRaw) throw new Error('no unsigned tx');
+    const tx = new Transaction(), tdv = new DataView(txRaw.buffer, txRaw.byteOffset, txRaw.byteLength); let tp = 0;
+    tx.version = tdv.getUint32(tp, true); tp += 4; const ic = readVarInt(txRaw, tp); tp += ic.s;
+    for (let i = 0; i < ic.v; i++) { const id = bytesToHex(Array.from(txRaw.slice(tp, tp+32)).reverse()); tp += 32; const idx = tdv.getUint32(tp, true); tp += 4; const sl = readVarInt(txRaw, tp); tp += sl.s + sl.v; const seq = tdv.getUint32(tp, true); tp += 4; tx.addInput({ txid: id, index: idx, sequence: seq }) }
+    const oc = readVarInt(txRaw, tp); tp += oc.s;
+    for (let i = 0; i < oc.v; i++) { const amt = tdv.getBigUint64(tp, true); tp += 8; const sl = readVarInt(txRaw, tp); tp += sl.s; tx.addOutput({ script: txRaw.slice(tp, tp + sl.v), amount: amt }); tp += sl.v }
+    tx.locktime = tdv.getUint32(tp, true);
+    for (let i = 0; i < ic.v; i++) { const pairs = readKV(); for (const p of pairs) { const inp = tx._inputs[i]; if (p.key[0] === 1) { const sl = readVarInt(p.val, 8); inp.witnessUtxo = { amount: new DataView(p.val.buffer, p.val.byteOffset).getBigUint64(0, true), script: p.val.slice(8 + sl.s, 8 + sl.s + sl.v) } } if (p.key[0] === 0) inp.nonWitnessUtxo = p.val; if (p.key[0] === 2) { inp.partialSig = inp.partialSig || []; inp.partialSig.push({ pubkey: p.key.slice(1), sig: p.val }) } if (p.key[0] === 0x13) inp.tapInternalKey = p.val; if (p.key[0] === 0x14) inp.tapKeySig = p.val } }
+    for (let i = 0; i < oc.v; i++) readKV(); return tx;
+  }
+  async signIdx(privKey, idx) {
+    const inp = this._inputs[idx]; if (!inp || !inp.witnessUtxo) throw new Error('missing witnessUtxo');
+    const script = inp.witnessUtxo.script, priv = privKey instanceof Uint8Array ? privKey : secp256k1.toBytes(privKey), pub = secp256k1.getPublicKey(priv);
+    if (script[0] === 0x51 && script[1] === 0x20) {
+      const xOnly = pub.slice(1), ik = inp.tapInternalKey || xOnly;
+      if (inp.tapInternalKey) { for (let i = 0; i < 32; i++) if (xOnly[i] !== ik[i]) throw new Error('pubkey mismatch') }
+      const tweakN = secp256k1.fromBytes(await secp256k1.taggedHash('TapTweak', ik)); let d = secp256k1.fromBytes(priv);
+      if (secp256k1.ptMul(d)[1] % 2n !== 0n) d = secp256k1.N - d;
+      inp.tapKeySig = await secp256k1.schnorrSign(await this._tapSighash(idx), secp256k1.mod(d + tweakN, secp256k1.N));
+    } else if (script[0] === 0 && script[1] === 0x14) {
+      const pkh = await hash160(pub); for (let i = 0; i < 20; i++) if (pkh[i] !== script[i+2]) throw new Error('pubkey mismatch');
+      const sig = await secp256k1.sign(await this._segwitSighash(idx, pkh, inp.witnessUtxo.amount), priv);
+      inp.partialSig = inp.partialSig || []; inp.partialSig.push({ pubkey: pub, sig: concat(secp256k1.derEncode(sig), new Uint8Array([1])) });
+    } else throw new Error('unsupported script');
+  }
+  _serializeOutputs() { return concat(...this._outputs.map(o => concat(writeU64(o.amount), writeVarInt(o.script.length), o.script))) }
+  async _segwitSighash(idx, pkh, amount) {
+    const inp = this._inputs[idx], prevouts = concat(...this._inputs.map(i => concat(txidBytes(i.txid), writeU32(i.index)))), seqs = concat(...this._inputs.map(i => writeU32(i.sequence)));
+    return hash256(concat(writeU32(this.version), await sha256(prevouts), await sha256(seqs), txidBytes(inp.txid), writeU32(inp.index), concat(new Uint8Array([0x19,0x76,0xa9,0x14]), pkh, new Uint8Array([0x88,0xac])), writeU64(amount), writeU32(inp.sequence), await sha256(this._serializeOutputs()), writeU32(this.locktime), writeU32(1)));
+  }
+  async _tapSighash(idx) {
+    const prevouts = concat(...this._inputs.map(i => concat(txidBytes(i.txid), writeU32(i.index)))), amounts = concat(...this._inputs.map(i => writeU64(i.witnessUtxo.amount)));
+    const spks = concat(...this._inputs.map(i => concat(writeVarInt(i.witnessUtxo.script.length), i.witnessUtxo.script))), seqs = concat(...this._inputs.map(i => writeU32(i.sequence)));
+    return secp256k1.taggedHash('TapSighash', concat(new Uint8Array([0,0]), writeU32(this.version), writeU32(this.locktime), await sha256(prevouts), await sha256(amounts), await sha256(spks), await sha256(seqs), await sha256(this._serializeOutputs()), new Uint8Array([0]), writeU32(idx)));
+  }
+  toPSBT() {
+    const parts = [new Uint8Array([0x70,0x73,0x62,0x74,0xff])], kv = (k, v) => { parts.push(writeVarInt(k.length), k, writeVarInt(v.length), v) };
+    const txp = [writeU32(this.version), writeVarInt(this._inputs.length)];
+    for (const i of this._inputs) txp.push(txidBytes(i.txid), writeU32(i.index), new Uint8Array([0]), writeU32(i.sequence));
+    txp.push(writeVarInt(this._outputs.length)); for (const o of this._outputs) txp.push(writeU64(o.amount), writeVarInt(o.script.length), o.script);
+    txp.push(writeU32(this.locktime)); kv(new Uint8Array([0]), concat(...txp)); parts.push(new Uint8Array([0]));
+    for (const inp of this._inputs) { if (inp.nonWitnessUtxo) kv(new Uint8Array([0]), inp.nonWitnessUtxo); if (inp.witnessUtxo) kv(new Uint8Array([1]), concat(writeU64(inp.witnessUtxo.amount), writeVarInt(inp.witnessUtxo.script.length), inp.witnessUtxo.script)); if (inp.partialSig) for (const ps of inp.partialSig) kv(concat(new Uint8Array([2]), ps.pubkey), ps.sig); if (inp.tapInternalKey) kv(new Uint8Array([0x13]), inp.tapInternalKey); if (inp.tapKeySig) kv(new Uint8Array([0x14]), inp.tapKeySig); parts.push(new Uint8Array([0])) }
+    for (let i = 0; i < this._outputs.length; i++) parts.push(new Uint8Array([0])); return concat(...parts);
+  }
+  finalize() { for (const inp of this._inputs) { if (inp.tapKeySig) inp.finalScriptWitness = [inp.tapKeySig]; else if (inp.partialSig && inp.partialSig.length) { const ps = inp.partialSig[0]; inp.finalScriptWitness = [ps.sig, ps.pubkey] } else throw new Error('not signed') } }
+  extract() {
+    const parts = [writeU32(this.version)], hasW = this._inputs.some(i => i.finalScriptWitness); if (hasW) parts.push(new Uint8Array([0, 1]));
+    parts.push(writeVarInt(this._inputs.length)); for (const inp of this._inputs) parts.push(txidBytes(inp.txid), writeU32(inp.index), new Uint8Array([0]), writeU32(inp.sequence));
+    parts.push(writeVarInt(this._outputs.length)); for (const o of this._outputs) parts.push(writeU64(o.amount), writeVarInt(o.script.length), o.script);
+    if (hasW) for (const inp of this._inputs) { const w = inp.finalScriptWitness || []; parts.push(writeVarInt(w.length)); for (const item of w) parts.push(writeVarInt(item.length), item) }
+    parts.push(writeU32(this.locktime)); return concat(...parts);
+  }
+}
+
+</script>
+<script>
+(async ()=>{
+'use strict';
+const NETWORK = 'mainnet', IS_TEST = NETWORK === 'testnet4', NET = IS_TEST ? BTC_TEST_NETWORK : BTC_NETWORK;
+const S = { mnemonic: null, passphrase: '', seed: null, masterKey: null, accounts: { bip84: null, bip86: null } };
+const goPhase = name => { ['phase-init','phase-mnemonic','phase-verify','phase-dash'].forEach($hide); $show('phase-' + name) };
+const displayWords = (id, words) => { $(id).innerHTML = words.split(' ').map((w, i) => '<span>' + (i + 1) + '. ' + w + '</span>').join('') };
+const checkOnline = () => $('online-warn').style.display = navigator.onLine ? 'block' : 'none';
+
+$t('net-label', IS_TEST ? '[Testnet4]' : '[Mainnet]');
+checkOnline();
+window.addEventListener('online', () => { checkOnline(); notify('Internet detected! Disconnect!') });
+window.addEventListener('offline', checkOnline);
+
+const deriveAccounts = async () => {
+  const mk = S.masterKey, acc84 = await mk.derive("m/84'/0'/0'");
+  S.accounts.bip84 = { path: "m/84'/0'/0'", accountKey: acc84, pubkey: await convertXpubVersion(await acc84.publicExtendedKey(), ...(IS_TEST ? [0x04,0x5F,0x1C,0xF6] : [0x04,0xB2,0x47,0x46])) };
+  const acc86 = await mk.derive("m/86'/0'/0'");
+  S.accounts.bip86 = { path: "m/86'/0'/0'", accountKey: acc86, pubkey: IS_TEST ? await convertXpubVersion(await acc86.publicExtendedKey(), 0x04,0x35,0x87,0xCF) : await acc86.publicExtendedKey() };
+};
+const updateDash = async () => { $t('dash-fp', (await S.masterKey.fingerprint()).toString(16).padStart(8, '0')); $v('key-84', S.accounts.bip84.pubkey); $v('key-86', S.accounts.bip86.pubkey) };
+const activateWallet = async () => { S.seed = await mnemonicToSeed(S.mnemonic, S.passphrase); S.masterKey = await HDKey.fromMasterSeed(S.seed); await deriveAccounts(); await updateDash(); goPhase('dash'); notify('Wallet activated', 'ok') };
+const getChangeAddresses = async () => {
+  const addrs = {};
+  for (const type of ['bip84', 'bip86']) {
+    const acc = S.accounts[type]; if (!acc) continue;
+    const branch = await acc.accountKey.deriveChild(1);
+    for (let i = 0; i < 20; i++) { const pub = (await branch.deriveChild(i)).publicKey; addrs[type === 'bip84' ? (await p2wpkh(pub, NET)).address : (await p2tr(pub.length === 33 ? pub.slice(1) : pub, undefined, NET)).address] = true }
+  } return addrs;
+};
+const processPSBT = async psbtBytes => {
+  const tx = Transaction.fromPSBT(psbtBytes); let totalIn = 0n, totalOut = 0n; const outputs = [];
+  for (let i = 0; i < tx.inputsLength; i++) { const inp = tx.getInput(i); if (inp.witnessUtxo) totalIn += BigInt(inp.witnessUtxo.amount) }
+  for (let i = 0; i < tx.outputsLength; i++) { const out = tx.getOutput(i); totalOut += BigInt(out.amount); let addr; try { addr = encodeAddress(out.script, NET) } catch(e) { addr = '(unknown)' } outputs.push({ addr, amount: out.amount }) }
+  const changeAddrs = await getChangeAddresses();
+  let info = outputs.map(o => (changeAddrs[o.addr] ? '[CHANGE] ' : '[SEND]   ') + satsBtc(o.amount) + ' BTC\n         ' + o.addr).join('\n');
+  info += '\n\nFee: ' + satsBtc(Number(totalIn - totalOut)) + ' BTC (' + Number(totalIn - totalOut) + ' sats)\nInputs: ' + tx.inputsLength;
+  $t('review-body', info);
+  for (let i = 0; i < tx.inputsLength; i++) { let signed = false; for (const p of ["m/84'/0'/0'", "m/86'/0'/0'"]) for (let ch = 0; ch <= 1 && !signed; ch++) for (let idx = 0; idx < 20 && !signed; idx++) try { await tx.signIdx((await S.masterKey.derive(p + '/' + ch + '/' + idx)).privateKey, i); signed = true } catch(e) {} }
+  $v('signed-out', toB64(tx.toPSBT())); $show('signed-area'); notify('Signed!', 'ok');
+};
+
+$('btn-generate').onclick = async () => {
+  S.passphrase = $v('inp-pass-create') || '';
+  S.mnemonic = await generateMnemonic(wordlist, parseInt($v('sel-wc')) === 24 ? 256 : 128);
+  displayWords('mnemonic-grid', S.mnemonic); goPhase('mnemonic');
+  let sec = 60; $t('mnemonic-timer', 'Auto-hide in ' + sec + 's');
+  const timer = setInterval(() => { if (--sec <= 0) { clearInterval(timer); $('mnemonic-grid').innerHTML = '<span>Hidden</span>'; $t('mnemonic-timer', ''); return } $t('mnemonic-timer', 'Auto-hide in ' + sec + 's') }, 1000);
+};
+$('btn-wrote-down').onclick = () => {
+  const words = S.mnemonic.split(' '), indices = [];
+  while (indices.length < 3) { const r = Math.floor(crypto.getRandomValues(new Uint8Array(1))[0] / 256 * words.length); if (indices.indexOf(r) < 0) indices.push(r) }
+  indices.sort((a, b) => a - b);
+  $('verify-fields').innerHTML = indices.map(idx => '<span>Word #' + (idx + 1) + '</span><br><input data-idx="' + idx + '" type="text" autocomplete="off">').join(''); goPhase('verify');
+};
+$('btn-show-again').onclick = () => { displayWords('mnemonic-grid', S.mnemonic); goPhase('mnemonic') };
+$('btn-verify').onclick = async () => {
+  const words = S.mnemonic.split(' '); let ok = true;
+  document.querySelectorAll('#verify-fields input').forEach(inp => { if (inp.value.trim().toLowerCase() !== words[parseInt(inp.getAttribute('data-idx'))]) ok = false });
+  if (!ok) { notify('Incorrect words'); return } await activateWallet();
+};
+$('btn-import-go').onclick = async () => {
+  const raw = $v('inp-mnemonic').trim().toLowerCase().replace(/\s+/g, ' '), words = raw.split(' ');
+  if (words.length !== 12 && words.length !== 24) { notify('Need 12 or 24 words, got ' + words.length); return }
+  for (let i = 0; i < words.length; i++) if (wordlist.indexOf(words[i]) < 0) { notify('Invalid word: ' + words[i]); return }
+  if (!(await validateMnemonic(raw, wordlist))) { notify('Invalid checksum'); return }
+  S.mnemonic = raw; S.passphrase = $v('inp-pass-import') || ''; await activateWallet();
+};
+$('btn-import-psbt').onclick = async () => { const text = $v('inp-psbt').trim(); if (!text) { notify('Paste PSBT base64'); return } try { await processPSBT(fromB64(text)) } catch(e) { notify('Invalid: ' + e.message) } };
+$('btn-show-mn').onclick = () => { if (!confirm('Show sensitive data?')) return; displayWords('show-mn-grid', S.mnemonic); $show('mn-area') };
+$('btn-hide-mn').onclick = () => { $('show-mn-grid').innerHTML = ''; $hide('mn-area') };
+$('btn-wipe').onclick = () => {
+  if (!confirm('Erase wallet? Make sure you backed up your mnemonic.') || !confirm('Are you sure?')) return;
+  try { if (S.seed) S.seed.fill(0) } catch(e) {}
+  S.mnemonic = null; S.passphrase = ''; S.seed = null; S.masterKey = null;
+  S.accounts = { bip84: null, bip86: null }; $hide('signed-area'); $hide('mn-area');
+  $v('inp-psbt', ''); $v('signed-out', ''); notify('Wiped', 'warn'); goPhase('init');
+};
+})();
+</script>

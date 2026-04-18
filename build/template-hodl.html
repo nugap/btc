@@ -1,0 +1,151 @@
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:">
+<title>HODL</title>
+<style>body{font-family:monospace;padding:8px;max-width:560px;margin:0 auto}input,textarea,select{width:100%;margin:2px 0;padding:5px;font-family:monospace;box-sizing:border-box}button{margin:2px 0;padding:6px 14px;cursor:pointer}pre{white-space:pre-wrap;word-break:break-all;background:#f0f0f0;padding:6px;margin:2px 0}.mono{word-break:break-all}.warn{background:#fff3cd;padding:6px;margin:2px 0}.words{display:flex;flex-wrap:wrap;gap:3px;margin:6px 0}.words span{background:#eee;padding:3px 6px;border:1px solid #ccc}fieldset{border:1px solid #ccc;padding:6px;margin:6px 0}</style>
+<div id="online-warn" class="warn" style="display:none;background:#fcc"><b>WARNING:</b> This device is ONLINE. Disconnect from the internet!</div>
+<div id="notify" style="position:fixed;top:0;left:0;right:0;padding:6px;text-align:center;display:none"></div>
+<b>NUGAP HODL</b> <span id="net-label"></span>
+<div id="phase-init">
+<fieldset><legend>Create New Wallet</legend>
+<select id="sel-wc"><option value="12">12 words</option><option value="24">24 words</option></select>
+<input id="inp-pass-create" type="password" placeholder="BIP-39 Passphrase (optional)">
+<button id="btn-generate">Generate</button>
+</fieldset>
+<fieldset><legend>Import Existing Wallet</legend>
+<textarea id="inp-mnemonic" rows="3" placeholder="word1 word2 word3 ..."></textarea>
+<input id="inp-pass-import" type="password" placeholder="BIP-39 Passphrase (optional)">
+<button id="btn-import-go">Import</button>
+</fieldset>
+</div>
+<div id="phase-mnemonic" style="display:none">
+<fieldset><legend>Your Mnemonic</legend>
+<div class="warn">Write these words down on paper. Never store digitally.</div>
+<div id="mnemonic-grid" class="words"></div>
+<span id="mnemonic-timer"></span>
+<button id="btn-wrote-down">I've Written Them Down</button>
+</fieldset>
+</div>
+<div id="phase-verify" style="display:none">
+<fieldset><legend>Verify Mnemonic</legend>
+<div id="verify-fields"></div>
+<button id="btn-show-again">Show Again</button>
+<button id="btn-verify">Verify</button>
+</fieldset>
+</div>
+<div id="phase-dash" style="display:none">
+<fieldset><legend>Wallet</legend>
+Fingerprint: <span id="dash-fp" class="mono"></span>
+</fieldset>
+<fieldset><legend>Public Keys</legend>
+<b>SegWit (bc1q)</b><br>
+<textarea id="key-84" rows="2" readonly></textarea>
+<button data-copy="key-84">Copy</button><br>
+<b>Taproot (bc1p)</b><br>
+<textarea id="key-86" rows="2" readonly></textarea>
+<button data-copy="key-86">Copy</button>
+</fieldset>
+<fieldset><legend>Sign Transaction</legend>
+<textarea id="inp-psbt" rows="4" placeholder="Paste PSBT from yolo (base64)"></textarea>
+<button id="btn-import-psbt">Sign</button>
+</fieldset>
+<div id="signed-area" style="display:none">
+<fieldset><legend>Signed Transaction</legend>
+<pre id="review-body"></pre>
+<div class="warn">Verify the recipient address before pasting to yolo!</div>
+<textarea id="signed-out" rows="4" readonly></textarea>
+<button data-copy="signed-out">Copy</button>
+</fieldset>
+</div>
+<fieldset><legend>Security</legend>
+<button id="btn-show-mn">Show Mnemonic</button>
+<button id="btn-wipe" style="color:red">Wipe Wallet</button>
+<div id="mn-area" style="display:none">
+<div class="warn">Make sure nobody is watching!</div>
+<div id="show-mn-grid" class="words"></div>
+<button id="btn-hide-mn">Hide</button>
+</div>
+</fieldset>
+</div>
+<script>
+/* __BUNDLE_JS__ */
+</script>
+<script>
+(async ()=>{
+'use strict';
+const NETWORK = '/* __NETWORK__ */', IS_TEST = NETWORK === 'testnet4', NET = IS_TEST ? BTC_TEST_NETWORK : BTC_NETWORK;
+const S = { mnemonic: null, passphrase: '', seed: null, masterKey: null, accounts: { bip84: null, bip86: null } };
+const goPhase = name => { ['phase-init','phase-mnemonic','phase-verify','phase-dash'].forEach($hide); $show('phase-' + name) };
+const displayWords = (id, words) => { $(id).innerHTML = words.split(' ').map((w, i) => '<span>' + (i + 1) + '. ' + w + '</span>').join('') };
+const checkOnline = () => $('online-warn').style.display = navigator.onLine ? 'block' : 'none';
+
+$t('net-label', IS_TEST ? '[Testnet4]' : '[Mainnet]');
+checkOnline();
+window.addEventListener('online', () => { checkOnline(); notify('Internet detected! Disconnect!') });
+window.addEventListener('offline', checkOnline);
+
+const deriveAccounts = async () => {
+  const mk = S.masterKey, acc84 = await mk.derive("m/84'/0'/0'");
+  S.accounts.bip84 = { path: "m/84'/0'/0'", accountKey: acc84, pubkey: await convertXpubVersion(await acc84.publicExtendedKey(), ...(IS_TEST ? [0x04,0x5F,0x1C,0xF6] : [0x04,0xB2,0x47,0x46])) };
+  const acc86 = await mk.derive("m/86'/0'/0'");
+  S.accounts.bip86 = { path: "m/86'/0'/0'", accountKey: acc86, pubkey: IS_TEST ? await convertXpubVersion(await acc86.publicExtendedKey(), 0x04,0x35,0x87,0xCF) : await acc86.publicExtendedKey() };
+};
+const updateDash = async () => { $t('dash-fp', (await S.masterKey.fingerprint()).toString(16).padStart(8, '0')); $v('key-84', S.accounts.bip84.pubkey); $v('key-86', S.accounts.bip86.pubkey) };
+const activateWallet = async () => { S.seed = await mnemonicToSeed(S.mnemonic, S.passphrase); S.masterKey = await HDKey.fromMasterSeed(S.seed); await deriveAccounts(); await updateDash(); goPhase('dash'); notify('Wallet activated', 'ok') };
+const getChangeAddresses = async () => {
+  const addrs = {};
+  for (const type of ['bip84', 'bip86']) {
+    const acc = S.accounts[type]; if (!acc) continue;
+    const branch = await acc.accountKey.deriveChild(1);
+    for (let i = 0; i < 20; i++) { const pub = (await branch.deriveChild(i)).publicKey; addrs[type === 'bip84' ? (await p2wpkh(pub, NET)).address : (await p2tr(pub.length === 33 ? pub.slice(1) : pub, undefined, NET)).address] = true }
+  } return addrs;
+};
+const processPSBT = async psbtBytes => {
+  const tx = Transaction.fromPSBT(psbtBytes); let totalIn = 0n, totalOut = 0n; const outputs = [];
+  for (let i = 0; i < tx.inputsLength; i++) { const inp = tx.getInput(i); if (inp.witnessUtxo) totalIn += BigInt(inp.witnessUtxo.amount) }
+  for (let i = 0; i < tx.outputsLength; i++) { const out = tx.getOutput(i); totalOut += BigInt(out.amount); let addr; try { addr = encodeAddress(out.script, NET) } catch(e) { addr = '(unknown)' } outputs.push({ addr, amount: out.amount }) }
+  const changeAddrs = await getChangeAddresses();
+  let info = outputs.map(o => (changeAddrs[o.addr] ? '[CHANGE] ' : '[SEND]   ') + satsBtc(o.amount) + ' BTC\n         ' + o.addr).join('\n');
+  info += '\n\nFee: ' + satsBtc(Number(totalIn - totalOut)) + ' BTC (' + Number(totalIn - totalOut) + ' sats)\nInputs: ' + tx.inputsLength;
+  $t('review-body', info);
+  for (let i = 0; i < tx.inputsLength; i++) { let signed = false; for (const p of ["m/84'/0'/0'", "m/86'/0'/0'"]) for (let ch = 0; ch <= 1 && !signed; ch++) for (let idx = 0; idx < 20 && !signed; idx++) try { await tx.signIdx((await S.masterKey.derive(p + '/' + ch + '/' + idx)).privateKey, i); signed = true } catch(e) {} }
+  $v('signed-out', toB64(tx.toPSBT())); $show('signed-area'); notify('Signed!', 'ok');
+};
+
+$('btn-generate').onclick = async () => {
+  S.passphrase = $v('inp-pass-create') || '';
+  S.mnemonic = await generateMnemonic(wordlist, parseInt($v('sel-wc')) === 24 ? 256 : 128);
+  displayWords('mnemonic-grid', S.mnemonic); goPhase('mnemonic');
+  let sec = 60; $t('mnemonic-timer', 'Auto-hide in ' + sec + 's');
+  const timer = setInterval(() => { if (--sec <= 0) { clearInterval(timer); $('mnemonic-grid').innerHTML = '<span>Hidden</span>'; $t('mnemonic-timer', ''); return } $t('mnemonic-timer', 'Auto-hide in ' + sec + 's') }, 1000);
+};
+$('btn-wrote-down').onclick = () => {
+  const words = S.mnemonic.split(' '), indices = [];
+  while (indices.length < 3) { const r = Math.floor(crypto.getRandomValues(new Uint8Array(1))[0] / 256 * words.length); if (indices.indexOf(r) < 0) indices.push(r) }
+  indices.sort((a, b) => a - b);
+  $('verify-fields').innerHTML = indices.map(idx => '<span>Word #' + (idx + 1) + '</span><br><input data-idx="' + idx + '" type="text" autocomplete="off">').join(''); goPhase('verify');
+};
+$('btn-show-again').onclick = () => { displayWords('mnemonic-grid', S.mnemonic); goPhase('mnemonic') };
+$('btn-verify').onclick = async () => {
+  const words = S.mnemonic.split(' '); let ok = true;
+  document.querySelectorAll('#verify-fields input').forEach(inp => { if (inp.value.trim().toLowerCase() !== words[parseInt(inp.getAttribute('data-idx'))]) ok = false });
+  if (!ok) { notify('Incorrect words'); return } await activateWallet();
+};
+$('btn-import-go').onclick = async () => {
+  const raw = $v('inp-mnemonic').trim().toLowerCase().replace(/\s+/g, ' '), words = raw.split(' ');
+  if (words.length !== 12 && words.length !== 24) { notify('Need 12 or 24 words, got ' + words.length); return }
+  for (let i = 0; i < words.length; i++) if (wordlist.indexOf(words[i]) < 0) { notify('Invalid word: ' + words[i]); return }
+  if (!(await validateMnemonic(raw, wordlist))) { notify('Invalid checksum'); return }
+  S.mnemonic = raw; S.passphrase = $v('inp-pass-import') || ''; await activateWallet();
+};
+$('btn-import-psbt').onclick = async () => { const text = $v('inp-psbt').trim(); if (!text) { notify('Paste PSBT base64'); return } try { await processPSBT(fromB64(text)) } catch(e) { notify('Invalid: ' + e.message) } };
+$('btn-show-mn').onclick = () => { if (!confirm('Show sensitive data?')) return; displayWords('show-mn-grid', S.mnemonic); $show('mn-area') };
+$('btn-hide-mn').onclick = () => { $('show-mn-grid').innerHTML = ''; $hide('mn-area') };
+$('btn-wipe').onclick = () => {
+  if (!confirm('Erase wallet? Make sure you backed up your mnemonic.') || !confirm('Are you sure?')) return;
+  try { if (S.seed) S.seed.fill(0) } catch(e) {}
+  S.mnemonic = null; S.passphrase = ''; S.seed = null; S.masterKey = null;
+  S.accounts = { bip84: null, bip86: null }; $hide('signed-area'); $hide('mn-area');
+  $v('inp-psbt', ''); $v('signed-out', ''); notify('Wiped', 'warn'); goPhase('init');
+};
+})();
+</script>

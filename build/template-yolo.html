@@ -1,0 +1,163 @@
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src https://*; img-src data:">
+<title>YOLO</title>
+<style>body{font-family:monospace;padding:8px;max-width:560px;margin:0 auto}input,textarea,select{width:100%;margin:2px 0;padding:5px;font-family:monospace;box-sizing:border-box}button{margin:2px 0;padding:6px 14px;cursor:pointer}pre{white-space:pre-wrap;word-break:break-all;background:#f0f0f0;padding:6px;margin:2px 0}.mono{word-break:break-all}fieldset{border:1px solid #ccc;padding:6px;margin:6px 0}</style>
+<div id="notify" style="position:fixed;top:0;left:0;right:0;padding:6px;text-align:center;display:none"></div>
+<b>NUGAP YOLO</b> <span id="net-label"></span>
+<div id="phase-init">
+<fieldset><legend>Import Wallet</legend>
+<input id="inp-key">
+<button id="btn-import">Import</button>
+</fieldset>
+</div>
+<div id="phase-dash" style="display:none">
+<fieldset><legend>Wallet</legend>
+<div id="dash-addr" class="mono"></div>
+<div id="dash-path"></div>
+<b id="dash-balance">0.00000000 BTC</b> <span id="dash-type"></span><br>
+<span id="dash-updated"></span><br>
+<div id="dash-utxos"></div>
+<button id="btn-refresh">Refresh</button>
+<button id="btn-reset">Reset</button>
+</fieldset>
+<fieldset><legend>Send</legend>
+<input id="inp-recipient">
+<input id="inp-amount" placeholder="Amount (BTC)" inputmode="decimal">
+<button id="btn-max">MAX</button>
+<input id="inp-fee" type="number" value="4" min="1" placeholder="Fee Rate (sat/vB)">
+<button id="btn-create-tx">Create Transaction</button>
+</fieldset>
+<div id="psbt-area" style="display:none">
+<fieldset><legend>Unsigned PSBT</legend>
+<pre id="tx-preview"></pre>
+<textarea id="psbt-out" rows="4" readonly></textarea>
+<button data-copy="psbt-out">Copy</button>
+</fieldset>
+</div>
+<fieldset><legend>Import Signed TX</legend>
+<textarea id="inp-signed" rows="4" placeholder="Paste signed PSBT from hodl (base64)"></textarea>
+<button id="btn-do-import-signed">Import & Finalize</button>
+</fieldset>
+<div id="broadcast-area" style="display:none">
+<fieldset><legend>Broadcast Transaction</legend>
+<pre id="broadcast-info"></pre>
+<b style="color:red">This will send real BTC. Cannot be undone.</b><br>
+<button id="btn-broadcast">Broadcast</button>
+</fieldset>
+</div>
+<div id="result-area" style="display:none">
+<fieldset><legend style="color:green">Transaction Broadcast!</legend>
+<pre id="result-info"></pre>
+</fieldset>
+</div>
+</div>
+<script>
+/* __BUNDLE_JS__ */
+</script>
+<script>
+'use strict';
+const NETWORK = '/* __NETWORK__ */', IS_TEST = NETWORK === 'testnet4', NET = IS_TEST ? BTC_TEST_NETWORK : BTC_NETWORK;
+const API_BASE = IS_TEST ? 'https://mempool.space/testnet4/api' : 'https://mempool.space/api';
+const APP = { walletType: null, extendedKey: null, keyType: null, addresses: [], totalBalance: 0, currentPsbt: null, signedTxHex: null };
+const goPhase = name => { ['phase-init','phase-dash'].forEach($hide); $show('phase-' + name) };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const detectKeyType = key => (key[0] === 'z' || key[0] === 'v') ? 'bip84' : (key[0] === 'x' || key[0] === 't') ? 'bip86' : null;
+const resetDynamic = () => { $hide('psbt-area'); $hide('broadcast-area'); $hide('result-area') };
+const getChangeAddr = () => { const ch = APP.addresses.filter(a => a.isChange); if (!ch.length) return APP.addresses[0] ? APP.addresses[0].address : null; return (ch.find(a => !a.balance && !a.utxos.length) || ch[0]).address };
+
+$t('net-label', IS_TEST ? '[Testnet4]' : '[Mainnet]');
+$('inp-key').placeholder = IS_TEST ? 'vpub / tpub / tb1...' : 'zpub / xpub / bc1...';
+$('inp-recipient').placeholder = IS_TEST ? 'Recipient (tb1...)' : 'Recipient (bc1...)';
+
+const deriveAddresses = async (extKey, keyType, start, count, change) => {
+  let xpub = extKey;
+  if (keyType === 'bip84' && (extKey[0] === 'z' || extKey[0] === 'v')) xpub = await convertXpubVersion(extKey, ...(IS_TEST ? [0x04,0x35,0x87,0xCF] : [0x04,0x88,0xB2,0x1E]));
+  if (!xpub) throw new Error('Invalid key');
+  const vers = IS_TEST ? { public: 0x043587CF, private: 0x04358394 } : undefined;
+  const root = await HDKey.fromExtendedKey(xpub, vers), ch = change ? 1 : 0, branch = await root.deriveChild(ch), addrs = [], base = keyType === 'bip84' ? "m/84'/0'/0'" : "m/86'/0'/0'";
+  for (let i = start; i < start + count; i++) { const pub = (await branch.deriveChild(i)).publicKey; addrs.push({ path: base + '/' + ch + '/' + i, address: keyType === 'bip84' ? (await p2wpkh(pub, NET)).address : (await p2tr(pub.slice(1), undefined, NET)).address, isChange: !!change, balance: 0, utxos: [], pubkey: pub }) }
+  return addrs;
+};
+const api = async (path, opts) => {
+  opts = opts || {}; const res = await fetch(API_BASE + path, opts);
+  if (res.status === 429) { if ((opts._retries || 0) >= 3) throw new Error('Rate limited'); await sleep(5000); return api(path, { ...opts, _retries: (opts._retries || 0) + 1 }) }
+  if (!res.ok) throw new Error(await res.text() || 'HTTP ' + res.status);
+  return (res.headers.get('content-type') || '').includes('json') ? res.json() : res.text();
+};
+const fetchBalances = async () => {
+  let total = 0;
+  for (let i = 0; i < APP.addresses.length; i++) {
+    const a = APP.addresses[i];
+    try {
+      const info = await api('/address/' + a.address), cs = info.chain_stats || {}, ms = info.mempool_stats || {};
+      a.balance = (cs.funded_txo_sum - cs.spent_txo_sum) + (ms.funded_txo_sum - ms.spent_txo_sum);
+      if (a.balance > 0 || (cs.tx_count || 0) + (ms.tx_count || 0) > 0) a.utxos = ((await api('/address/' + a.address + '/utxo')) || []).map(u => ({ txid: u.txid, vout: u.vout, value: u.value, confirmed: u.status && u.status.confirmed }));
+      else a.utxos = []; total += a.balance;
+    } catch(e) {}
+    if (i < APP.addresses.length - 1) await sleep(300);
+  }
+  APP.totalBalance = total;
+};
+const renderDash = () => {
+  const f = APP.addresses[0]; $t('dash-type', APP.keyType === 'bip84' ? '[BIP-84 SegWit]' : '[BIP-86 Taproot]');
+  $t('dash-addr', f ? f.address : ''); $t('dash-path', f && f.path !== '-' ? f.path : '');
+  $t('dash-balance', satsBtc(APP.totalBalance) + ' BTC'); $t('dash-updated', 'Updated: ' + new Date().toLocaleTimeString());
+  let html = ''; APP.addresses.forEach(a => { if (a.balance <= 0 && !a.utxos.length) return; html += '<b>' + satsBtc(a.balance) + ' BTC</b> ' + a.address.slice(0, 12) + '...<br>'; a.utxos.forEach(u => { html += '  ' + u.txid.slice(0, 8) + ':' + u.vout + ' = ' + u.value + ' sats ' + (u.confirmed ? '✓' : '⏳') + '<br>' }) });
+  $('dash-utxos').innerHTML = html || '<span>No UTXOs</span>';
+};
+const selectUtxos = (targetSats, feeRate) => {
+  const all = []; APP.addresses.forEach(a => { a.utxos.forEach(u => { all.push({ ...u, address: a.address, pubkey: a.pubkey, path: a.path, keyType: APP.keyType }) }) });
+  all.sort((a, b) => b.value - a.value); const ivb = APP.keyType === 'bip86' ? 57.5 : 68, sel = []; let total = 0;
+  for (let i = 0; i < all.length; i++) { sel.push(all[i]); total += all[i].value; const vs = Math.ceil(sel.length * ivb + 2 * 31 + 10.5), fee = vs * feeRate; if (total >= targetSats + fee) { const ch = total - targetSats - fee; if (ch > 0 && ch < 546) return { selected: sel, fee: total - targetSats, change: 0, vsize: Math.ceil(sel.length * ivb + 31 + 10.5) }; return { selected: sel, fee, change: ch, vsize: vs } } }
+  return null;
+};
+
+$('btn-import').onclick = async () => {
+  const key = $v('inp-key').trim(); if (!key) { notify('Enter a key or address'); return }
+  const isXpub = /^(zpub|vpub|xpub|tpub)/.test(key);
+  try {
+    if (isXpub) {
+      const kt = detectKeyType(key); if (!kt) { notify('Unsupported key format'); return }
+      if (!(await base58Decode(key))) { notify('Invalid key checksum'); return }
+      const tk = key[0] === 't' || key[0] === 'v';
+      if (IS_TEST && !tk) { notify('Mainnet key on testnet'); return }
+      if (!IS_TEST && tk) { notify('Testnet key on mainnet'); return }
+      APP.walletType = 'xpub'; APP.extendedKey = key; APP.keyType = kt; APP.addresses = await deriveAddresses(key, kt, 0, 1, false);
+    } else {
+      const v = validateAddr(key, NET); if (!v.valid) { notify(v.error); return }
+      APP.walletType = 'address'; APP.keyType = v.type === 'p2tr' ? 'bip86' : 'bip84';
+      APP.addresses = [{ path: '-', address: key, isChange: false, balance: 0, utxos: [], pubkey: null }];
+    }
+    await fetchBalances(); renderDash(); resetDynamic(); goPhase('dash'); notify('Imported', 'ok');
+  } catch(e) { notify('Import failed: ' + e.message) }
+};
+$('btn-refresh').onclick = async () => { try { await fetchBalances(); renderDash(); notify('Updated', 'ok') } catch(e) { notify('Refresh failed: ' + e.message) } };
+$('btn-reset').onclick = () => { APP.walletType = null; APP.extendedKey = null; APP.keyType = null; APP.addresses = []; APP.totalBalance = 0; resetDynamic(); goPhase('init') };
+$('btn-max').onclick = () => { const rate = parseInt($v('inp-fee')) || 4, all = APP.addresses.flatMap(a => a.utxos), ivb = APP.keyType === 'bip86' ? 57.5 : 68, fee = Math.ceil(all.length * ivb + 31 + 10.5) * rate, max = APP.totalBalance - fee; if (max <= 0) { notify('Insufficient funds for fee'); return } $v('inp-amount', satsBtc(max)) };
+$('btn-create-tx').onclick = async () => {
+  const recipient = $v('inp-recipient').trim(), v = validateAddr(recipient, NET); if (!v.valid) { notify(v.error); return }
+  const amt = btcSats($v('inp-amount')); if (amt <= 0) { notify('Invalid amount'); return }
+  const feeRate = parseInt($v('inp-fee')) || 4, sel = selectUtxos(amt, feeRate); if (!sel) { notify('Insufficient funds'); return }
+  try {
+    const txData = {}; for (let i = 0; i < sel.selected.length; i++) { const u = sel.selected[i]; if (!txData[u.txid]) try { txData[u.txid] = await api('/tx/' + u.txid + '/hex') } catch(e) {} await sleep(300) }
+    const tx = new Transaction(); for (let i = 0; i < sel.selected.length; i++) {
+      const u = sel.selected[i], inp = { txid: u.txid, index: u.vout, sequence: 0xfffffffd, witnessUtxo: { script: decodeAddress(u.address, NET), amount: BigInt(u.value) } };
+      if (txData[u.txid]) inp.nonWitnessUtxo = hexToBytes(txData[u.txid]);
+      if (u.keyType === 'bip86' && u.pubkey) { const pub = typeof u.pubkey === 'string' ? hexToBytes(u.pubkey) : u.pubkey; inp.tapInternalKey = pub.length === 33 ? pub.slice(1) : pub }
+      tx.addInput(inp);
+    }
+    tx.addOutputAddress(recipient, BigInt(amt), NET);
+    if (sel.change > 0) { const ca = getChangeAddr(); if (ca) tx.addOutputAddress(ca, BigInt(sel.change), NET) }
+    APP.currentPsbt = tx.toPSBT();
+    let info = 'To: ' + recipient + '\nAmount: ' + satsBtc(amt) + ' BTC\nFee: ' + sel.fee + ' sats\nInputs: ' + sel.selected.length;
+    if (sel.change > 0) info += '\nChange: ' + satsBtc(sel.change) + ' BTC → ' + getChangeAddr();
+    $t('tx-preview', info); $v('psbt-out', toB64(APP.currentPsbt)); $show('psbt-area'); $hide('broadcast-area'); $hide('result-area');
+  } catch(e) { notify('TX error: ' + e.message) }
+};
+$('btn-do-import-signed').onclick = () => {
+  const text = $v('inp-signed').trim(); if (!text) { notify('Paste signed PSBT'); return }
+  const psbt = fromB64(text); if (!psbt) { notify('Invalid base64 data'); return }
+  try { const tx = Transaction.fromPSBT(psbt); tx.finalize(); APP.signedTxHex = bytesToHex(tx.extract()); $t('broadcast-info', APP.signedTxHex + '\n\n(' + APP.signedTxHex.length / 2 + ' bytes)'); $show('broadcast-area'); $hide('result-area'); notify('Signed TX decoded', 'ok') } catch(e) { notify('Failed: ' + e.message) }
+};
+$('btn-broadcast').onclick = async () => { try { const txid = await api('/tx', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: APP.signedTxHex }); $t('result-info', 'TXID: ' + txid + '\n\n' + API_BASE.replace('/api', '') + '/tx/' + txid); $show('result-area') } catch(e) { notify('Broadcast failed: ' + e.message) } };
+</script>
